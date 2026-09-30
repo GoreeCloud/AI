@@ -38,6 +38,14 @@ This file records capabilities that exist in the current repository source. An e
 - Explicit non-authority markers that prevent supplied authorization JSON from becoming production trust, persistent authorization or execution authority.
 - Runtime-adapter readiness, evidence-envelope, replay-precondition and Development durable single-use/revocation registry foundations. These remain non-production trust scaffolding until authenticated producers and accepted adapters exist.
 
+## Agent intelligence Development foundation
+
+- Side-effect-free governed context selection with explicit scope, freshness, sensitivity and sharing metadata.
+- Dependency-aware single-goal work planning with cycle rejection, declared action identities and shared-resource sequencing.
+- Requirement-driven capability selection using declared operation fit, permission, sensitivity ceiling, health, authority and effect level; selection never creates execution authority.
+- Proportional execution-mode classification for direct, standard, complex and high-consequence work.
+- Five requirement-linked Node tests covering the current isolated foundation. The module is not imported by the live backend and does not establish full AIR-001 through AIR-017 conformance.
+
 ## Repository and verification foundations
 
 - `docs/USER-MANUAL.md` as the sole authoritative repository user manual under the GitHub-only manual-storage and root-cleanliness rules.
