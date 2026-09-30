@@ -1,0 +1,79 @@
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.context-card-wide > div:last-child { min-width: 0; }
+.context-select {
+  width: 100%;
+  margin-top: 11px;
+  padding: 9px 34px 9px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface-2);
+}
+.context-select option { color: #111827; }
+.context-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--soft);
+  background: transparent;
+  cursor: pointer;
+}
+.context-action:hover { color: var(--text); background: rgba(255,255,255,.055); }
+.file-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--soft);
+  background: rgba(255,255,255,.03);
+  font-size: 11px;
+}
+.file-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.file-chip > em {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.file-chip.available > em { color: var(--text); }
+.file-chip.blocked > em, .file-chip.held > em { color: var(--soft); }
+
+.model-picker optgroup { font-weight: 700; }
+.model-picker option { font-weight: 500; }
+.tool-button:disabled { cursor: progress; opacity: .45; }
+
+@media (prefers-color-scheme: light) {
+  .context-select { background: rgba(255,255,255,.92); }
+  .context-action:hover, .file-chip { background: rgba(31,52,82,.045); }
+}

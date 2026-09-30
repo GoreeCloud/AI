@@ -1,0 +1,13 @@
+# Model Resource Readiness — Development-Only Candidate Assessment
+
+**Status:** Isolated, side-effect-free development source. No HTTP route, existing chat-path change, inference, policy activation, hardware inspection, tool authorization, or model loading.
+
+`server/model-resource-readiness.mjs` adds `assessDevelopmentModelResourcePlan` to evaluate a future model request against three separately provided inputs: an exact approved-model preflight selection, an operator-reviewed Development-only model profile, and a freshly observed Development-only host-capacity snapshot. The requested workload binds the exact role, allowed local processing zone, required input modalities, estimated input/output token budget, and whether tool calling would be needed.
+
+The assessment checks closed field schemas, exact model and role binding, explicit modality and tool-call declarations, profile and host-snapshot freshness, declared context-window fit, memory estimate with reserved capacity, and concurrent-request headroom. It fails closed on invalid, stale, mismatched, unsupported, or exhausted inputs.
+
+**Trust boundary:** No profile or host snapshot is retrieved or authenticated here. Literal `source` fields and timestamps alone are not proof that the operator has reviewed the model or that the host actually has capacity. A positive result is `status: candidate` with `fit: operator-declared-estimate-only`, `profileTrust: development-unverified`, `capacityTrust: development-unverified`, `runtimeValidated: false`, `inferenceAuthorized: false`, and `toolExecutionAuthorized: false`. It is a planning input for separate real-runtime acceptance, not a production authorization decision.
+
+The module is **not imported into the live backend or CLI**. Current operator diagnostic remains read-only model discovery. No model is considered to support image, audio, tool use, or a given context size based on model name or runtime advertisement alone. Verified target-host capabilities, resource measurements, authenticated administrator policy provenance, the relevant Identity/Privacy Shield/GoreeCloud Policy decisions, source review, live streamed request tests, and deployment review are still required before a real inference path may consume such an assessment.
+
+Validation: `node --check server/model-resource-readiness.mjs && node --test server/model-resource-readiness.test.mjs`. The repository's existing native server test script automatically discovers the added tests. Source-level CI can verify expected branches of this pure assessor, but cannot establish live capacity, processing-zone enforcement, security acceptance, Platform Contract conformance, or Stable readiness.

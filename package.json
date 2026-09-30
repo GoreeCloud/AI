@@ -1,0 +1,34 @@
+{
+  "name": "goreecloud-ai",
+  "private": false,
+  "version": "0.1.0-dev.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:server": "node --env-file-if-exists=.env server/index.mjs",
+    "server": "node server/index.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "check": "tsc -b --pretty false",
+    "check:server": "node --check server/index.mjs && node --check server/files.mjs && node --check server/artifact-security.mjs && node --check server/text-extraction.mjs && node --check server/knowledge-authorization.mjs && node --check server/knowledge-eligibility.mjs && node --check scripts/validate-runtime.mjs && node --check server/model-router.mjs && node --check server/model-route-preflight.mjs && node --check server/model-local-adapters.mjs && node --check scripts/validate-model-routing.mjs && node --check server/model-resource-readiness.mjs && node --check scripts/validate-model-resource.mjs && node --check scripts/validate-approved-model-runtime.mjs",
+    "test:server": "node --test server/*.test.mjs",
+    "validate:runtime": "node scripts/validate-runtime.mjs",
+    "validate:model-routing": "node scripts/validate-model-routing.mjs",
+    "validate:model-resource": "node scripts/validate-model-resource.mjs",
+    "validate:approved-model-runtime": "node scripts/validate-approved-model-runtime.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-markdown": "latest",
+    "remark-gfm": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest"
+  }
+}

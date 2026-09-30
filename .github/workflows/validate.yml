@@ -20,12 +20,32 @@ jobs:
       - name: Verify exact source revision
         run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Install application dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check application
+        run: npm run check
+
+      - name: Validate server syntax
+        run: npm run check:server
+
+      - name: Test native attachment security boundary
+        run: npm run test:server
+
+      - name: Build application
+        run: npm run build
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.13'
 
-      - name: Test Wardveil AI artifact security
+      - name: Test Wardveil AI artifact security reference
         run: python3 scripts/test_ai_artifact_security.py
 
       - name: Validate Wardveil AI integration contract
