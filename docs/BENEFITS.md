@@ -16,4 +16,4 @@ These benefits describe implemented architectural value and intended product val
 
 When separately implemented and accepted, GoreeCloud Identity, Wardveil Security, Privacy Shield, Everkeep, GoreeCloud Mesh, GoreeCloud Search, and Glaze UI are intended to provide consistent authorization, security, privacy, recovery, coordination, research, accessibility, and evidence presentation around AI use.
 
-These intended benefits remain evidence-gated; current source work does not make a production privacy, security, resilience, or Stable claim.
+These intended benefits remain evidence-gated; current source work does not make a production privacy, security, resilience, or Anchor claim.

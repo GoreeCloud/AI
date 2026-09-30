@@ -60,8 +60,8 @@ Credentials, private keys, recovery material, raw authorization tokens, reusable
 
 ## Supply-chain and release security
 
-Dependencies, actions, runtime versions, source revisions, and release artifacts require governed provenance and vulnerability/update practices. Exact-head CI is necessary but not sufficient. Stable or production claims additionally require applicable security, privacy, accessibility, recovery, supported-platform, deployment, and release acceptance.
+Dependencies, actions, runtime versions, source revisions, and release artifacts require governed provenance and vulnerability/update practices. Exact-head CI is necessary but not sufficient. Anchor or production claims additionally require applicable security, privacy, accessibility, recovery, supported-platform, deployment, and release acceptance.
 
 ## Current non-claims
 
-GoreeCloud AI is Development. Live authenticated Wardveil, Privacy Shield, and Identity integration; broader platform-system acceptance; production RAG; supported deployment; release evidence; and Stable security acceptance remain outstanding unless later authoritative evidence explicitly closes those gates.
+GoreeCloud AI is in the Forge lifecycle. Live authenticated Wardveil, Privacy Shield, and Identity integration; broader platform-system acceptance; production RAG; supported deployment; release evidence; and Anchor security acceptance remain outstanding unless later authoritative evidence explicitly closes those gates.

@@ -4,7 +4,7 @@
 
 GoreeCloud AI is under active native development. The current Draft Milestone 0 branch provides the first-party conversational application foundation, backend-owned Ollama access, persistent conversations, model roles, Workspaces, private attachment handling, Wardveil-gated attachment release, quota/deletion controls, bounded passive text extraction, read-only knowledge eligibility, and a bounded non-persistent knowledge-authorization assessment.
 
-It is not Stable or production-ready.
+It is not Anchor-qualified or production-ready.
 
 ## Product Boundary
 
@@ -148,11 +148,11 @@ Set `VALIDATE_OLLAMA_MODEL=<installed-model-id>` to additionally send one bounde
 
 Set `VALIDATE_REQUIRE_WARDVEIL_SCANNER=true` only when validating an environment that is expected to have an authenticated Wardveil scanner transport. The check fails rather than treating an unconfigured scanner as acceptable evidence.
 
-A passing runtime validation proves only the application/runtime path exercised by that run. It does not establish GoreeCloud Identity, Wardveil, Privacy Shield, Everkeep, Mesh, Glaze UI, deployment, recovery, or Stable production acceptance.
+A passing runtime validation proves only the application/runtime path exercised by that run. It does not establish GoreeCloud Identity, Wardveil, Privacy Shield, Everkeep, Mesh, Glaze UI, deployment, recovery, or Anchor production acceptance.
 
 ## Glaze UI Migration State
 
-The current authoritative Stable consumer target is **GLAZE UI V1.6 / 1.6.0**. Existing 2.x-labeled source is historical migration input and does not establish current conformance. GoreeCloud AI remains migration/reconciliation-required until its interface targets the accepted 1.6.0 revision and completes application-specific exact-revision conformance/acceptance. Design-system promotion does not automatically promote this application.
+The current authoritative Official Anchor consumer target is **GLAZE UI V1.6 / 1.6.0**. Existing 2.x-labeled source is historical migration input and does not establish current conformance. GoreeCloud AI remains migration/reconciliation-required until its interface targets the accepted 1.6.0 revision and completes application-specific exact-revision conformance/acceptance. Design-system promotion does not automatically promote this application.
 
 ## Privacy and External Processing
 
@@ -179,4 +179,4 @@ The Draft branch still requires, among other evidence:
 - migration/reconciliation to GLAZE UI V1.6 / 1.6.0 and exact current consumer conformance evidence;
 - deployment and broader production-readiness validation.
 
-Do not represent successful source checks, a knowledge-eligibility/authorization assessment, or local runtime validation as Stable or production-ready evidence.
+Do not represent successful source checks, a knowledge-eligibility/authorization assessment, or local runtime validation as Anchor or production-ready evidence.

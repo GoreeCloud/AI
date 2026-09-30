@@ -1,10 +1,10 @@
 # GoreeCloud AI — Implemented Features
 
 **Authority:** Repository-native implemented-feature record  
-**Lifecycle:** Development / Draft / nonconformant  
-**Production status:** Not production-ready or Stable-qualified
+**Lifecycle:** Forge / Draft PR #1 / nonconformant  
+**Production status:** Not production-accepted or Anchor-qualified
 
-This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Stable qualification. Those states require their own exact-revision evidence.
+This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
 ## Application foundation
 
@@ -40,9 +40,9 @@ This file records capabilities that exist in the current repository source. An e
 
 ## Repository and verification foundations
 
-- Root `USER-MANUAL.md` as the sole authoritative user manual under the GitHub-only manual-storage rule.
+- `docs/USER-MANUAL.md` as the sole authoritative repository user manual under the GitHub-only manual-storage and root-cleanliness rules.
 - Repository-native specification, benefits, competitive objectives, branding references and implementation documentation.
-- Platform Contract 0.4 declaration evaluating all nine Integral Platform Systems with incomplete integrations represented as blocked/nonconformant rather than passed.
+- Platform Contract 2.0 declaration using the canonical Forge lifecycle and evaluating all nine Integral Platform Systems with incomplete integrations represented as blocked, migration-required, or nonconformant rather than passed.
 - Exact-head CI for TypeScript checking, server syntax, Node tests, production client build, Wardveil reference tests/contract validation and Python compilation.
 
 ## Material limitations
@@ -52,4 +52,4 @@ This file records capabilities that exist in the current repository source. An e
 - No authenticated production Wardveil scanner transport is connected.
 - No authenticated production Identity, Privacy Shield or GoreeCloud Policy runtime adapter is accepted.
 - Native RAG execution remains disabled; indexing, retrieval and model-context eligibility remain false.
-- Current source/CI evidence does not prove real target-host GPU capacity, sustained throughput, all model capabilities, production deployment or Stable qualification.
+- Current source/CI evidence does not prove real target-host GPU capacity, sustained throughput, all model capabilities, production deployment or Anchor qualification.

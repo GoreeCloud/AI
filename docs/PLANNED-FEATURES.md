@@ -1,7 +1,7 @@
 # GoreeCloud AI — Planned and Open Features
 
 **Authority:** Repository-native open feature and capability record  
-**Lifecycle:** Development / Draft / nonconformant
+**Lifecycle:** Forge / Draft PR #1 / nonconformant
 
 This file contains planned, in-progress, partial, blocked, deferred and otherwise incomplete GoreeCloud AI obligations. Items remain open until implementation and verification are supported by authoritative evidence or an explicit lifecycle disposition replaces them.
 
@@ -41,9 +41,9 @@ Implement accepted backup/restore/export/recovery, management, service coordinat
 
 ## Pending consumer work
 
-### Current Stable Glaze UI 1.6.0 consumer conformance
+### Official Anchor Glaze UI 1.6.0 consumer conformance
 
-Adopt current Official Stable **GLAZE UI V1.6 / 1.6.0** from the live `GoreeCloud/glaze-ui` lifecycle authority and complete exact-revision product accessibility, responsive, performance and conformance evidence. Shared Glaze UI Stable status does not certify the GoreeCloud AI consumer.
+Adopt current Official Anchor **GLAZE UI V1.6 / 1.6.0** from the live `GoreeCloud/glaze-ui` lifecycle authority and complete exact-revision product accessibility, responsive, performance and conformance evidence. Shared Glaze UI Anchor status does not certify the GoreeCloud AI consumer.
 
 ### Application Foundation adoption
 
@@ -78,4 +78,4 @@ The former requirement to synchronize a Drive roadmap is superseded by the repos
 
 ## Review, release and deployment
 
-Keep Draft work from being represented as release-ready while mandatory exact-revision runtime, security, privacy, recovery, platform, rollback and human-review gates remain incomplete. A passing source build or Development diagnostic is not a production or Stable claim.
+Keep Draft work from being represented as release-ready while mandatory exact-revision runtime, security, privacy, recovery, platform, rollback and human-review gates remain incomplete. A passing source build or Development diagnostic is not a production or Anchor claim.

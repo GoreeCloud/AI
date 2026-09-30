@@ -1,23 +1,19 @@
-name: GoreeCloud AI Platform Contract
+name: GoreeCloud AI Platform Contract 2.0
 
 on:
   pull_request:
     paths:
       - 'goreecloud.platform.yaml'
-      - 'PRIVACY POLICY.md'
-      - 'SECURITY.md'
-      - 'NOTES.md'
-      - 'FEATURE-ROADMAP.md'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/platform-contract.yml'
   push:
     branches:
       - main
     paths:
       - 'goreecloud.platform.yaml'
-      - 'PRIVACY POLICY.md'
-      - 'SECURITY.md'
-      - 'NOTES.md'
-      - 'FEATURE-ROADMAP.md'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/platform-contract.yml'
 
 permissions:
@@ -25,9 +21,8 @@ permissions:
 
 jobs:
   platform-contract:
-    # Pin validation to the accepted central Platform Contract 0.4 nine-system
-    # implementation. Exact revision provenance is intentional; do not follow
-    # a moving central branch for conformance validation.
-    uses: GoreeCloud/GoreeCloud/.github/workflows/reusable-platform-manifest.yml@6cb150d512647a0401b4da9e4741d7591693dee0
+    # Pin validation to the current verified central Platform Contract 2.0
+    # implementation. Exact evaluator provenance is intentional.
+    uses: GoreeCloud/GoreeCloud/.github/workflows/reusable-platform-manifest.yml@32cfe6395f6e4bc4872a99e8d0c666ea0b1ed7b8
     with:
       manifest-path: goreecloud.platform.yaml

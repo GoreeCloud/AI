@@ -2,18 +2,18 @@
 
 Native GoreeCloud-owned AI application for private conversations, Workspaces, knowledge/RAG direction, research, tools, agents, files, artifacts, and locally operated intelligence.
 
-> **Development status:** Milestone 0 foundation under active development. This repository is not production-ready or Stable-qualified.
+> **Lifecycle:** Forge — Milestone 0 foundation under active development in Draft PR #1. This repository is not production-accepted, Seal-qualified, or Anchor-qualified.
 
 ## Project records
 
-- [Specifications](SPECIFICATIONS.md)
-- [Implemented features — canonical current capability state](IMPLEMENTED-FEATURES.md)
-- [Planned/open features — canonical incomplete capability state](PLANNED-FEATURES.md)
-- [Changelogs — canonical repository change history](CHANGELOGS.md)
-- [Feature overview](FEATURES.md)
-- [Benefits](BENEFITS.md)
-- [Competitive objectives](COMPETITIVE-OBJECTIVES.md)
-- [User manual](USER-MANUAL.md)
+- [Specifications](docs/SPECIFICATIONS.md)
+- [Implemented features — canonical current capability state](docs/IMPLEMENTED-FEATURES.md)
+- [Planned/open features — canonical incomplete capability state](docs/PLANNED-FEATURES.md)
+- [Changelogs — canonical repository change history](docs/CHANGELOGS.md)
+- [Feature overview](docs/FEATURES.md)
+- [Benefits](docs/BENEFITS.md)
+- [Competitive objectives](docs/COMPETITIVE-OBJECTIVES.md)
+- [User manual](docs/USER-MANUAL.md)
 - [Knowledge authorization boundary](docs/KNOWLEDGE-AUTHORIZATION.md)
 - [Development model routing](docs/MODEL_ROUTING.md)
 - [Bounded routing preflight](docs/MODEL_ROUTING_PREFLIGHT.md)
@@ -22,7 +22,7 @@ Native GoreeCloud-owned AI application for private conversations, Workspaces, kn
 - [Development-only model capability and resource-fit guard](docs/MODEL_RESOURCE_READINESS.md)
 - [Opt-in local model-resource diagnostic](docs/MODEL_RESOURCE_DIAGNOSTIC.md)
 - [Approved local model runtime validation](docs/APPROVED_MODEL_RUNTIME_VALIDATION.md)
-- [Branding authority](BRANDING.md)
+- [Branding authority](docs/BRANDING.md)
 
 ## Product boundary
 
@@ -241,7 +241,7 @@ GOREECLOUD_AI_URL=http://127.0.0.1:8787 npm run validate:runtime
 
 The base validation requires GoreeCloud AI health and Ollama model discovery through the application backend. `VALIDATE_OLLAMA_MODEL='<installed-model-id>'` can exercise one streamed model request. `VALIDATE_REQUIRE_WARDVEIL_SCANNER=true` fails if an environment expected to have an authenticated Wardveil transport reports it unconfigured.
 
-Successful source checks or runtime validation do not establish Wardveil/Privacy Shield/Everkeep/Identity/Mesh production acceptance, recoverability, exact Glaze UI conformance, deployment readiness, or Stable qualification.
+Successful source checks or runtime validation do not establish Wardveil/Privacy Shield/Everkeep/Identity/Mesh production acceptance, recoverability, exact Glaze UI conformance, deployment readiness, or Anchor qualification.
 
 ### Approved-model runtime evidence
 
@@ -249,7 +249,7 @@ For a policy-bound exact-model Development check through the existing applicatio
 
 ## Platform-system acceptance
 
-- **Glaze UI:** the current authoritative Stable consumer target is **GLAZE UI V1.6 / 1.6.0**. GoreeCloud AI remains migration/reconciliation-required until exact-revision product-specific conformance evidence exists. Existing 2.x-labeled source is historical migration input and is not current conformance evidence.
+- **Glaze UI:** the current authoritative Official Anchor consumer target is **GLAZE UI V1.6 / 1.6.0**. GoreeCloud AI remains migration/reconciliation-required until exact-revision product-specific conformance evidence exists. Existing 2.x-labeled source is historical migration input and is not current conformance evidence.
 - **Wardveil Security:** source trust enforcement exists; deployed authenticated Scan transport and AI consumer production acceptance remain pending.
 - **Privacy Shield:** current decision fields/outcomes are structurally consumed, but authenticated runtime enforcement/capability/evidence and AI consumer acceptance remain pending. Supplied JSON cannot create Privacy Shield authority.
 - **Everkeep:** attachment/extraction/future knowledge retention, export, backup, restore, recovery, preservation, portability, and succession remain pending application-specific acceptance.
@@ -258,13 +258,13 @@ For a policy-bound exact-model Development check through the existing applicatio
 
 ## Roadmap
 
-The canonical open feature and capability inventory is [PLANNED-FEATURES.md](PLANNED-FEATURES.md). Implemented capability state is maintained in [IMPLEMENTED-FEATURES.md](IMPLEMENTED-FEATURES.md), and meaningful repository history is recorded in [CHANGELOGS.md](CHANGELOGS.md).
+The canonical open feature and capability inventory is [docs/PLANNED-FEATURES.md](docs/PLANNED-FEATURES.md). Implemented capability state is maintained in [docs/IMPLEMENTED-FEATURES.md](docs/IMPLEMENTED-FEATURES.md), and meaningful repository history is recorded in [docs/CHANGELOGS.md](docs/CHANGELOGS.md).
 
-Do not infer completion, deployment, production acceptance or Stable qualification from roadmap position or source-only validation.
+Do not infer completion, deployment, production acceptance or Anchor qualification from roadmap position or source-only validation.
 
 ## Visual identity
 
-The canonical branding authority is `GoreeCloud/goreecloud-branding-assets`; see `BRANDING.md`. Local artwork is a synchronized consumer derivative and does not establish capability or release claims.
+The canonical branding authority is `GoreeCloud/goreecloud-branding-assets`; see `docs/BRANDING.md`. Local artwork is a synchronized consumer derivative and does not establish capability or release claims.
 
 ## License
 

@@ -7,9 +7,9 @@
 
 GoreeCloud AI is under active Milestone 0 development in Draft PR #1 on branch `agent/milestone-0-foundation`.
 
-Exact head `0ef9e7261be21c9d8652d47f3f7a793897e035fa` previously passed Validate GoreeCloud AI run `35006998441` and GoreeCloud AI Platform Contract run `35006999549` under the superseded Contract 0.2 / seven-system authority. That evidence remains exact-revision historical evidence only and does not establish Contract 0.4, Policy, Observability, or current-Stable Glaze UI conformance for a later candidate.
+Exact head `0ef9e7261be21c9d8652d47f3f7a793897e035fa` previously passed Validate GoreeCloud AI run `35006998441` and GoreeCloud AI Platform Contract run `35006999549` under the superseded Contract 0.2 / seven-system authority. That evidence remains exact-revision historical evidence only and does not establish Contract 2.0, Policy, Observability, or current Official Anchor Glaze UI conformance for a later candidate.
 
-Current source version is `0.1.0-dev.0`. The application is not Stable, production-ready, or accepted as a current-Stable Glaze UI consumer.
+Current source version is `0.1.0-dev.0`. The application is not Anchor-qualified, production-ready, or accepted as a current Official Anchor Glaze UI consumer.
 
 ## Current implemented foundations
 
@@ -29,7 +29,7 @@ Current source version is `0.1.0-dev.0`. The application is not Stable, producti
 
 The following are not established by current source alone:
 
-- current Stable Glaze UI `1.5.1` implementation and GoreeCloud AI-specific acceptance;
+- current Official Anchor Glaze UI `1.6.0` implementation and GoreeCloud AI-specific acceptance;
 - authenticated GoreeCloud Identity transport and production application authorization;
 - authenticated Privacy Shield enforcement, capability/evidence authority, durable authorization, revocation and replay acceptance;
 - accepted live Wardveil transport/runtime evidence;
@@ -39,7 +39,7 @@ The following are not established by current source alone:
 - GoreeCloud Policy AI-specific runtime decision, enforcement, and evidence acceptance;
 - GoreeCloud Observability AI-specific health, telemetry, diagnostics, freshness, and evidence acceptance;
 - production RAG, embeddings, indexing, retrieval, model-context authorization, or research integration;
-- supported deployment, signing/package/release, representative runtime, or Stable evidence.
+- supported deployment, signing/package/release, representative runtime, or Anchor evidence.
 
 A structurally valid caller-supplied trust record remains non-authoritative. `productionTrustedInput`, `persistentAuthorizationCreated`, `executionAuthorized`, and knowledge-stage eligibility must remain fail-closed until real authority is established.
 
@@ -47,7 +47,7 @@ A structurally valid caller-supplied trust record remains non-authoritative. `pr
 
 The current central machine-readable authority is Platform Contract `0.4`, accepted in `GoreeCloud/GoreeCloud` at exact merge revision `6cb150d512647a0401b4da9e4741d7591693dee0`. GoreeCloud AI must evaluate exactly nine Integral Platform Systems: GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability. GoreeCloud Sync remains separately governed and must not appear as a tenth `platform_systems` entry.
 
-The current mandatory Stable Glaze UI target is `1.5.1`. Prior GoreeCloud AI references to Glaze UI `1.4.1`, `1.1.0`, or experimental `2.x` targets are historical or stale current-state material and must not be relabeled as current acceptance.
+The current mandatory Official Anchor Glaze UI target is `1.6.0`. Prior GoreeCloud AI references to Glaze UI `1.4.1`, `1.1.0`, or experimental `2.x` targets are historical or stale current-state material and must not be relabeled as current acceptance.
 
 The Contract 0.4 declaration keeps all nine application-specific integrations fail-closed unless accepted evidence exists. Adding Policy and Observability declarations records applicability and blockers; it does not manufacture runtime integration or conformance.
 
@@ -59,4 +59,4 @@ A successful workflow result belongs only to the exact evaluated source revision
 
 ## Release boundary
 
-Keep Draft PR #1 in Development until exact-head validation and all applicable runtime, platform-system, privacy, security, recovery, accessibility, deployment, release, and representative acceptance gates are complete. Merge, release, production acceptance, and Stable are separate decisions.
+Keep Draft PR #1 in Forge until exact-head validation and all applicable runtime, platform-system, privacy, security, recovery, accessibility, deployment, release, and representative acceptance gates are complete. Merge, Seal, deployment, production acceptance, and Anchor are separate decisions.

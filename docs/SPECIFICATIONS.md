@@ -4,9 +4,9 @@
 
 GoreeCloud AI is original GoreeCloud-owned AI application and orchestration software. Ollama is the initial replaceable local model runtime; GoreeCloud AI owns conversations, Workspaces, model-role abstraction, files, knowledge/RAG direction, tools/agents boundaries, research orchestration, and the user-facing product.
 
-## Current development state
+## Current Forge state
 
-The active Milestone 0 foundation includes a React/TypeScript/Vite client, Node.js backend, Ollama model discovery/streaming chat boundary, conversation persistence, model roles, Workspaces, private attachment storage, Wardveil-gated attachment release, attachment quotas/deletion, passive-text extraction, read-only knowledge eligibility, bounded Identity/application + Privacy Shield authorization-input assessment, an opt-in baseline live runtime validator, and a separately opt-in approved-model runtime validator for one policy-bound exact-model streamed Development request through the existing backend.
+The active Milestone 0 foundation is in the canonical Forge lifecycle under Platform Contract 2.0. It includes a React/TypeScript/Vite client, Node.js backend, Ollama model discovery/streaming chat boundary, conversation persistence, model roles, Workspaces, private attachment storage, Wardveil-gated attachment release, attachment quotas/deletion, passive-text extraction, read-only knowledge eligibility, bounded Identity/application + Privacy Shield authorization-input assessment, an opt-in baseline live runtime validator, and a separately opt-in approved-model runtime validator for one policy-bound exact-model streamed Development request through the existing backend. The Draft pull request remains nonconformant and has not entered Seal or Anchor.
 
 The default development server intentionally has no fabricated Wardveil scanner transport. Without an authenticated scanner adapter, uploads remain private/staged and `unverified` rather than becoming eligible for extraction or AI context.
 
@@ -68,7 +68,7 @@ When `VALIDATE_OLLAMA_MODEL` explicitly selects an installed model, the validato
 
 If the application test endpoint requires the current development bearer, `GOREECLOUD_AI_API_TOKEN` may be supplied through protected runtime configuration. `VALIDATE_REQUIRE_WARDVEIL_SCANNER=true` is an explicit expectation gate: the validator fails if the application reports the Wardveil artifact scanner as unconfigured rather than converting absence into positive evidence.
 
-A passing run proves only the runtime path exercised. It does not establish GoreeCloud Identity, Wardveil, Privacy Shield, Everkeep, Mesh, exact Glaze UI conformance, deployment, recovery, or Stable production acceptance.
+A passing run proves only the runtime path exercised. It does not establish GoreeCloud Identity, Wardveil, Privacy Shield, Everkeep, Mesh, exact Glaze UI conformance, deployment, recovery, or Anchor production acceptance.
 
 ### Approved-model runtime-validation extension
 
@@ -80,7 +80,7 @@ This extension is not imported by `server/index.mjs`, changes no HTTP route or a
 
 ## Platform-system requirements
 
-- **Glaze UI:** current mandatory consumer target is Stable **GLAZE UI V1.6 / 1.6.0**. GoreeCloud AI remains migration/reconciliation-required until exact-revision 1.6.0 consumer acceptance is completed; existing 2.x-labeled source is historical migration input and is not current conformance evidence.
+- **Glaze UI:** current mandatory consumer target is Official Anchor **GLAZE UI V1.6 / 1.6.0**. GoreeCloud AI remains migration/reconciliation-required until exact-revision 1.6.0 consumer acceptance is completed; existing 2.x-labeled source is historical migration input and is not current conformance evidence.
 - **Wardveil Security:** source-level artifact trust enforcement exists, but authenticated deployed Scan transport and application production acceptance remain pending. GoreeCloud AI does not connect directly to ClamAV.
 - **Privacy Shield:** the current decision contract is consumed for structural assessment, but authenticated runtime enforcement, trusted capabilities/evidence, durable state, and AI consumer acceptance remain pending. A structurally satisfied supplied decision is not production authority.
 - **Everkeep:** export, backup, restore, preservation, portability, succession, attachment/extraction/derived-knowledge lifecycle, and application recovery acceptance remain pending.
@@ -91,6 +91,6 @@ This extension is not imported by `server/index.mjs`, changes no HTTP route or a
 
 CI validates application TypeScript, server syntax including authorization/eligibility modules and both runtime validators, native server/security/lifecycle/knowledge/model-routing tests, production client build, Python Wardveil reference behavior, the AI/Wardveil contract, and Python compilation. The approved-model runtime diagnostic has isolated subprocess/loopback tests, but CI never runs real model inference. Live target-host model/hardware, Identity, Privacy, Policy and Wardveil interoperability remains separate acceptance evidence.
 
-## Stable boundary
+## Anchor boundary
 
-GoreeCloud AI is not Stable or production-ready. Live Ollama/Wardveil interoperability, migration/reconciliation to current Stable GLAZE UI V1.6 / 1.6.0 and consumer evidence, Identity-backed multi-user/application authorization, Privacy Shield runtime acceptance, Everkeep lifecycle/recovery, Mesh integration, safe parsers/RAG stages, and broader runtime/deployment evidence remain required.
+GoreeCloud AI is not Anchor-qualified or production-ready. Live Ollama/Wardveil interoperability, migration/reconciliation to current Official Anchor GLAZE UI V1.6 / 1.6.0 and consumer evidence, Identity-backed multi-user/application authorization, Privacy Shield runtime acceptance, Everkeep lifecycle/recovery, Mesh integration, safe parsers/RAG stages, and broader runtime/deployment evidence remain required.

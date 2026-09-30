@@ -1,5 +1,16 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-09-30
+
+### Changed — repository identity, Contract 2.0 lifecycle and documentation layout
+
+- Reconciled the canonical repository identity from the historical name `GoreeCloud/goreecloud-ai` to the live repository `GoreeCloud/AI`; the repository ID and Git history are continuous.
+- Migrated `goreecloud.platform.yaml` from Platform Contract 0.4 legacy lifecycle semantics to Contract 2.0 with truthful lifecycle `forge`, Development deployment state, not-started qualification, blocked/migration-required flags and next gate `weave`.
+- Preserved all nine Integral Platform Systems as evidence-gated; Glaze UI is `applicable-migration-required` for Official Anchor 1.6.0, while the other unaccepted platform integrations remain `applicable-blocked`.
+- Migrated human-readable repository documentation from the root into `docs/` under the current repository-root cleanliness standard, keeping `README.md`, `LICENSE`, machine/configuration entry points and build files at root.
+- Updated the Platform Contract workflow to pin the current verified Contract 2.0 implementation revision and to watch the canonical `docs/` documentation paths.
+- This migration changes governance declarations and repository organization only. It does not wire model routing into live chat, create authenticated runtime authority, establish real target-host model evidence, deploy the application, enter Seal, or qualify Anchor.
+
 This repository-local changelog records meaningful source, architecture, security, privacy, governance and documentation changes. Repository history and pull-request evidence remain authoritative for exact commits and checks; entries here summarize verified lifecycle events without implying deployment or Stable acceptance.
 
 ## 2026-09-23
