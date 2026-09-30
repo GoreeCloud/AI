@@ -2,6 +2,12 @@
 
 ## 2026-09-30
 
+### Added — agent intelligence Development foundation
+
+- Added pure helpers for governed context selection, dependency/shared-resource work planning, declared capability selection, proportional execution-mode classification, and bounded recovery planning.
+- Added seven focused Node tests for the current isolated foundation. Exact-head validation for the recovery slice passed 148 Node tests with 0 failures before this documentation reconciliation.
+- The foundation remains disconnected from live HTTP/chat and does not establish full AIR-001 through AIR-017 conformance, runtime execution authority, Seal qualification, or Anchor qualification.
+
 ### Changed — repository identity, Contract 2.0 lifecycle and documentation layout
 
 - Reconciled the canonical repository identity from the historical name `GoreeCloud/goreecloud-ai` to the live repository `GoreeCloud/AI`; the repository ID and Git history are continuous.
