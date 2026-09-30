@@ -27,6 +27,10 @@ Human-readable project documentation is consolidated under `docs/` so the reposi
 - [Opt-in model-resource diagnostic](MODEL_RESOURCE_DIAGNOSTIC.md)
 - [Approved local model runtime validation](APPROVED_MODEL_RUNTIME_VALIDATION.md)
 
+## Agent intelligence boundaries
+
+- [Development agent intelligence foundation](AGENT_INTELLIGENCE_FOUNDATION.md)
+
 ## File, trust and knowledge boundaries
 
 - [Attachment lifecycle](ATTACHMENT_LIFECYCLE.md)
