@@ -44,7 +44,8 @@ This file records capabilities that exist in the current repository source. An e
 - Dependency-aware single-goal work planning with cycle rejection, declared action identities and shared-resource sequencing.
 - Requirement-driven capability selection using declared operation fit, permission, sensitivity ceiling, health, authority and effect level; selection never creates execution authority.
 - Proportional execution-mode classification for direct, standard, complex and high-consequence work.
-- Five requirement-linked Node tests covering the current isolated foundation. The module is not imported by the live backend and does not establish full AIR-001 through AIR-017 conformance.
+- Bounded recovery planning for transient retry, local repair, declared fallback, degraded continuation, and safe stop outcomes; proposals preserve the original obligation and require later reverification without executing recovery.
+- Seven requirement-linked Node tests covering the current isolated foundation. Exact-head validation at d0ce3d465df125766e46be7e3d460c78519b5fc5 passed 148 Node tests with 0 failures. The module is not imported by the live backend and does not establish full AIR-001 through AIR-017 conformance.
 
 ## Repository and verification foundations
 
