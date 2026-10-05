@@ -148,6 +148,7 @@ export default function App() {
     setIsGenerating(true)
     const controller = new AbortController()
     controllerRef.current = controller
+    let assistantContent = ''
     try {
       await client.streamChat({
         model: selectedModel,
@@ -155,6 +156,7 @@ export default function App() {
         workspaceId: selectedWorkspaceId,
         signal: controller.signal,
         onToken(token) {
+          assistantContent += token
           setMessages((current) => {
             const copy = [...current]
             const last = copy[copy.length - 1]
@@ -163,17 +165,27 @@ export default function App() {
           })
         },
       })
+      const completedMessages: ChatMessage[] = [...requestMessages, { role: 'assistant', content: assistantContent }]
       setRuntimeState('ready')
-      setMessages((current) => { void persist(id, current); return current })
+      setMessages(completedMessages)
+      try { await persist(id, completedMessages) }
+      catch { setGenerationError('Response completed, but the conversation could not be saved. The response remains visible in this session.') }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        setMessages((current) => { const next = current.at(-1)?.content ? current : current.slice(0, -1); void persist(id, next); return next })
+        const interruptedMessages: ChatMessage[] = assistantContent
+          ? [...requestMessages, { role: 'assistant', content: assistantContent }]
+          : requestMessages
+        setMessages(interruptedMessages)
+        try { await persist(id, interruptedMessages) }
+        catch { setGenerationError('Generation stopped, but the conversation could not be saved. The partial response remains visible in this session.') }
       } else {
+        const failureMessage = error instanceof Error ? error.message : 'The local model request failed.'
         setMessages(requestMessages)
         setRetryMessages(requestMessages)
-        setGenerationError(error instanceof Error ? error.message : 'The local model request failed.')
+        setGenerationError(failureMessage)
         setRuntimeState('offline')
-        await persist(id, requestMessages)
+        try { await persist(id, requestMessages) }
+        catch { setGenerationError(`${failureMessage} The conversation state also could not be saved.`) }
       }
     } finally {
       setIsGenerating(false)
@@ -421,10 +433,10 @@ export default function App() {
     <main className="main-column">
       <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models'}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label="Export conversation as Markdown" title="Export conversation as Markdown"><Download size={19}/></button><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
 
-      <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? 'Response generation interrupted.' : ''}</span>
+      <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
         {messages.map((message, index) => <article className={`message ${message.role}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><button onClick={() => void navigator.clipboard.writeText(message.content)} aria-label="Copy message"><Copy size={14}/></button>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
-        {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>Generation interrupted</strong><span>{generationError}</span></div><button onClick={() => void retryGeneration()} disabled={!retryMessages || isGenerating}><RefreshCw size={14}/>Retry</button></div>}
+        {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
 
