@@ -1,4 +1,4 @@
-import { responseError } from './http'
+import { fetchWithDeadline, responseError } from './http'
 import type { ModelRoleId } from './modelRoles'
 
 export interface Workspace {
@@ -15,7 +15,7 @@ export interface Workspace {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetchWithDeadline(path, {
     credentials: 'same-origin',
     ...init,
     headers: {
