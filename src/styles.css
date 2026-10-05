@@ -85,6 +85,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .message-label { margin-bottom: 7px; font-size: 12px; font-weight: 750; color: var(--muted); }
 .message-content { color: #e8edf5; font-size: 15px; line-height: 1.72; white-space: pre-wrap; overflow-wrap: anywhere; }
 .message.user .message-content { color: var(--text); }
+.markdown-message { min-width: 0; }
+.markdown-message p:first-child { margin-top: 0; }
+.markdown-message p:last-child { margin-bottom: 0; }
+.inline-code { padding: .12rem .32rem; border: 1px solid var(--border); border-radius: 6px; background: rgba(255,255,255,.055); color: #dce8ff; font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.code-block-shell { position: relative; margin: 14px 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 14px; background: #080b10; box-shadow: inset 0 1px 0 rgba(255,255,255,.025); }
+.code-block-shell pre { margin: 0; max-width: 100%; overflow: auto; padding: 42px 14px 14px; white-space: pre; tab-size: 2; }
+.code-block-shell code { font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #dce6f4; }
+.code-language { position: absolute; top: 10px; left: 12px; max-width: calc(100% - 58px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+.code-copy-button { position: absolute; z-index: 1; top: 6px; right: 7px; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.code-copy-button:hover, .code-copy-button:focus-visible { background: rgba(255,255,255,.065); color: var(--text); }
+.code-block-shell.copied .code-copy-button { color: var(--success); }
+.code-block-shell.failed .code-copy-button { color: var(--danger); }
 .message-actions { display: flex; gap: 3px; min-height: 30px; margin-top: 8px; opacity: 0; transition: opacity .15s ease; }
 .message:hover .message-actions, .message-actions:focus-within { opacity: 1; }
 .message-actions button { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: transparent; color: var(--muted); }
