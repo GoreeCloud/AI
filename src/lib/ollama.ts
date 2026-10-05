@@ -27,6 +27,7 @@ interface ChatChunk {
 export interface StreamChatOptions {
   model: string
   messages: ChatMessage[]
+  workspaceId?: string | null
   signal?: AbortSignal
   onToken: (token: string) => void
 }
@@ -63,6 +64,7 @@ export class OllamaClient {
       body: JSON.stringify({
         model: options.model,
         messages: options.messages,
+        workspaceId: options.workspaceId ?? null,
         stream: true,
       }),
     })
