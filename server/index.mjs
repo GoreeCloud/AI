@@ -58,15 +58,10 @@ async function readJson(req) {
   catch { throw Object.assign(new Error('Invalid JSON request body'), { status: 400 }) }
 }
 
-function validMessages(messages) {
-  return Array.isArray(messages) && messages.every((message) => message && ['system', 'user', 'assistant'].includes(message.role) && typeof message.content === 'string')
-}
-
 async function ollamaFetch(path, init = {}) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try { return await fetch(`${OLLAMA_URL}${path}`, { ...init, signal: init.signal ?? controller.signal }) }
-  finally { clearTimeout(timeout) }
+  const deadline = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  const signal = init.signal ? AbortSignal.any([init.signal, deadline]) : deadline
+  return fetch(`${OLLAMA_URL}${path}`, { ...init, signal })
 }
 
 async function handleModels(res) {
@@ -321,7 +316,7 @@ const server = http.createServer(async (req, res) => {
     }
     json(res, 404, { error: 'Not found' })
   } catch (error) {
-    const status = Number(error?.status ?? (error?.name === 'AbortError' ? 504 : 500))
+    const status = Number(error?.status ?? (error?.name === 'AbortError' || error?.name === 'TimeoutError' ? 504 : 500))
     json(res, status, {
       error: status === 500 ? 'Internal server error' : (error?.code ?? error.message),
       ...(status !== 500 && error?.code ? { message: error.message } : {}),
