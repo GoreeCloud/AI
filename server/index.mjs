@@ -6,6 +6,7 @@ import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text
 import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs'
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
 import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
+import { createMutationQueue } from './mutation-queue.mjs'
 
 const PORT = positiveNumberEnv('PORT', 8787)
 const OLLAMA_URL = (process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434').replace(/\/$/, '')
@@ -16,6 +17,7 @@ const MAX_FILE_COUNT = positiveNumberEnv('MAX_FILE_COUNT', 1_000)
 const MAX_TOTAL_FILE_BYTES = positiveNumberEnv('MAX_TOTAL_FILE_BYTES', 1024 * 1024 * 1024)
 const MAX_TEXT_EXTRACTION_BYTES = positiveNumberEnv('MAX_TEXT_EXTRACTION_BYTES', 2 * 1024 * 1024)
 const REQUEST_TIMEOUT_MS = positiveNumberEnv('REQUEST_TIMEOUT_MS', 120_000)
+const withWorkspaceAttachmentLifecycle = createMutationQueue()
 
 // A deployed Wardveil transport adapter is intentionally not fabricated here.
 // Until one is configured, attachment intake remains private, staged, and fail-closed.
@@ -140,20 +142,22 @@ async function handleWorkspaces(req, res, pathname) {
     return workspace ? json(res, 200, workspace) : json(res, 404, { error: 'Workspace not found' })
   }
   if (req.method === 'DELETE') {
-    const workspace = await getWorkspace(id)
-    if (!workspace) return json(res, 404, { error: 'Workspace not found' })
-    const fileReferences = await countWorkspaceFileReferences(id)
-    const declaredFileReferences = Array.isArray(workspace.fileIds) ? workspace.fileIds.length : 0
-    if (fileReferences || declaredFileReferences) {
-      return json(res, 409, {
-        error: 'Workspace still has file dependencies',
-        references: { files: fileReferences, workspaceFileIds: declaredFileReferences },
-      })
-    }
-    const deleted = await deleteWorkspace(id)
-    if (!deleted) return json(res, 404, { error: 'Workspace not found' })
-    const conversationReferencesRemoved = await detachWorkspaceFromConversations(id)
-    return json(res, 200, { deleted: true, conversationReferencesRemoved })
+    return withWorkspaceAttachmentLifecycle(async () => {
+      const workspace = await getWorkspace(id)
+      if (!workspace) return json(res, 404, { error: 'Workspace not found' })
+      const fileReferences = await countWorkspaceFileReferences(id)
+      const declaredFileReferences = Array.isArray(workspace.fileIds) ? workspace.fileIds.length : 0
+      if (fileReferences || declaredFileReferences) {
+        return json(res, 409, {
+          error: 'Workspace still has file dependencies',
+          references: { files: fileReferences, workspaceFileIds: declaredFileReferences },
+        })
+      }
+      const deleted = await deleteWorkspace(id)
+      if (!deleted) return json(res, 404, { error: 'Workspace not found' })
+      const conversationReferencesRemoved = await detachWorkspaceFromConversations(id)
+      return json(res, 200, { deleted: true, conversationReferencesRemoved })
+    })
   }
   return false
 }
@@ -174,15 +178,17 @@ async function handleFiles(req, res, pathname) {
       })
     }
     if (req.method === 'POST') {
-      const workspaceId = normalizeWorkspaceId(req.headers['x-workspace-id'])
-      if (workspaceId === undefined) return json(res, 400, { error: 'Invalid Workspace ID' })
-      if (workspaceId && !(await getWorkspace(workspaceId))) return json(res, 404, { error: 'Workspace not found' })
-      const file = await storeFile(req, MAX_FILE_BYTES, ARTIFACT_SCANNER, {
-        maxFileCount: MAX_FILE_COUNT,
-        maxTotalBytes: MAX_TOTAL_FILE_BYTES,
-        workspaceId,
+      return withWorkspaceAttachmentLifecycle(async () => {
+        const workspaceId = normalizeWorkspaceId(req.headers['x-workspace-id'])
+        if (workspaceId === undefined) return json(res, 400, { error: 'Invalid Workspace ID' })
+        if (workspaceId && !(await getWorkspace(workspaceId))) return json(res, 404, { error: 'Workspace not found' })
+        const file = await storeFile(req, MAX_FILE_BYTES, ARTIFACT_SCANNER, {
+          maxFileCount: MAX_FILE_COUNT,
+          maxTotalBytes: MAX_TOTAL_FILE_BYTES,
+          workspaceId,
+        })
+        return json(res, file.status === 'available' ? 201 : 202, file)
       })
-      return json(res, file.status === 'available' ? 201 : 202, file)
     }
   }
   const match = pathname.match(/^\/api\/files\/([0-9a-f-]+)(?:\/(extraction|knowledge-eligibility|knowledge-authorization-assessment))?$/i)
