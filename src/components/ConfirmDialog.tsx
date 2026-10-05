@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
 interface ConfirmDialogProps {
@@ -12,29 +12,38 @@ interface ConfirmDialogProps {
 
 export function ConfirmDialog({ open, title, description, confirmLabel = 'Confirm', onCancel, onConfirm }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement | null>(null)
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    setPending(false)
     queueMicrotask(() => confirmRef.current?.focus())
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Escape' && !pending) onCancel()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, onCancel])
+  }, [open, onCancel, pending])
 
   if (!open) return null
 
+  async function confirm() {
+    if (pending) return
+    setPending(true)
+    try { await onConfirm() }
+    finally { setPending(false) }
+  }
+
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}>
-      <div className="dialog-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description">
+    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (!pending && event.target === event.currentTarget) onCancel() }}>
+      <div className="dialog-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description" aria-busy={pending}>
         <div className="dialog-heading">
           <div><strong id="confirm-dialog-title">{title}</strong><span id="confirm-dialog-description">{description}</span></div>
-          <button type="button" className="icon-button" onClick={onCancel} aria-label="Close dialog"><X size={18}/></button>
+          <button type="button" className="icon-button" onClick={onCancel} aria-label="Close dialog" disabled={pending}><X size={18}/></button>
         </div>
         <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
-          <button ref={confirmRef} type="button" className="danger-button" onClick={() => void onConfirm()}>{confirmLabel}</button>
+          <button type="button" className="secondary-button" onClick={onCancel} disabled={pending}>Cancel</button>
+          <button ref={confirmRef} type="button" className="danger-button" onClick={() => void confirm()} disabled={pending}>{pending ? 'Working…' : confirmLabel}</button>
         </div>
       </div>
     </div>
