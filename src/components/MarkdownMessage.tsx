@@ -10,6 +10,19 @@ function nodeText(node: ReactNode): string {
   return ''
 }
 
+function codeLanguage(node: ReactNode): string | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const language = codeLanguage(child)
+      if (language) return language
+    }
+    return null
+  }
+  if (!isValidElement<{ className?: string }>(node)) return null
+  const match = node.props.className?.match(/(?:^|\s)language-([\w.+-]+)/)
+  return match?.[1] ?? null
+}
+
 function CodeBlock({ children }: { children: ReactNode }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const resetTimer = useRef<number | null>(null)
@@ -22,6 +35,7 @@ function CodeBlock({ children }: { children: ReactNode }) {
     const text = nodeText(children).replace(/\n$/, '')
     if (!text) return
     try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
       await navigator.clipboard.writeText(text)
       setCopyState('copied')
     } catch {
@@ -32,8 +46,10 @@ function CodeBlock({ children }: { children: ReactNode }) {
   }
 
   const label = copyState === 'copied' ? 'Code copied' : copyState === 'failed' ? 'Copy failed' : 'Copy code'
+  const language = codeLanguage(children)
   return (
     <div className={`code-block-shell ${copyState}`}>
+      <span className="code-language">{language || 'Code'}</span>
       <button type="button" className="code-copy-button" onClick={() => void copyCode()} aria-label={label} title={label}>
         {copyState === 'copied' ? <Check size={14}/> : <Copy size={14}/>}
       </button>
