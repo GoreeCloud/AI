@@ -249,7 +249,7 @@ For a policy-bound exact-model Development check through the existing applicatio
 
 ## Platform-system acceptance
 
-- **Glaze UI:** the current authoritative Official Anchor consumer target is **GLAZE UI V1.6 / 1.6.0**. GoreeCloud AI remains migration/reconciliation-required until exact-revision product-specific conformance evidence exists. Existing 2.x-labeled source is historical migration input and is not current conformance evidence.
+- **Glaze:** the current authoritative Official Anchor consumer target is **Glaze V1.7 / 1.7.0** from `GoreeCloud/glaze`. GoreeCloud AI remains migration/reconciliation-required until exact-revision product-specific conformance evidence exists. Older Glaze UI and 2.x-labeled source is historical migration input and is not current conformance evidence.
 - **Wardveil Security:** source trust enforcement exists; deployed authenticated Scan transport and AI consumer production acceptance remain pending.
 - **Privacy Shield:** current decision fields/outcomes are structurally consumed, but authenticated runtime enforcement/capability/evidence and AI consumer acceptance remain pending. Supplied JSON cannot create Privacy Shield authority.
 - **Everkeep:** attachment/extraction/future knowledge retention, export, backup, restore, recovery, preservation, portability, and succession remain pending application-specific acceptance.
