@@ -15,6 +15,7 @@ interface TextDialogProps {
 export function TextDialog({ open, title, label, initialValue, multiline = false, confirmLabel = 'Save', onCancel, onConfirm }: TextDialogProps) {
   const [value, setValue] = useState(initialValue)
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const pendingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
 
@@ -23,6 +24,7 @@ export function TextDialog({ open, title, label, initialValue, multiline = false
     setValue(initialValue)
     pendingRef.current = false
     setPending(false)
+    setError(null)
     queueMicrotask(() => inputRef.current?.focus())
   }, [open, initialValue])
 
@@ -34,7 +36,9 @@ export function TextDialog({ open, title, label, initialValue, multiline = false
     if (!next || pendingRef.current) return
     pendingRef.current = true
     setPending(true)
+    setError(null)
     try { await onConfirm(next) }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'The change could not be saved.') }
     finally {
       pendingRef.current = false
       setPending(false)
@@ -53,6 +57,7 @@ export function TextDialog({ open, title, label, initialValue, multiline = false
         ) : (
           <input ref={(node) => { inputRef.current = node }} value={value} onChange={(event) => setValue(event.target.value)} />
         )}
+        {error && <p className="dialog-error" role="alert">{error}</p>}
         <div className="dialog-actions">
           <button type="button" className="secondary-button" onClick={onCancel} disabled={pending}>Cancel</button>
           <button type="submit" className="primary-button" disabled={!value.trim() || pending}>{pending ? 'Saving…' : confirmLabel}</button>
