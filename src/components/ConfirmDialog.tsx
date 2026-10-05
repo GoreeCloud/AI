@@ -12,13 +12,16 @@ interface ConfirmDialogProps {
 
 export function ConfirmDialog({ open, title, description, confirmLabel = 'Confirm', onCancel, onConfirm }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement | null>(null)
+  const pendingRef = useRef(false)
   const [pending, setPending] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    pendingRef.current = false
+    setPending(false)
     queueMicrotask(() => confirmRef.current?.focus())
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Escape' && !pendingRef.current) onCancel()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -27,10 +30,14 @@ export function ConfirmDialog({ open, title, description, confirmLabel = 'Confir
   if (!open) return null
 
   async function confirm() {
-    if (pending) return
+    if (pendingRef.current) return
+    pendingRef.current = true
     setPending(true)
     try { await onConfirm() }
-    finally { setPending(false) }
+    finally {
+      pendingRef.current = false
+      setPending(false)
+    }
   }
 
   return (
