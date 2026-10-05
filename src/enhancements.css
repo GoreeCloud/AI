@@ -10,7 +10,12 @@
 .markdown-message li { margin: .28em 0; }
 .markdown-message a { color: var(--accent-strong); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .markdown-message blockquote { margin: 1em 0; padding: .2em 0 .2em 1em; border-left: 3px solid var(--border-strong); color: var(--muted); }
-.markdown-message pre { margin: 1em 0; padding: 14px 16px; overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: rgba(0,0,0,.28); }
+.code-block-shell { position: relative; margin: 1em 0; }
+.markdown-message .code-block-shell pre { margin: 0; padding: 14px 48px 14px 16px; overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: rgba(0,0,0,.28); }
+.code-copy-button { position: absolute; top: 8px; right: 8px; z-index: 1; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 9px; color: var(--muted); background: var(--surface-2); cursor: pointer; }
+.code-copy-button:hover { color: var(--text); background: var(--surface-3); }
+.code-block-shell.copied .code-copy-button { color: var(--text); }
+.code-block-shell.failed .code-copy-button { color: var(--danger); }
 .markdown-message pre code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .88em; white-space: pre; }
 .inline-code { padding: .12em .4em; border: 1px solid var(--border); border-radius: 6px; background: rgba(255,255,255,.055); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .9em; }
 .markdown-message table { width: 100%; margin: 1em 0; border-collapse: collapse; display: block; overflow-x: auto; }
@@ -43,7 +48,7 @@
 .generation-error button:disabled { opacity: .4; cursor: default; }
 
 @media (prefers-color-scheme: light) {
-  .markdown-message pre { background: rgba(31,41,55,.055); }
+  .markdown-message .code-block-shell pre { background: rgba(31,41,55,.055); }
   .inline-code { background: rgba(31,41,55,.055); }
   .dialog-backdrop { background: rgba(44,55,75,.28); }
   .dialog-card { background: rgba(255,255,255,.98); box-shadow: 0 30px 90px rgba(41,56,82,.22); }
