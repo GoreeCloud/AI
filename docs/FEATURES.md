@@ -32,7 +32,7 @@
 
 - Recorded live application-to-Ollama validation against the intended environment.
 - Authenticated GoreeCloud AI-to-Wardveil Scan transport and target-environment clean/malicious/unavailable validation.
-- Migration/reconciliation to the current Official Anchor **GLAZE UI V1.6 / 1.6.0** consumer target and exact-revision product conformance evidence. Existing 2.x-labeled source is historical migration input, not current conformance.
+- Migration/reconciliation to the current Official Anchor **Glaze V1.7 / 1.7.0** consumer target and exact-revision product conformance evidence. Older Glaze UI and 2.x-labeled source is historical migration input, not current conformance.
 - Authenticated GoreeCloud Identity session/service integration, multi-user persistence, and application-owned Workspace/resource authorization.
 - Authenticated Privacy Shield enforcement/decision/capability/evidence integration for file, extraction, conversation, model, research, and external-processing operations.
 - Everkeep backup, restore, retention, export, preservation, portability, and application recovery evidence, including future derived knowledge state.
