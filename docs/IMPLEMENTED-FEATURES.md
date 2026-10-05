@@ -80,6 +80,7 @@ This file records capabilities that exist in the current repository source. An e
 - Repository-native specification, benefits, competitive objectives, branding references and implementation documentation.
 - Platform Contract 2.0 declaration using the canonical Forge lifecycle and evaluating all nine Integral Platform Systems with incomplete integrations represented as blocked, migration-required, or nonconformant rather than passed.
 - Exact-head CI for TypeScript checking, server syntax, Node tests, production client build, Wardveil reference tests/contract validation and Python compilation.
+- JavaScript dependencies are pinned to the exact validated versions in `package.json` and `package-lock.json`; CI and documented Development setup use lockfile-backed `npm ci --ignore-scripts` rather than floating `latest` resolution.
 
 ## Material limitations
 

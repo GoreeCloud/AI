@@ -223,7 +223,7 @@ An explicit, development-only `npm run validate:model-routing` command composes 
 ## Local development and validation
 
 ```bash
-npm install
+npm ci --ignore-scripts
 cp .env.example .env
 npm run check
 npm run check:server

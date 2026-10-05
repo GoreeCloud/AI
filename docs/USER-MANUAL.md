@@ -19,7 +19,7 @@ The chat endpoint also rejects client-authored `system` messages. Browser chat h
 Install dependencies and validate the current source with:
 
 ```bash
-npm install
+npm ci --ignore-scripts
 npm run check
 npm run check:server
 npm run test:server
