@@ -80,7 +80,7 @@ This extension is not imported by `server/index.mjs`, changes no HTTP route or a
 
 ## Platform-system requirements
 
-- **Glaze UI:** current mandatory consumer target is Official Anchor **GLAZE UI V1.6 / 1.6.0**. GoreeCloud AI remains migration/reconciliation-required until exact-revision 1.6.0 consumer acceptance is completed; existing 2.x-labeled source is historical migration input and is not current conformance evidence.
+- **Glaze:** current mandatory consumer target is Official Anchor **Glaze V1.7 / 1.7.0** from `GoreeCloud/glaze`. GoreeCloud AI remains migration/reconciliation-required until exact-revision 1.7.0 consumer acceptance is completed; older Glaze UI and 2.x-labeled source is historical migration input and is not current conformance evidence.
 - **Wardveil Security:** source-level artifact trust enforcement exists, but authenticated deployed Scan transport and application production acceptance remain pending. GoreeCloud AI does not connect directly to ClamAV.
 - **Privacy Shield:** the current decision contract is consumed for structural assessment, but authenticated runtime enforcement, trusted capabilities/evidence, durable state, and AI consumer acceptance remain pending. A structurally satisfied supplied decision is not production authority.
 - **Everkeep:** export, backup, restore, preservation, portability, succession, attachment/extraction/derived-knowledge lifecycle, and application recovery acceptance remain pending.
@@ -93,4 +93,4 @@ CI validates application TypeScript, server syntax including authorization/eligi
 
 ## Anchor boundary
 
-GoreeCloud AI is not Anchor-qualified or production-ready. Live Ollama/Wardveil interoperability, migration/reconciliation to current Official Anchor GLAZE UI V1.6 / 1.6.0 and consumer evidence, Identity-backed multi-user/application authorization, Privacy Shield runtime acceptance, Everkeep lifecycle/recovery, Mesh integration, safe parsers/RAG stages, and broader runtime/deployment evidence remain required.
+GoreeCloud AI is not Anchor-qualified or production-ready. Live Ollama/Wardveil interoperability, migration/reconciliation to current Official Anchor Glaze V1.7 / 1.7.0 and consumer evidence, Identity-backed multi-user/application authorization, Privacy Shield runtime acceptance, Everkeep lifecycle/recovery, Mesh integration, safe parsers/RAG stages, and broader runtime/deployment evidence remain required.
