@@ -88,11 +88,6 @@ export async function getConversation(id) {
   return (await load()).find((item) => item.id === id) ?? null
 }
 
-export async function countWorkspaceConversationReferences(workspaceId) {
-  if (typeof workspaceId !== 'string' || !workspaceId) return 0
-  return (await load()).filter((item) => item.workspaceId === workspaceId).length
-}
-
 export async function createConversation(input = {}) {
   const conversations = await load()
   const timestamp = now()
