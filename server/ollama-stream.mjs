@@ -57,18 +57,21 @@ function parseLine(bytes) {
   }
 }
 
-export function createBoundedOllamaNdjsonParser({ maxStreamBytes, maxLineBytes, onChunk }) {
+export function createBoundedOllamaNdjsonParser({ maxStreamBytes, maxLineBytes, onChunk, requireTerminalChunk = false }) {
   if (!Number.isSafeInteger(maxStreamBytes) || maxStreamBytes <= 0) throw new Error('maxStreamBytes must be a positive integer')
   if (!Number.isSafeInteger(maxLineBytes) || maxLineBytes <= 0) throw new Error('maxLineBytes must be a positive integer')
   if (typeof onChunk !== 'function') throw new Error('onChunk must be a function')
 
   let totalBytes = 0
   let buffer = Buffer.alloc(0)
+  let terminalChunkSeen = false
 
   function consumeLine(line) {
     if (line.length > maxLineBytes) throw streamError('OLLAMA_STREAM_LINE_TOO_LARGE', 'Local runtime stream line exceeded the configured limit')
     const parsed = parseLine(line)
-    if (parsed) onChunk(parsed)
+    if (!parsed) return
+    if (parsed.done === true || parsed.error) terminalChunkSeen = true
+    onChunk(parsed)
   }
 
   return {
@@ -93,6 +96,9 @@ export function createBoundedOllamaNdjsonParser({ maxStreamBytes, maxLineBytes, 
     finish() {
       if (buffer.length) consumeLine(buffer)
       buffer = Buffer.alloc(0)
+      if (requireTerminalChunk && !terminalChunkSeen) {
+        throw streamError('OLLAMA_STREAM_INCOMPLETE', 'Local runtime stream ended without a terminal chunk')
+      }
     },
 
     get totalBytes() {
