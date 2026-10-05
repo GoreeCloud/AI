@@ -5,7 +5,7 @@ import { TextDialog } from './components/TextDialog'
 import { OllamaClient, type ChatMessage, type OllamaModel } from './lib/ollama'
 import { createConversation, getConversation, listConversations, removeConversation, saveConversation, type ConversationSummary } from './lib/conversations'
 import { resolveModelRoles, roleForModel, type ModelRoleId } from './lib/modelRoles'
-import { createWorkspace, getWorkspace, listWorkspaces, saveWorkspace, type Workspace } from './lib/workspaces'
+import { createWorkspace, listWorkspaces, saveWorkspace, type Workspace } from './lib/workspaces'
 import { listFiles, uploadFile, type StoredFile } from './lib/files'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
@@ -121,16 +121,10 @@ export default function App() {
     const controller = new AbortController()
     controllerRef.current = controller
     try {
-      const activeWorkspace = selectedWorkspaceId
-        ? selectedWorkspace?.id === selectedWorkspaceId ? selectedWorkspace : await getWorkspace(selectedWorkspaceId)
-        : null
-      const workspaceInstructions = activeWorkspace?.instructions.trim()
-      const modelMessages: ChatMessage[] = workspaceInstructions
-        ? [{ role: 'system', content: `Workspace instructions:\n\n${workspaceInstructions}` }, ...stored(requestMessages)]
-        : stored(requestMessages)
       await client.streamChat({
         model: selectedModel,
-        messages: modelMessages,
+        messages: stored(requestMessages),
+        workspaceId: selectedWorkspaceId,
         signal: controller.signal,
         onToken(token) {
           setMessages((current) => {
