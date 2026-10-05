@@ -1,4 +1,4 @@
-import { responseError } from './http'
+import { fetchWithDeadline, responseError } from './http'
 
 export type ChatRole = 'user' | 'assistant'
 
@@ -27,6 +27,37 @@ interface ChatChunk {
 }
 
 const MAX_STREAM_BUFFER_CHARS = 1_100_000
+const MAX_DISCOVERED_MODELS = 256
+const MAX_MODEL_STRING_CHARS = 512
+
+function boundedModelString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim()
+  if (!normalized || normalized.length > MAX_MODEL_STRING_CHARS) return undefined
+  return normalized
+}
+
+function parseDiscoveredModel(value: unknown): OllamaModel | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const row = value as Record<string, unknown>
+  const name = boundedModelString(row.name)
+  if (!name) return undefined
+
+  const model = boundedModelString(row.model)
+  const modifiedAt = boundedModelString(row.modified_at)
+  const digest = boundedModelString(row.digest)
+  const numericSize = Number(row.size)
+  const size = Number.isFinite(numericSize) && numericSize >= 0 ? numericSize : undefined
+
+  return {
+    name,
+    ...(model ? { model } : {}),
+    ...(modifiedAt ? { modified_at: modifiedAt } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(digest ? { digest } : {}),
+  }
+}
+
 
 function parseChatChunk(line: string): ChatChunk {
   let value: unknown
@@ -63,13 +94,14 @@ export class OllamaClient {
   constructor(private readonly baseUrl: string) {}
 
   async listModels(): Promise<OllamaModel[]> {
-    const response = await fetch(`${this.baseUrl}/models`, {
+    const response = await fetchWithDeadline(`${this.baseUrl}/models`, {
       headers: { Accept: 'application/json' },
       credentials: 'same-origin',
     })
     if (!response.ok) throw await responseError(response, 'Model discovery failed')
     const data = (await response.json()) as ListModelsResponse
-    return Array.isArray(data.models) ? data.models : []
+    if (!Array.isArray(data.models)) return []
+    return data.models.slice(0, MAX_DISCOVERED_MODELS).map(parseDiscoveredModel).filter((model): model is OllamaModel => Boolean(model))
   }
 
   async streamChat(options: StreamChatOptions): Promise<void> {
