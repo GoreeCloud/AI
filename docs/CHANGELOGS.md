@@ -28,7 +28,8 @@
 - Hardened text-entry and destructive confirmation dialogs against duplicate asynchronous submissions, and kept text-entry save failures visible for retry.
 - Rejected duplicate Workspace resource-ID collections before persistence; exposed the full Workspace file list for management and made the context panel scroll for larger attachment sets.
 - Tightened conversation, Workspace, and file resource routes to canonical UUID identifiers.
-- Replaced floating `latest` JavaScript dependency declarations with the exact validated versions, added a lockfile, and changed CI/Development setup to lockfile-backed `npm ci --ignore-scripts` for reproducible installs and reduced lifecycle-script exposure.
+- Replaced floating `latest` JavaScript dependency declarations with the exact validated versions, added a lockfile, and changed CI/Development setup to lockfile-backed `npm ci --include=dev --ignore-scripts` for reproducible installs and reduced lifecycle-script exposure.
+- Declared the validated Node.js engine floor (`^20.19.0 || >=22.12.0`) and moved Vite plus its React plugin to development-only dependencies so runtime dependency classification matches their actual build role.
 
 ### Changed — current Glaze consumer target
 

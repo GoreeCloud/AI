@@ -222,8 +222,10 @@ An explicit, development-only `npm run validate:model-routing` command composes 
 
 ## Local development and validation
 
+Requires Node.js `^20.19.0 || >=22.12.0`, matching the validated Vite toolchain.
+
 ```bash
-npm ci --ignore-scripts
+npm ci --include=dev --ignore-scripts
 cp .env.example .env
 npm run check
 npm run check:server

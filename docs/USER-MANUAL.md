@@ -16,10 +16,10 @@ The chat endpoint also rejects client-authored `system` messages. Browser chat h
 
 ## Development Commands
 
-Install dependencies and validate the current source with:
+Use Node.js `^20.19.0 || >=22.12.0`. Install the exact locked development toolchain and validate the current source with:
 
 ```bash
-npm ci --ignore-scripts
+npm ci --include=dev --ignore-scripts
 npm run check
 npm run check:server
 npm run test:server
