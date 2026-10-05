@@ -26,6 +26,7 @@ type DialogState =
   | { kind: 'workspace-instructions'; id: string; value: string }
   | { kind: 'workspace-delete'; id: string; name: string }
   | { kind: 'file-delete'; id: string; name: string }
+  | { kind: 'conversation-delete'; id: string; name: string }
   | null
 
 export default function App() {
@@ -47,6 +48,7 @@ export default function App() {
   const [runtimeState, setRuntimeState] = useState<'checking' | 'ready' | 'no-models' | 'offline'>('checking')
   const [dialog, setDialog] = useState<DialogState>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const [workspaceError, setWorkspaceError] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [retryMessages, setRetryMessages] = useState<ChatMessage[] | null>(null)
@@ -73,7 +75,7 @@ export default function App() {
     })
   }, [history, historyQuery, workspaces])
 
-  async function refreshHistory() { try { setHistory(await listConversations()) } catch {} }
+  async function refreshHistory() { try { setHistory(await listConversations()); setHistoryError(null) } catch (error) { setHistoryError(error instanceof Error ? error.message : 'Conversation history could not be refreshed.') } }
   async function refreshWorkspaces() { try { setWorkspaces(await listWorkspaces()) } catch {} }
   async function refreshFiles() { try { setFiles(await listFiles()) } catch {} }
   async function refreshModels() {
@@ -252,18 +254,21 @@ export default function App() {
 
   async function openConversation(id: string) {
     controllerRef.current?.abort()
-    const conversation = await getConversation(id)
-    setConversationId(id)
-    setMessages(conversation.messages.length ? conversation.messages : [welcome])
-    if (conversation.model) setSelectedModel(conversation.model)
-    setSelectedWorkspaceId(conversation.workspaceId ?? null)
-    setGenerationError(null)
-    setRetryMessages(null)
-    setFollowOutput(true)
-    setSidebarOpen(false)
+    setHistoryError(null)
+    try {
+      const conversation = await getConversation(id)
+      setConversationId(id)
+      setMessages(conversation.messages.length ? conversation.messages : [welcome])
+      if (conversation.model) setSelectedModel(conversation.model)
+      setSelectedWorkspaceId(conversation.workspaceId ?? null)
+      setGenerationError(null)
+      setRetryMessages(null)
+      setFollowOutput(true)
+      setSidebarOpen(false)
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : 'Conversation could not be opened.')
+    }
   }
-
-  async function deleteConversation(id: string) { await removeConversation(id); if (id === conversationId) newConversation(); await refreshHistory() }
   async function changeModel(model: string) { setSelectedModel(model); if (conversationId) { const item = history.find((entry) => entry.id === conversationId); await persist(conversationId, messages, model, item?.title) } }
 
   async function changeWorkspace(workspaceId: string) {
@@ -334,6 +339,19 @@ export default function App() {
 
   async function confirmDeletion() {
     if (!dialog) return
+    if (dialog.kind === 'conversation-delete') {
+      setHistoryError(null)
+      try {
+        await removeConversation(dialog.id)
+        if (dialog.id === conversationId) newConversation()
+        await refreshHistory()
+        setDialog(null)
+      } catch (error) {
+        setHistoryError(error instanceof Error ? error.message : 'Conversation deletion failed.')
+        setDialog(null)
+      }
+      return
+    }
     if (dialog.kind === 'file-delete') {
       setFileError(null)
       try {
@@ -426,7 +444,7 @@ export default function App() {
       <button className="new-chat" onClick={newConversation}><MessageSquarePlus size={18}/>New chat</button>
       <nav className="nav-stack"><button className="nav-item active" aria-current="page"><Sparkles size={18}/>Chat</button><button className="nav-item" onClick={focusHistorySearch} title="Search conversations (Ctrl/⌘ K)"><Search size={18}/>Search conversations</button><button className="nav-item" onClick={() => setContextOpen(true)}><FileText size={18}/>Workspaces</button><button className="nav-item" disabled title="The governed knowledge Library is not enabled in this Development build"><Globe2 size={18}/>Library</button></nav>
       <div className="history-search"><Search size={14}/><input ref={historySearchRef} value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Search conversations" aria-label="Search saved conversations"/>{historyQuery && <button type="button" onClick={() => setHistoryQuery('')} aria-label="Clear conversation search"><X size={14}/></button>}</div>
-      <div className="sidebar-section"><span className="section-label">{historyQuery ? 'Matches' : 'Recent'}</span>{history.length === 0 ? <span className="history-empty">No saved conversations</span> : visibleHistory.length === 0 ? <span className="history-empty">No matching conversations</span> : visibleHistory.map((item) => <div key={item.id} className="history-row"><button className={`history-item ${item.id === conversationId ? 'active' : ''}`} onClick={() => void openConversation(item.id)}>{item.parentConversationId ? '↳ ' : ''}{item.title}</button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'rename', id: item.id, value: item.title })} aria-label={`Rename ${item.title}`}><Pencil size={14}/></button><button className="icon-button history-action" onClick={() => void deleteConversation(item.id)} aria-label={`Delete ${item.title}`}><Trash2 size={14}/></button></div>)}</div>
+      <div className="sidebar-section"><span className="section-label">{historyQuery ? 'Matches' : 'Recent'}</span>{historyError && <span className="history-empty history-error">{historyError}</span>}{history.length === 0 ? <span className="history-empty">No saved conversations</span> : visibleHistory.length === 0 ? <span className="history-empty">No matching conversations</span> : visibleHistory.map((item) => <div key={item.id} className="history-row"><button className={`history-item ${item.id === conversationId ? 'active' : ''}`} onClick={() => void openConversation(item.id)}>{item.parentConversationId ? '↳ ' : ''}{item.title}</button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'rename', id: item.id, value: item.title })} aria-label={`Rename ${item.title}`}><Pencil size={14}/></button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'conversation-delete', id: item.id, name: item.title })} aria-label={`Delete ${item.title}`}><Trash2 size={14}/></button></div>)}</div>
       <div className="sidebar-footer"><div className={`runtime-pill ${runtimeState}`}>{runtimeState === 'ready' ? <CheckCircle2 size={15}/> : runtimeState === 'no-models' ? <Bot size={15}/> : <ShieldCheck size={15}/>} {runtimeState === 'checking' ? 'Checking local runtime' : runtimeState === 'ready' ? 'Local runtime ready' : runtimeState === 'no-models' ? 'No local models' : 'Runtime unavailable'}</div><span>Privacy Shield · Wardveil Security</span></div>
     </aside>
 
@@ -456,6 +474,7 @@ export default function App() {
     <TextDialog open={dialog?.kind === 'workspace'} title="New Workspace" label="Name this persistent AI workspace." initialValue={dialog?.kind === 'workspace' ? dialog.value : ''} confirmLabel="Create Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-rename'} title="Rename Workspace" label="Choose a concise name for this Workspace." initialValue={dialog?.kind === 'workspace-rename' ? dialog.value : ''} confirmLabel="Save name" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-instructions'} title="Workspace instructions" label="These private instructions are applied as system context to local model requests in this Workspace. They do not grant authorization or enable blocked tools." initialValue={dialog?.kind === 'workspace-instructions' ? dialog.value : ''} multiline confirmLabel="Save instructions" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
+    <ConfirmDialog open={dialog?.kind === 'conversation-delete'} title="Delete conversation?" description={dialog?.kind === 'conversation-delete' ? `Delete ${dialog.name}. This removes the saved conversation from GoreeCloud AI local storage.` : ''} confirmLabel="Delete conversation" onCancel={() => setDialog(null)} onConfirm={confirmDeletion}/>
     <ConfirmDialog open={dialog?.kind === 'workspace-delete'} title="Delete Workspace?" description={dialog?.kind === 'workspace-delete' ? `Delete ${dialog.name}. Saved conversations will be detached from this Workspace. Workspaces with file dependencies cannot be deleted.` : ''} confirmLabel="Delete Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDeletion}/>
     <ConfirmDialog open={dialog?.kind === 'file-delete'} title="Delete file?" description={dialog?.kind === 'file-delete' ? `Delete ${dialog.name} from GoreeCloud AI local storage. This also removes its derived text extraction and Workspace file reference.` : ''} confirmLabel="Delete file" onCancel={() => setDialog(null)} onConfirm={confirmDeletion}/>
     {sidebarOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>} 
