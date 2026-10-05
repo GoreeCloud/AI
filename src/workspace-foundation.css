@@ -21,6 +21,7 @@
   background: var(--surface-2);
 }
 .context-select option { color: #111827; }
+.context-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .context-action {
   display: inline-flex;
   align-items: center;
