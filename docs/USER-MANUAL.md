@@ -48,6 +48,8 @@ For a selected Workspace, **Rename** updates its display name and the **Default 
 
 **Add instructions** or **Edit instructions** opens the private instruction editor. For each request, the browser sends the selected Workspace ID and the backend resolves the saved Workspace before prepending its instructions transiently as system context. The instructions are not inserted into the persisted conversation transcript, do not authorize tools or data access, and cannot override blocked Identity, Privacy Shield, Wardveil, Policy, knowledge, or external-processing gates.
 
+A selected Workspace can be deleted from its trash control only when it has no file dependencies. Deletion is confirmed before execution. Saved conversations associated with the deleted Workspace are detached rather than deleted. Backend dependency checks remain authoritative if state changes between display and confirmation.
+
 Workspace membership and access boundaries are not yet backed by production GoreeCloud Identity multi-user/session enforcement and GoreeCloud AI application authorization.
 
 ## Attachments and Wardveil Trust States
@@ -65,9 +67,11 @@ The development application intentionally does not connect directly to ClamAV. U
 
 ## Attachment Quotas and Deletion
 
-The local development attachment library enforces configurable per-file, file-count, and aggregate-byte limits. Local file-store and delete mutations are serialized within one Node.js process.
+The local development attachment library enforces configurable per-file, file-count, and aggregate-byte limits. Local file-store and delete mutations are serialized within one Node.js process. Conversation and Workspace mutations now use the same process-local serialization principle, and attachment upload versus Workspace deletion is serialized at the backend lifecycle boundary to prevent a validated Workspace from disappearing before an upload is committed. This is Development single-process protection, not a distributed transaction model.
 
 Deleting a file removes its released or staged bytes, its derived text extraction when present, and stale Workspace file references. This is application cleanup only; it is not Wardveil quarantine, secure erasure, Everkeep retention proof, or proof that no other copies exist.
+
+The file list exposes a trash control with a confirmation step. After a successful delete, the client refreshes both file and Workspace state so removed references disappear from the current context.
 
 ## Passive Text Extraction
 
