@@ -92,6 +92,7 @@ async function handleChat(req, res) {
   const parser = createBoundedOllamaNdjsonParser({
     maxStreamBytes: MAX_CHAT_STREAM_BYTES,
     maxLineBytes: MAX_CHAT_STREAM_LINE_BYTES,
+    requireTerminalChunk: true,
     onChunk: (chunk) => pending.push(chunk),
   })
 
