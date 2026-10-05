@@ -128,7 +128,7 @@ let detachFileFromWorkspaces
 before(async () => {
   dataDir = await mkdtemp(path.join(os.tmpdir(), 'goreecloud-ai-files-'))
   process.env.GOREECLOUD_AI_DATA_DIR = dataDir
-  ;({ storeFile, deleteFile, getFileStorageUsage, listFiles } = await import(`./files.mjs?test=${Date.now()}`))
+  ;({ storeFile, deleteFile, getFileStorageUsage, listFiles, countWorkspaceFileReferences } = await import(`./files.mjs?test=${Date.now()}`))
   ;({ createWorkspace, updateWorkspace, getWorkspace, detachFileFromWorkspaces } = await import(`./workspaces.mjs?test=${Date.now()}`))
 })
 
@@ -157,6 +157,21 @@ test('native upload storage remains staged and unverified without a Wardveil tra
   assert.equal((await readFile(path.join(dataDir, 'staging', 'files', record.id), 'utf8')), 'unverified')
   await assert.rejects(() => stat(path.join(dataDir, 'files', record.id)), { code: 'ENOENT' })
   assert.equal((await stat(path.join(dataDir, 'staging', 'files'))).mode & 0o777, 0o700)
+})
+
+test('attachment Workspace context comes from the server-owned storage option', async () => {
+  const workspaceId = '123e4567-e89b-12d3-a456-426614174000'
+  const forgedHeaderId = '123e4567-e89b-12d3-a456-426614174001'
+  const record = await storeFile(
+    uploadRequest('workspace-bound', { 'x-workspace-id': forgedHeaderId }),
+    1024,
+    null,
+    { workspaceId },
+  )
+  assert.equal(record.workspaceId, workspaceId)
+  assert.equal(record.resourceId, `ai:workspace:${workspaceId}:artifact:${record.id}`)
+  assert.equal(await countWorkspaceFileReferences(workspaceId), 1)
+  assert.equal(await countWorkspaceFileReferences(forgedHeaderId), 0)
 })
 
 test('native upload storage releases bytes only after a clean Wardveil decision', async () => {
