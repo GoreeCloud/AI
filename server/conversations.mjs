@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { createMutationQueue } from './mutation-queue.mjs'
 
 const DATA_DIR = process.env.GOREECLOUD_AI_DATA_DIR ?? path.resolve('data')
 const STORE_PATH = path.join(DATA_DIR, 'conversations.json')
@@ -8,6 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const CREATE_FIELDS = new Set(['title', 'model', 'workspaceId', 'parentConversationId', 'parentMessageIndex'])
 const PATCH_FIELDS = new Set(['title', 'model', 'workspaceId', 'messages'])
 const MESSAGE_ROLES = new Set(['system', 'user', 'assistant'])
+const withMutation = createMutationQueue()
 
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -89,7 +91,8 @@ export async function getConversation(id) {
 }
 
 export async function createConversation(input = {}) {
-  const conversations = await load()
+  return withMutation(async () => {
+    const conversations = await load()
   const timestamp = now()
   const conversation = {
     id: randomUUID(),
@@ -103,12 +106,14 @@ export async function createConversation(input = {}) {
     updatedAt: timestamp,
   }
   conversations.push(conversation)
-  await save(conversations)
-  return conversation
+    await save(conversations)
+    return conversation
+  })
 }
 
 export async function updateConversation(id, patch = {}) {
-  const conversations = await load()
+  return withMutation(async () => {
+    const conversations = await load()
   const index = conversations.findIndex((item) => item.id === id)
   if (index < 0) return null
   const current = conversations[index]
@@ -120,21 +125,25 @@ export async function updateConversation(id, patch = {}) {
     ...(Array.isArray(patch.messages) ? { messages: patch.messages } : {}),
     updatedAt: now(),
   }
-  await save(conversations)
-  return conversations[index]
+    await save(conversations)
+    return conversations[index]
+  })
 }
 
 export async function deleteConversation(id) {
-  const conversations = await load()
+  return withMutation(async () => {
+    const conversations = await load()
   const next = conversations.filter((item) => item.id !== id)
   if (next.length === conversations.length) return false
-  await save(next)
-  return true
+    await save(next)
+    return true
+  })
 }
 
 export async function detachWorkspaceFromConversations(workspaceId) {
   if (typeof workspaceId !== 'string' || !UUID.test(workspaceId)) return 0
-  const conversations = await load()
+  return withMutation(async () => {
+    const conversations = await load()
   let changed = 0
   const timestamp = now()
   const next = conversations.map((conversation) => {
@@ -142,6 +151,7 @@ export async function detachWorkspaceFromConversations(workspaceId) {
     changed += 1
     return { ...conversation, workspaceId: null, updatedAt: timestamp }
   })
-  if (changed) await save(next)
-  return changed
+    if (changed) await save(next)
+    return changed
+  })
 }
