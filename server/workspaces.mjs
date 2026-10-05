@@ -4,8 +4,54 @@ import { randomUUID } from 'node:crypto'
 
 const DATA_DIR = process.env.GOREECLOUD_AI_DATA_DIR ?? path.resolve('data')
 const STORE_PATH = path.join(DATA_DIR, 'workspaces.json')
+const MODEL_ROLE_IDS = new Set(['assistant', 'reasoner', 'engineer', 'utility', 'embeddings', 'vision', 'second-opinion'])
+const CREATE_FIELDS = new Set(['name', 'instructions', 'defaultModelRole', 'researchEnabled'])
+const PATCH_FIELDS = new Set(['name', 'instructions', 'defaultModelRole', 'fileIds', 'knowledgeCollectionIds', 'toolIds', 'researchEnabled'])
 
 function now() { return new Date().toISOString() }
+
+function record(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function validName(value) {
+  return typeof value === 'string' && value.trim().length >= 1 && value.trim().length <= 120
+}
+
+function validInstructions(value) {
+  return typeof value === 'string' && value.length <= 20_000
+}
+
+function validRole(value) {
+  return typeof value === 'string' && MODEL_ROLE_IDS.has(value)
+}
+
+function validIdList(value) {
+  return Array.isArray(value) && value.length <= 1_000 && value.every((item) =>
+    typeof item === 'string' && item.length >= 1 && item.length <= 256 && item.trim() === item
+  )
+}
+
+export function validateWorkspaceCreateInput(input) {
+  if (!record(input) || Object.keys(input).some((key) => !CREATE_FIELDS.has(key))) return false
+  if (input.name !== undefined && !validName(input.name)) return false
+  if (input.instructions !== undefined && !validInstructions(input.instructions)) return false
+  if (input.defaultModelRole !== undefined && !validRole(input.defaultModelRole)) return false
+  if (input.researchEnabled !== undefined && typeof input.researchEnabled !== 'boolean') return false
+  return true
+}
+
+export function validateWorkspacePatch(input) {
+  if (!record(input) || Object.keys(input).some((key) => !PATCH_FIELDS.has(key))) return false
+  if (input.name !== undefined && !validName(input.name)) return false
+  if (input.instructions !== undefined && !validInstructions(input.instructions)) return false
+  if (input.defaultModelRole !== undefined && !validRole(input.defaultModelRole)) return false
+  if (input.fileIds !== undefined && !validIdList(input.fileIds)) return false
+  if (input.knowledgeCollectionIds !== undefined && !validIdList(input.knowledgeCollectionIds)) return false
+  if (input.toolIds !== undefined && !validIdList(input.toolIds)) return false
+  if (input.researchEnabled !== undefined && typeof input.researchEnabled !== 'boolean') return false
+  return true
+}
 
 async function load() {
   try {
@@ -39,7 +85,7 @@ export async function createWorkspace(input = {}) {
     id: randomUUID(),
     name: typeof input.name === 'string' && input.name.trim() ? input.name.trim().slice(0, 120) : 'New Workspace',
     instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20_000) : '',
-    defaultModelRole: typeof input.defaultModelRole === 'string' ? input.defaultModelRole : 'assistant',
+    defaultModelRole: validRole(input.defaultModelRole) ? input.defaultModelRole : 'assistant',
     fileIds: [],
     knowledgeCollectionIds: [],
     toolIds: [],
@@ -61,7 +107,7 @@ export async function updateWorkspace(id, patch = {}) {
     ...current,
     ...(typeof patch.name === 'string' ? { name: patch.name.trim().slice(0, 120) || current.name } : {}),
     ...(typeof patch.instructions === 'string' ? { instructions: patch.instructions.slice(0, 20_000) } : {}),
-    ...(typeof patch.defaultModelRole === 'string' ? { defaultModelRole: patch.defaultModelRole } : {}),
+    ...(validRole(patch.defaultModelRole) ? { defaultModelRole: patch.defaultModelRole } : {}),
     ...(Array.isArray(patch.fileIds) ? { fileIds: [...new Set(patch.fileIds.filter((value) => typeof value === 'string'))] } : {}),
     ...(Array.isArray(patch.knowledgeCollectionIds) ? { knowledgeCollectionIds: [...new Set(patch.knowledgeCollectionIds.filter((value) => typeof value === 'string'))] } : {}),
     ...(Array.isArray(patch.toolIds) ? { toolIds: [...new Set(patch.toolIds.filter((value) => typeof value === 'string'))] } : {}),
