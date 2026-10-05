@@ -26,6 +26,7 @@ test('accepts bounded conversation patches', () => {
 
 test('rejects malformed conversation patches and messages', () => {
   assert.equal(validateConversationPatch({ messages: [{ role: 'tool', content: 'nope' }] }), false)
+  assert.equal(validateConversationPatch({ messages: [{ role: 'system', content: 'not allowed' }] }), false)
   assert.equal(validateConversationPatch({ messages: [{ role: 'user', content: 'ok', extra: true }] }), false)
   assert.equal(validateConversationPatch({ messages: new Array(4097).fill({ role: 'user', content: 'x' }) }), false)
   assert.equal(validateConversationPatch({ workspaceId: '------------------------------------' }), false)
