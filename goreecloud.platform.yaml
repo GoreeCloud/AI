@@ -73,7 +73,7 @@ platform_systems:
     result: applicable-migration-required
     version: null
     evidence: []
-    notes: Official Anchor Glaze UI 1.6.0 is the current consumer target. GoreeCloud AI still contains historical 2.x-labeled migration input and has not produced exact-revision 1.6.0 application-specific consumer acceptance evidence.
+    notes: Official Anchor Glaze 1.7.0 is the current consumer target. GoreeCloud AI still contains historical 2.x-labeled migration input and has not produced exact-revision 1.7.0 application-specific consumer acceptance evidence.
   mesh:
     result: applicable-blocked
     version: null
@@ -131,10 +131,10 @@ external_dependencies:
 
 compatibility:
   platform_contract: "2.0"
-  glaze_ui_required: "1.6.0"
+  glaze_ui_required: "1.7.0"
   requires:
     - goreecloud-platform-contract==2.0
-    - glaze-ui==1.6.0
+    - glaze-ui==1.7.0
   provides:
     - goreecloud-ai-development-api-v1
 
@@ -151,7 +151,7 @@ conformance:
     - Privacy Shield authenticated runtime integration, durable authorization/evidence, revocation/replay handling, and acceptance remain blocked.
     - Wardveil authenticated runtime transport and target-runtime acceptance remain blocked.
     - Everkeep backup, restore, export, portability, and recovery acceptance remain blocked.
-    - Official Anchor Glaze UI 1.6.0 implementation and GoreeCloud AI-specific consumer acceptance remain migration-required.
+    - Official Anchor Glaze 1.7.0 implementation and GoreeCloud AI-specific consumer acceptance remain migration-required.
     - GoreeCloud Mesh runtime integration and acceptance remain blocked.
     - GoreeCloud Identity authenticated runtime integration and application/resource authorization acceptance remain blocked.
     - GoreeCloud Policy AI-specific runtime decision, enforcement, and evidence acceptance remain blocked.
