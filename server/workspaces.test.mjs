@@ -36,5 +36,6 @@ test('rejects malformed workspace patch collections and roles', () => {
   assert.equal(validateWorkspacePatch({ fileIds: [''] }), false)
   assert.equal(validateWorkspacePatch({ toolIds: [' leading-space'] }), false)
   assert.equal(validateWorkspacePatch({ knowledgeCollectionIds: new Array(1001).fill('id') }), false)
+  assert.equal(validateWorkspacePatch({ fileIds: ['duplicate', 'duplicate'] }), false)
   assert.equal(validateWorkspacePatch({ unexpected: [] }), false)
 })
