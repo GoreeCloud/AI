@@ -17,6 +17,7 @@
 - Improved streaming ergonomics so deliberate user scrolling suspends automatic output following and a glyph control returns to the latest message; runtime presentation now distinguishes “no local models installed” from an unreachable runtime.
 - Added copy controls to rendered fenced code blocks with success/failure state and accessible announcements while preserving inline-code rendering.
 - Improved fenced-code readability with language labels and bounded horizontal scrolling.
+- Added bounded browser deadlines for local conversation, Workspace, and file control-plane requests; attachment uploads receive a longer allowance.
 - Hardened full-message copy controls so clipboard success and failure are explicit through glyph state, accessible labels, and polite announcements rather than an unreported browser clipboard call.
 - Added context-aware Escape keyboard behavior: Escape stops active generation without discarding the persisted partial-response path, and when idle closes transient navigation/context panels while dialogs retain their own dismissal handling.
 - Added a reusable tested process-local mutation queue and applied it to conversation and Workspace read-modify-write operations; attachment upload and Workspace deletion now share a lifecycle queue to close the cross-store deletion race.
