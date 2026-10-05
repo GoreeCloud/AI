@@ -15,6 +15,9 @@
 - Hardened conversation create/update persistence with closed field sets, bounded title/model/message shapes, strict Workspace/parent UUID validation, and four focused validator tests; Workspace deletion now clears saved-conversation Workspace references instead of leaving dangling associations.
 - Hardened the live chat boundary with closed, bounded user/assistant message envelopes that must end in a user request; client-authored `system` context is rejected so Workspace system instructions remain backend-owned.
 - Improved streaming ergonomics so deliberate user scrolling suspends automatic output following and a glyph control returns to the latest message; runtime presentation now distinguishes “no local models installed” from an unreachable runtime.
+- Added a reusable tested process-local mutation queue and applied it to conversation and Workspace read-modify-write operations; attachment upload and Workspace deletion now share a lifecycle queue to close the cross-store deletion race.
+- Restricted persisted conversation message roles to user/assistant so browser/API persistence cannot store client-authored system context that the live chat boundary would reject.
+- Added accessible confirmed file deletion and guarded Workspace deletion controls. Workspace deletion is disabled in the UI while known file dependencies remain and still fails closed against backend dependency checks; successful file deletion refreshes file/Workspace state.
 
 ### Changed — current Glaze consumer target
 
