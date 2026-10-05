@@ -38,6 +38,10 @@
   cursor: pointer;
 }
 .context-action:hover { color: var(--text); background: rgba(255,255,255,.055); }
+.context-action:disabled { cursor: not-allowed; opacity: .38; }
+.context-action:disabled:hover { color: var(--soft); background: transparent; }
+.context-action-icon { width: 34px; justify-content: center; padding-inline: 8px; }
+.danger-action:not(:disabled) { color: var(--danger); }
 .file-chip {
   display: flex;
   align-items: center;
@@ -58,8 +62,8 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.file-chip > em {
-  flex: 0 0 auto;
+.file-chip-actions { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.file-chip-actions > em {
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -70,8 +74,20 @@
   letter-spacing: .035em;
   text-transform: uppercase;
 }
-.file-chip.available > em { color: var(--text); }
-.file-chip.blocked > em, .file-chip.held > em { color: var(--soft); }
+.file-chip.available .file-chip-actions > em { color: var(--text); }
+.file-chip.blocked .file-chip-actions > em, .file-chip.held .file-chip-actions > em { color: var(--soft); }
+.file-delete-button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.file-delete-button:hover { color: var(--danger); background: rgba(255,255,255,.055); }
 
 .model-picker optgroup { font-weight: 700; }
 .model-picker option { font-weight: 500; }
