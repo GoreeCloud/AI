@@ -24,6 +24,10 @@
 - Made streamed-response persistence deterministic outside React state updater callbacks and separated conversation-save failures from model/runtime failures so completed or manually stopped output remains visible with an explicit save warning.
 - Improved text-dialog accessibility with explicit descriptions and Escape-key dismissal while preserving separate alert-dialog confirmation behavior.
 - Added shared bounded client API error details for conversation, Workspace, and file failures; public detail is whitespace-normalized and capped before display so actionable backend reasons do not become unbounded UI output.
+- Added confirmation for conversation deletion and surfaced conversation-history, Workspace-refresh, and file-refresh failures instead of silently dropping those errors.
+- Hardened text-entry and destructive confirmation dialogs against duplicate asynchronous submissions, and kept text-entry save failures visible for retry.
+- Rejected duplicate Workspace resource-ID collections before persistence; exposed the full Workspace file list for management and made the context panel scroll for larger attachment sets.
+- Tightened conversation, Workspace, and file resource routes to canonical UUID identifiers.
 
 ### Changed — current Glaze consumer target
 
