@@ -11,10 +11,13 @@ This file records capabilities that exist in the current repository source. An e
 - React/TypeScript/Vite client with a responsive conversation shell, navigation and context surfaces.
 - Node.js application backend bound to the local application boundary.
 - Backend-owned local model discovery and streamed NDJSON chat through the replaceable local model runtime.
+- Backend chat input is bounded to closed user/assistant message shapes ending in a user request; client-authored `system` messages are rejected so private Workspace system context remains backend-owned.
+- Runtime presentation distinguishes an unreachable local runtime from a reachable runtime with no installed models, with explicit refresh/install guidance.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
 - Conversation create/update persistence now uses closed supported-field sets, bounded title/model/message shapes, strict UUID-backed Workspace/parent references, and fail-closed malformed-input rejection.
 - Deleting a Workspace through the backend clears saved-conversation Workspace references so the persistence layer does not retain dangling associations.
 - Client-side saved-conversation search across title, selected model and Workspace name.
+- Streaming follow is user-controlled: scrolling away from the bottom suspends automatic following and exposes a compact jump-to-latest control.
 - User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
 - Native Workspaces with editable names, instructions, default model roles, file references, knowledge/tool placeholders and research preferences.
 - Fail-closed Workspace create/update validation for supported fields, model-role identifiers, instruction/name bounds, research preference types, and bounded resource-ID collections.
