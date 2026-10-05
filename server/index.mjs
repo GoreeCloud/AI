@@ -150,7 +150,7 @@ async function handleConversations(req, res, pathname) {
       })
     }
   }
-  const match = pathname.match(/^\/api\/conversations\/([0-9a-f-]+)$/i)
+  const match = pathname.match(/^\/api\/conversations\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i)
   if (!match) return false
   const id = match[1]
   if (req.method === 'GET') {
@@ -181,7 +181,7 @@ async function handleWorkspaces(req, res, pathname) {
       return json(res, 201, await createWorkspace(input))
     }
   }
-  const match = pathname.match(/^\/api\/workspaces\/([0-9a-f-]+)$/i)
+  const match = pathname.match(/^\/api\/workspaces\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i)
   if (!match) return false
   const id = match[1]
   if (req.method === 'GET') {
@@ -248,7 +248,7 @@ async function handleFiles(req, res, pathname) {
       })
     }
   }
-  const match = pathname.match(/^\/api\/files\/([0-9a-f-]+)(?:\/(extraction|knowledge-eligibility|knowledge-authorization-assessment))?$/i)
+  const match = pathname.match(/^\/api\/files\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(extraction|knowledge-eligibility|knowledge-authorization-assessment))?$/i)
   if (!match) return false
   const id = match[1]
   const resource = match[2]
