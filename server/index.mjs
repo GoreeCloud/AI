@@ -98,16 +98,18 @@ async function handleConversations(req, res, pathname) {
   if (pathname === '/api/conversations') {
     if (req.method === 'GET') return json(res, 200, { conversations: await listConversations() })
     if (req.method === 'POST') {
-      const input = await readJson(req)
-      if (!validateConversationCreateInput(input)) return json(res, 400, { error: 'Invalid conversation input' })
-      const workspaceExists = !input.workspaceId || Boolean(await getWorkspace(input.workspaceId))
-      const parentConversation = input.parentConversationId ? await getConversation(input.parentConversationId) : null
-      const references = validateConversationReferenceState(input, { workspaceExists, parentConversation })
-      if (!references.ok) {
-        const status = references.reason === 'workspace_not_found' || references.reason === 'parent_not_found' ? 404 : 400
-        return json(res, status, { error: 'Invalid conversation references', reason: references.reason })
-      }
-      return json(res, 201, await createConversation(input))
+      return withWorkspaceAttachmentLifecycle(async () => {
+        const input = await readJson(req)
+        if (!validateConversationCreateInput(input)) return json(res, 400, { error: 'Invalid conversation input' })
+        const workspaceExists = !input.workspaceId || Boolean(await getWorkspace(input.workspaceId))
+        const parentConversation = input.parentConversationId ? await getConversation(input.parentConversationId) : null
+        const references = validateConversationReferenceState(input, { workspaceExists, parentConversation })
+        if (!references.ok) {
+          const status = references.reason === 'workspace_not_found' || references.reason === 'parent_not_found' ? 404 : 400
+          return json(res, status, { error: 'Invalid conversation references', reason: references.reason })
+        }
+        return json(res, 201, await createConversation(input))
+      })
     }
   }
   const match = pathname.match(/^\/api\/conversations\/([0-9a-f-]+)$/i)
@@ -118,13 +120,15 @@ async function handleConversations(req, res, pathname) {
     return conversation ? json(res, 200, conversation) : json(res, 404, { error: 'Conversation not found' })
   }
   if (req.method === 'PATCH') {
-    const patch = await readJson(req)
-    if (!validateConversationPatch(patch)) return json(res, 400, { error: 'Invalid conversation patch' })
-    if (typeof patch.workspaceId === 'string' && !(await getWorkspace(patch.workspaceId))) {
-      return json(res, 404, { error: 'Workspace not found' })
-    }
-    const conversation = await updateConversation(id, patch)
-    return conversation ? json(res, 200, conversation) : json(res, 404, { error: 'Conversation not found' })
+    return withWorkspaceAttachmentLifecycle(async () => {
+      const patch = await readJson(req)
+      if (!validateConversationPatch(patch)) return json(res, 400, { error: 'Invalid conversation patch' })
+      if (typeof patch.workspaceId === 'string' && !(await getWorkspace(patch.workspaceId))) {
+        return json(res, 404, { error: 'Workspace not found' })
+      }
+      const conversation = await updateConversation(id, patch)
+      return conversation ? json(res, 200, conversation) : json(res, 404, { error: 'Conversation not found' })
+    })
   }
   if (req.method === 'DELETE') return (await deleteConversation(id)) ? json(res, 200, { deleted: true }) : json(res, 404, { error: 'Conversation not found' })
   return false
