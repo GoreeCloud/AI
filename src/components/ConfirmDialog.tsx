@@ -16,14 +16,13 @@ export function ConfirmDialog({ open, title, description, confirmLabel = 'Confir
 
   useEffect(() => {
     if (!open) return
-    setPending(false)
     queueMicrotask(() => confirmRef.current?.focus())
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !pending) onCancel()
+      if (event.key === 'Escape') onCancel()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, onCancel, pending])
+  }, [open, onCancel])
 
   if (!open) return null
 
