@@ -1,3 +1,5 @@
+import { responseError } from './http'
+
 export type ChatRole = 'system' | 'user' | 'assistant'
 
 export interface ChatMessage {
@@ -65,7 +67,7 @@ export class OllamaClient {
       headers: { Accept: 'application/json' },
       credentials: 'same-origin',
     })
-    if (!response.ok) throw new Error(`Model discovery failed (${response.status})`)
+    if (!response.ok) throw await responseError(response, 'Model discovery failed')
     const data = (await response.json()) as ListModelsResponse
     return Array.isArray(data.models) ? data.models : []
   }
@@ -87,7 +89,7 @@ export class OllamaClient {
       }),
     })
 
-    if (!response.ok) throw new Error(`Chat request failed (${response.status})`)
+    if (!response.ok) throw await responseError(response, 'Chat request failed')
     if (!response.body) throw new Error('Streaming response body is unavailable')
 
     const reader = response.body.getReader()
