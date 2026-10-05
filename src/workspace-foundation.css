@@ -21,6 +21,9 @@
   background: var(--surface-2);
 }
 .context-select option { color: #111827; }
+.context-field { display: grid; gap: 4px; margin-top: 10px; }
+.context-field > span { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+.context-field .context-select { margin-top: 0; }
 .context-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .context-action {
   display: inline-flex;
