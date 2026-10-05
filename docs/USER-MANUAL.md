@@ -12,6 +12,8 @@ GoreeCloud AI owns the user-facing AI experience, conversations, Workspaces, fil
 
 The browser does not call Ollama directly. Model access is routed through the GoreeCloud AI backend so authentication, application authorization, Privacy Shield state, Wardveil enforcement, auditing, cancellation, and future runtime changes can remain server-owned.
 
+The chat endpoint also rejects client-authored `system` messages. Browser chat history may contain only bounded user/assistant messages ending in a user request; Workspace system instructions are resolved and composed by the backend.
+
 ## Development Commands
 
 Install dependencies and validate the current source with:
@@ -31,6 +33,8 @@ Start the client and backend with the development scripts in `package.json`. Act
 The current application supports Ollama model discovery through the backend, friendly GoreeCloud model-role selection, streaming chat responses, stop generation, Markdown/GFM rendering, persistent conversations, rename/edit, retry/recovery, conversation branching with parent lineage metadata, and Workspace association.
 
 Use **Search conversations** in the sidebar to filter saved conversations by title, model, or Workspace name. Use the refresh control beside the model picker to re-query installed local models through the GoreeCloud AI backend.
+
+While a response is streaming, GoreeCloud AI follows the latest output until you deliberately scroll away. Scrolling up suspends automatic following; use the down-arrow control to return to the latest message. If Ollama is reachable but reports no installed models, the runtime status says **No local models** rather than reporting an outage, and the composer explains that an approved local model must be installed before refreshing the list.
 
 The download control exports the current visible conversation to a local Markdown file. This is a user-controlled browser export of the conversation transcript and basic model/Workspace metadata; it is not an Everkeep-governed backup, recovery, or full portability export.
 
