@@ -38,7 +38,7 @@ While a response is streaming, GoreeCloud AI follows the latest output until you
 
 The download control exports the current visible conversation to a local Markdown file. This is a user-controlled browser export of the conversation transcript and basic model/Workspace metadata; it is not an Everkeep-governed backup, recovery, or full portability export.
 
-Assistant fenced code blocks include a copy glyph in the code surface. Successful and failed copy attempts update the control state and provide a polite accessibility announcement; inline code is unaffected.
+Assistant fenced code blocks include a copy glyph, a visible language label when Markdown declares one (or a neutral Code label), and bounded horizontal scrolling for long lines. Successful and failed copy attempts update the control state and provide a polite accessibility announcement; inline code is unaffected.
 
 Every non-welcome conversation message also includes a copy glyph in its message actions. A successful copy changes to a confirmation glyph; a clipboard failure changes to a warning glyph. Both outcomes update the accessible label and are announced politely to assistive technology.
 
