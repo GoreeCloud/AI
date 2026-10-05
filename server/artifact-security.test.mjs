@@ -120,6 +120,7 @@ let storeFile
 let deleteFile
 let getFileStorageUsage
 let listFiles
+let countWorkspaceFileReferences
 let createWorkspace
 let updateWorkspace
 let getWorkspace
