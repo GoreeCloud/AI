@@ -8,7 +8,8 @@
 - Added saved-conversation search across title, model and Workspace name.
 - Added user-controlled local Markdown conversation export and a manual local-model inventory refresh control.
 - Disabled the not-yet-connected knowledge Library and external Research controls so the Development interface no longer presents those no-op surfaces as available capabilities.
-- Added conversation-end scrolling and supporting focus/disabled-state polish.
+- Added conversation-end streaming scroll, auto-resizing prompt composition, quieter screen-reader generation status, Ctrl/Command+K conversation-search focus, and supporting focus/disabled-state polish.
+- Added editable Workspace names and default model-role preferences through the existing Workspace persistence boundary; missing local role matches remain explicit and do not trigger silent substitution.
 
 ### Changed — current Glaze consumer target
 
