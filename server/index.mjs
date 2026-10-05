@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { createConversation, deleteConversation, getConversation, listConversations, updateConversation } from './conversations.mjs'
+import { createConversation, deleteConversation, detachWorkspaceFromConversations, getConversation, listConversations, updateConversation, validateConversationCreateInput, validateConversationPatch } from './conversations.mjs'
 import { createWorkspace, deleteWorkspace, detachFileFromWorkspaces, getWorkspace, listWorkspaces, updateWorkspace, validateWorkspaceCreateInput, validateWorkspacePatch } from './workspaces.mjs'
 import { deleteFile, getFileRecord, getFileStorageUsage, listFiles, storeFile } from './files.mjs'
 import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text-extraction.mjs'
@@ -99,7 +99,11 @@ async function handleChat(req, res) {
 async function handleConversations(req, res, pathname) {
   if (pathname === '/api/conversations') {
     if (req.method === 'GET') return json(res, 200, { conversations: await listConversations() })
-    if (req.method === 'POST') return json(res, 201, await createConversation(await readJson(req)))
+    if (req.method === 'POST') {
+      const input = await readJson(req)
+      if (!validateConversationCreateInput(input)) return json(res, 400, { error: 'Invalid conversation input' })
+      return json(res, 201, await createConversation(input))
+    }
   }
   const match = pathname.match(/^\/api\/conversations\/([0-9a-f-]+)$/i)
   if (!match) return false
@@ -110,7 +114,7 @@ async function handleConversations(req, res, pathname) {
   }
   if (req.method === 'PATCH') {
     const patch = await readJson(req)
-    if (patch.messages !== undefined && !validMessages(patch.messages)) return json(res, 400, { error: 'Invalid messages' })
+    if (!validateConversationPatch(patch)) return json(res, 400, { error: 'Invalid conversation patch' })
     const conversation = await updateConversation(id, patch)
     return conversation ? json(res, 200, conversation) : json(res, 404, { error: 'Conversation not found' })
   }
@@ -140,7 +144,12 @@ async function handleWorkspaces(req, res, pathname) {
     const workspace = await updateWorkspace(id, patch)
     return workspace ? json(res, 200, workspace) : json(res, 404, { error: 'Workspace not found' })
   }
-  if (req.method === 'DELETE') return (await deleteWorkspace(id)) ? json(res, 200, { deleted: true }) : json(res, 404, { error: 'Workspace not found' })
+  if (req.method === 'DELETE') {
+    const deleted = await deleteWorkspace(id)
+    if (!deleted) return json(res, 404, { error: 'Workspace not found' })
+    const conversationReferencesRemoved = await detachWorkspaceFromConversations(id)
+    return json(res, 200, { deleted: true, conversationReferencesRemoved })
+  }
   return false
 }
 
