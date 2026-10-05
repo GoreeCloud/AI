@@ -11,6 +11,8 @@ test('normalizes absent and valid workspace identifiers', () => {
 
 test('rejects malformed workspace identifiers', () => {
   assert.equal(normalizeWorkspaceId('not-a-workspace'), undefined)
+  assert.equal(normalizeWorkspaceId('------------------------------------'), undefined)
+  assert.equal(normalizeWorkspaceId('123e4567-e89b-02d3-a456-426614174000'), undefined)
   assert.equal(normalizeWorkspaceId(42), undefined)
 })
 
