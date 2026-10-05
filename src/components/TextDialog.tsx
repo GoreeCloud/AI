@@ -33,9 +33,9 @@ export function TextDialog({ open, title, label, initialValue, multiline = false
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}>
-      <form className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onSubmit={submit}>
+      <form className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description" onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); onCancel() } }} onSubmit={submit}>
         <div className="dialog-heading">
-          <div><strong id="dialog-title">{title}</strong><span>{label}</span></div>
+          <div><strong id="dialog-title">{title}</strong><span id="dialog-description">{label}</span></div>
           <button type="button" className="icon-button" onClick={onCancel} aria-label="Close dialog"><X size={18}/></button>
         </div>
         {multiline ? (
