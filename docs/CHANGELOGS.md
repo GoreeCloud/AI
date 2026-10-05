@@ -18,6 +18,7 @@
 - Added a reusable tested process-local mutation queue and applied it to conversation and Workspace read-modify-write operations; attachment upload and Workspace deletion now share a lifecycle queue to close the cross-store deletion race.
 - Restricted persisted conversation message roles to user/assistant so browser/API persistence cannot store client-authored system context that the live chat boundary would reject.
 - Added accessible confirmed file deletion and guarded Workspace deletion controls. Workspace deletion is disabled in the UI while known file dependencies remain and still fails closed against backend dependency checks; successful file deletion refreshes file/Workspace state.
+- Added live relationship validation for conversation Workspace/branch-parent references and Workspace file lists, with four focused tests; conversation Workspace association is serialized with Workspace deletion, and stale declared file IDs no longer act as authoritative deletion dependencies.
 
 ### Changed — current Glaze consumer target
 
