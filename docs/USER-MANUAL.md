@@ -38,13 +38,17 @@ While a response is streaming, GoreeCloud AI follows the latest output until you
 
 The download control exports the current visible conversation to a local Markdown file. This is a user-controlled browser export of the conversation transcript and basic model/Workspace metadata; it is not an Everkeep-governed backup, recovery, or full portability export.
 
+Deleting a saved conversation now opens a confirmation dialog before local removal. If conversation history cannot be refreshed, opened, or deleted, the sidebar keeps a visible error message rather than silently discarding the failure.
+
 When a conversation, Workspace, or file request is rejected, the interface can include a short backend-provided reason when one is available. This detail is normalized and length-bounded before display; it is intended for actionable Development feedback rather than raw diagnostic output.
+
+Text-entry and destructive confirmation dialogs block duplicate submissions while an asynchronous change is in progress. Text-entry save failures remain visible in the dialog so the user can correct or retry the change.
 
 Actual model identifiers remain runtime infrastructure and may change independently of the user-facing role names.
 
 ## Workspaces
 
-Workspaces currently persist development state including name, instructions, default model role, file references, knowledge-collection placeholders, tool placeholders, and research preference state.
+Workspaces currently persist development state including name, instructions, default model role, file references, knowledge-collection placeholders, tool placeholders, and research preference state. Duplicate resource identifiers in a Workspace update are rejected before persistence.
 
 For a selected Workspace, **Rename** updates its display name and the **Default model role** selector updates the persisted role preference. When the chosen role has a recognized installed local model, GoreeCloud AI selects that model; when no matching model is installed, the UI states that no installed match exists instead of silently substituting one.
 
@@ -74,6 +78,8 @@ The local development attachment library enforces configurable per-file, file-co
 Deleting a file removes its released or staged bytes, its derived text extraction when present, and stale Workspace file references. This is application cleanup only; it is not Wardveil quarantine, secure erasure, Everkeep retention proof, or proof that no other copies exist.
 
 The file list exposes a trash control with a confirmation step. After a successful delete, the client refreshes both file and Workspace state so removed references disappear from the current context.
+
+Every file associated with the selected Workspace is shown in the context panel rather than only the first few entries. Larger file sets remain manageable through the scrollable context surface.
 
 ## Passive Text Extraction
 
