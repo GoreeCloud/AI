@@ -1,6 +1,6 @@
 import { responseError } from './http'
 
-export type ChatRole = 'system' | 'user' | 'assistant'
+export type ChatRole = 'user' | 'assistant'
 
 export interface ChatMessage {
   role: ChatRole

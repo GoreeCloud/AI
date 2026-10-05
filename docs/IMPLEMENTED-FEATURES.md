@@ -11,7 +11,7 @@ This file records capabilities that exist in the current repository source. An e
 - React/TypeScript/Vite client with a responsive conversation shell, navigation and context surfaces.
 - Node.js application backend bound to the local application boundary.
 - Backend-owned local model discovery and streamed NDJSON chat through the replaceable local model runtime.
-- Backend chat input is bounded to closed user/assistant message shapes ending in a user request; client-authored `system` messages are rejected so private Workspace system context remains backend-owned.
+- Browser chat types and backend chat input are limited to user/assistant message shapes ending in a user request; client-authored `system` messages are not representable in the client contract and are rejected server-side so private Workspace system context remains backend-owned.
 - Streamed local-runtime output is now bounded by total-stream and per-NDJSON-line limits, decoded as strict UTF-8/JSON, reduced to public assistant-content/completion/error fields, backpressure-aware at the HTTP response boundary, and rejected fail-closed on malformed or oversized runtime output. The browser applies a second bounded parser and cancels malformed streams.
 - The unauthenticated health response reports only non-sensitive capability/configuration state and no longer exposes the configured local Ollama endpoint.
 - Shared browser API failures now surface bounded, whitespace-normalized public error details for conversations, Workspaces and files instead of status codes alone; displayed detail is capped to prevent oversized or control-character-heavy error text from dominating the interface.
