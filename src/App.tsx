@@ -76,8 +76,14 @@ export default function App() {
   }, [history, historyQuery, workspaces])
 
   async function refreshHistory() { try { setHistory(await listConversations()); setHistoryError(null) } catch (error) { setHistoryError(error instanceof Error ? error.message : 'Conversation history could not be refreshed.') } }
-  async function refreshWorkspaces() { try { setWorkspaces(await listWorkspaces()) } catch {} }
-  async function refreshFiles() { try { setFiles(await listFiles()) } catch {} }
+  async function refreshWorkspaces() {
+    try { setWorkspaces(await listWorkspaces()); setWorkspaceError(null) }
+    catch (error) { setWorkspaceError(error instanceof Error ? error.message : 'Workspaces could not be refreshed.') }
+  }
+  async function refreshFiles() {
+    try { setFiles(await listFiles()); setFileError(null) }
+    catch (error) { setFileError(error instanceof Error ? error.message : 'Files could not be refreshed.') }
+  }
   async function refreshModels() {
     setRuntimeState('checking')
     try {
@@ -422,10 +428,10 @@ export default function App() {
         await refreshWorkspaces()
       }
       const restricted = uploaded.filter((file) => file.status !== 'available')
+      await refreshFiles()
       if (restricted.length) {
         setFileError(`${restricted.length} attachment${restricted.length === 1 ? ' is' : 's are'} staged and unavailable to AI context until Wardveil verification succeeds.`)
       }
-      await refreshFiles()
       setContextOpen(true)
     } catch (error) {
       setFileError(error instanceof Error ? error.message : 'Attachment upload failed.')
