@@ -15,6 +15,7 @@ This file records capabilities that exist in the current repository source. An e
 - Streamed local-runtime output is now bounded by total-stream and per-NDJSON-line limits, decoded as strict UTF-8/JSON, reduced to public assistant-content/completion/error fields, backpressure-aware at the HTTP response boundary, and rejected fail-closed on malformed or oversized runtime output. The browser applies a second bounded parser and cancels malformed streams.
 - The unauthenticated health response reports only non-sensitive capability/configuration state and no longer exposes the configured local Ollama endpoint.
 - Shared browser API failures now surface bounded, whitespace-normalized public error details for conversations, Workspaces and files instead of status codes alone; displayed detail is capped to prevent oversized or control-character-heavy error text from dominating the interface.
+- Local control-plane browser requests now have bounded client deadlines, with a longer allowance for attachment uploads.
 - Runtime presentation distinguishes an unreachable local runtime from a reachable runtime with no installed models, with explicit refresh/install guidance.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
 - Persisted conversation and Workspace stores validate their versioned envelopes and stored-record schemas on load; malformed timestamps, invalid resource shapes, unsupported versions, and duplicate record IDs fail closed instead of being consumed as application state.
