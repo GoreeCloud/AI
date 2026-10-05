@@ -62,9 +62,9 @@ A satisfied structural assessment may produce `pending_stage_implementation`, bu
 
 ## Live runtime-validation contract
 
-`npm run validate:runtime` validates the first-party application path rather than connecting a browser client directly to Ollama. The base run checks GoreeCloud AI service health, reported Wardveil scanner configuration state, and Ollama model discovery through `/api/ollama/models`.
+`npm run validate:runtime` validates the first-party application path rather than connecting a browser client directly to Ollama. The base run checks GoreeCloud AI service health, reported Wardveil scanner configuration state, and Ollama model discovery through `/api/ollama/models`. The public health response exposes capability/configuration state only; it does not return the configured Ollama endpoint.
 
-When `VALIDATE_OLLAMA_MODEL` explicitly selects an installed model, the validator sends one bounded chat request through `/api/ollama/chat` and requires streamed assistant content plus a terminal `done` event. Generated response content is not printed by the validator.
+When `VALIDATE_OLLAMA_MODEL` explicitly selects an installed model, the validator sends one bounded chat request through `/api/ollama/chat` and requires streamed assistant content plus a terminal `done` event. The live backend also enforces bounded total-stream and per-event NDJSON limits, strict UTF-8/JSON parsing, public-field reduction, and response backpressure handling before forwarding stream events to the browser. Generated response content is not printed by the validator.
 
 If the application test endpoint requires the current development bearer, `GOREECLOUD_AI_API_TOKEN` may be supplied through protected runtime configuration. `VALIDATE_REQUIRE_WARDVEIL_SCANNER=true` is an explicit expectation gate: the validator fails if the application reports the Wardveil artifact scanner as unconfigured rather than converting absence into positive evidence.
 

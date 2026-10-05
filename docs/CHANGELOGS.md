@@ -19,6 +19,10 @@
 - Restricted persisted conversation message roles to user/assistant so browser/API persistence cannot store client-authored system context that the live chat boundary would reject.
 - Added accessible confirmed file deletion and guarded Workspace deletion controls. Workspace deletion is disabled in the UI while known file dependencies remain and still fails closed against backend dependency checks; successful file deletion refreshes file/Workspace state.
 - Added live relationship validation for conversation Workspace/branch-parent references and Workspace file lists, with four focused tests; conversation Workspace association is serialized with Workspace deletion, and stale declared file IDs no longer act as authoritative deletion dependencies.
+- Hardened streamed local-model output with strict UTF-8/NDJSON parsing, total-stream and per-event byte limits, public-field reduction, upstream cancellation on malformed output, and HTTP backpressure handling; the browser now applies its own bounded parser and releases/cancels stream readers deterministically.
+- Removed the configured Ollama endpoint from the unauthenticated health payload and added regression coverage for the non-sensitive public health contract.
+- Made streamed-response persistence deterministic outside React state updater callbacks and separated conversation-save failures from model/runtime failures so completed or manually stopped output remains visible with an explicit save warning.
+- Improved text-dialog accessibility with explicit descriptions and Escape-key dismissal while preserving separate alert-dialog confirmation behavior.
 
 ### Changed — current Glaze consumer target
 

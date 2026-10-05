@@ -211,6 +211,8 @@ Candidate models are not permanent dependencies.
 | `MAX_TOTAL_FILE_BYTES` | `1073741824` | Development aggregate attachment limit. |
 | `MAX_TEXT_EXTRACTION_BYTES` | `2097152` | Maximum source bytes accepted by passive extraction. |
 | `REQUEST_TIMEOUT_MS` | `120000` | Ollama upstream timeout. |
+| `MAX_CHAT_STREAM_BYTES` | `16777216` | Maximum total bytes accepted from one local-runtime chat stream before the backend fails closed. |
+| `MAX_CHAT_STREAM_LINE_BYTES` | `1048576` | Maximum bytes accepted for one NDJSON event from the local runtime. |
 
 Do not commit `.env`, `data/`, or reusable credentials.
 
