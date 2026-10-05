@@ -40,6 +40,37 @@
 .context-action:hover { color: var(--text); background: rgba(255,255,255,.055); }
 .context-action:disabled { cursor: not-allowed; opacity: .38; }
 .context-action:disabled:hover { color: var(--soft); background: transparent; }
+.context-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--soft);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+.context-retry:hover { color: var(--text); background: rgba(255,255,255,.055); }
+.history-recovery { display: grid; gap: 4px; padding-bottom: 4px; }
+.history-recovery .history-empty { padding-bottom: 0; }
+.history-recovery button {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--soft);
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+}
+.history-recovery button:hover { color: var(--text); background: rgba(255,255,255,.055); }
 .context-action-icon { width: 34px; justify-content: center; padding-inline: 8px; }
 .danger-action:not(:disabled) { color: var(--danger); }
 .file-chip {
