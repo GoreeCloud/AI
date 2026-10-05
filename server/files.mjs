@@ -61,6 +61,11 @@ export async function getFileRecord(id) {
   return (await loadIndex()).find((file) => file.id === id) ?? null
 }
 
+export async function countWorkspaceFileReferences(workspaceId) {
+  if (typeof workspaceId !== 'string' || !workspaceId) return 0
+  return (await loadIndex()).filter((file) => file.workspaceId === workspaceId).length
+}
+
 export async function getFileStorageUsage() {
   const files = await loadIndex()
   return {
@@ -83,7 +88,7 @@ export async function storeFile(req, maxBytes, scanner = null, limits = {}) {
     const id = randomUUID()
     const name = decodeURIComponent(String(req.headers['x-file-name'] ?? 'attachment')).replace(/[\\/\0]/g, '_').slice(0, 240) || 'attachment'
     const mediaType = String(req.headers['content-type'] ?? 'application/octet-stream').slice(0, 160)
-    const workspaceId = typeof req.headers['x-workspace-id'] === 'string' ? req.headers['x-workspace-id'] : null
+    const workspaceId = limits.workspaceId === null || typeof limits.workspaceId === 'string' ? limits.workspaceId : null
     const contextId = workspaceId ? `workspace:${workspaceId}` : 'unassigned'
     const artifact = { contextId, artifactId: id, artifactKind: 'chat_upload', mediaType }
 
