@@ -23,12 +23,16 @@ This file records capabilities that exist in the current repository source. An e
 - Conversation Workspace association is serialized with Workspace deletion and attachment intake so a Workspace cannot disappear between relationship validation and persistence.
 - Conversation and Workspace read-modify-write mutations are serialized within one Node.js process through a shared tested mutation-queue primitive, reducing lost-update races in the current local JSON stores.
 - Deleting a Workspace through the backend clears saved-conversation Workspace references so the persistence layer does not retain dangling associations.
+- Conversation, Workspace and file resource routes require canonical UUID paths rather than accepting arbitrary hex/hyphen identifiers.
 - Client-side saved-conversation search across title, selected model and Workspace name.
+- Conversation deletion now uses an explicit confirmation dialog; history refresh/open/delete failures are surfaced in the sidebar instead of being silently swallowed.
 - Streaming follow is user-controlled: scrolling away from the bottom suspends automatic following and exposes a compact jump-to-latest control.
 - Text-entry dialogs expose their descriptions to assistive technology and support Escape-key dismissal; confirmation dialogs retain their separate alert-dialog confirmation behavior.
+- Text-entry and destructive confirmation dialogs guard asynchronous submissions against duplicate activation; text-entry save failures remain visible in the dialog for retry instead of becoming unhandled UI failures.
 - User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
 - Native Workspaces with editable names, instructions, default model roles, file references, knowledge/tool placeholders and research preferences.
 - Fail-closed Workspace create/update validation for supported fields, model-role identifiers, instruction/name bounds, research preference types, and bounded resource-ID collections.
+- Workspace resource-ID collections reject duplicate entries before persistence; the UI exposes every Workspace file for management and the context panel remains scrollable for larger attachment sets.
 - Workspace instructions are resolved by the backend from the selected Workspace ID and applied transiently as private system context to local model requests without being inserted into persisted conversation history or creating authorization.
 - Manual local-model inventory refresh through the existing backend-owned Ollama discovery boundary.
 - Inactive knowledge Library and external Research controls are explicitly disabled in the Development UI instead of presenting no-op controls as usable capabilities.
