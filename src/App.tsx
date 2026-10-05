@@ -1,11 +1,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Bot, CheckCircle2, ChevronDown, Copy, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
+import { AlertCircle, Bot, CheckCircle2, ChevronDown, Copy, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
 import { MarkdownMessage } from './components/MarkdownMessage'
 import { TextDialog } from './components/TextDialog'
 import { OllamaClient, type ChatMessage, type OllamaModel } from './lib/ollama'
 import { createConversation, getConversation, listConversations, removeConversation, saveConversation, type ConversationSummary } from './lib/conversations'
 import { resolveModelRoles, roleForModel, type ModelRoleId } from './lib/modelRoles'
-import { createWorkspace, listWorkspaces, saveWorkspace, type Workspace } from './lib/workspaces'
+import { createWorkspace, getWorkspace, listWorkspaces, saveWorkspace, type Workspace } from './lib/workspaces'
 import { listFiles, uploadFile, type StoredFile } from './lib/files'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
@@ -21,6 +21,7 @@ type DialogState =
   | { kind: 'rename'; id: string; value: string }
   | { kind: 'edit'; index: number; value: string }
   | { kind: 'workspace'; value: string }
+  | { kind: 'workspace-instructions'; id: string; value: string }
   | null
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
   const [files, setFiles] = useState<StoredFile[]>([])
+  const [historyQuery, setHistoryQuery] = useState('')
   const [prompt, setPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -44,6 +46,8 @@ export default function App() {
   const [retryMessages, setRetryMessages] = useState<ChatMessage[] | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const historySearchRef = useRef<HTMLInputElement | null>(null)
+  const conversationEndRef = useRef<HTMLDivElement | null>(null)
   const client = useMemo(() => new OllamaClient('/api/ollama'), [])
   const resolvedRoles = useMemo(() => resolveModelRoles(models), [models])
   const currentRole = useMemo(() => roleForModel(selectedModel, models), [selectedModel, models])
@@ -51,10 +55,30 @@ export default function App() {
   const workspaceFiles = files.filter((file) => selectedWorkspaceId ? file.workspaceId === selectedWorkspaceId : file.workspaceId === null)
   const verifiedWorkspaceFiles = workspaceFiles.filter((file) => file.status === 'available')
   const restrictedWorkspaceFiles = workspaceFiles.filter((file) => file.status !== 'available')
+  const visibleHistory = useMemo(() => {
+    const query = historyQuery.trim().toLocaleLowerCase()
+    if (!query) return history
+    return history.filter((item) => {
+      const workspaceName = workspaces.find((workspace) => workspace.id === item.workspaceId)?.name ?? ''
+      return [item.title, item.model, workspaceName].some((value) => value.toLocaleLowerCase().includes(query))
+    })
+  }, [history, historyQuery, workspaces])
 
   async function refreshHistory() { try { setHistory(await listConversations()) } catch {} }
   async function refreshWorkspaces() { try { setWorkspaces(await listWorkspaces()) } catch {} }
   async function refreshFiles() { try { setFiles(await listFiles()) } catch {} }
+  async function refreshModels() {
+    setRuntimeState('checking')
+    try {
+      const available = await client.listModels()
+      setModels(available)
+      const assistant = resolveModelRoles(available).find((role) => role.id === 'assistant' && role.model)
+      setSelectedModel((current) => available.some((model) => model.name === current) ? current : assistant?.model?.name || available[0]?.name || '')
+      setRuntimeState('ready')
+    } catch {
+      setRuntimeState('offline')
+    }
+  }
 
   useEffect(() => {
     void refreshHistory()
@@ -70,6 +94,10 @@ export default function App() {
     }).catch(() => active && setRuntimeState('offline'))
     return () => { active = false }
   }, [client])
+
+  useEffect(() => {
+    conversationEndRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' })
+  }, [messages.length, generationError])
 
   async function persist(id: string, nextMessages: ChatMessage[], model = selectedModel, explicitTitle?: string, workspaceId = selectedWorkspaceId) {
     const firstUser = nextMessages.find((message) => message.role === 'user')?.content.trim()
@@ -93,9 +121,16 @@ export default function App() {
     const controller = new AbortController()
     controllerRef.current = controller
     try {
+      const activeWorkspace = selectedWorkspaceId
+        ? selectedWorkspace?.id === selectedWorkspaceId ? selectedWorkspace : await getWorkspace(selectedWorkspaceId)
+        : null
+      const workspaceInstructions = activeWorkspace?.instructions.trim()
+      const modelMessages: ChatMessage[] = workspaceInstructions
+        ? [{ role: 'system', content: `Workspace instructions:\n\n${workspaceInstructions}` }, ...stored(requestMessages)]
+        : stored(requestMessages)
       await client.streamChat({
         model: selectedModel,
-        messages: stored(requestMessages),
+        messages: modelMessages,
         signal: controller.signal,
         onToken(token) {
           setMessages((current) => {
@@ -135,6 +170,41 @@ export default function App() {
   }
 
   function stopGeneration() { controllerRef.current?.abort() }
+  function focusHistorySearch() {
+    setSidebarOpen(true)
+    window.setTimeout(() => historySearchRef.current?.focus(), 0)
+  }
+  function exportConversation() {
+    const exportMessages = stored(messages)
+    if (!exportMessages.length) return
+    const firstUser = exportMessages.find((message) => message.role === 'user')?.content.trim()
+    const title = currentSummary?.title || firstUser?.slice(0, 72) || 'GoreeCloud AI conversation'
+    const header = [
+      `# ${title}`,
+      '',
+      `- Exported: ${new Date().toISOString()}`,
+      `- Model: ${selectedModel || 'Not selected'}`,
+      `- Workspace: ${selectedWorkspace?.name || 'None'}`,
+      '',
+    ]
+    const sections = exportMessages.flatMap((message) => [
+      `## ${message.role === 'assistant' ? 'GoreeCloud AI' : message.role === 'user' ? 'You' : 'System'}`,
+      '',
+      message.content,
+      '',
+    ])
+    const blob = new Blob([[...header, ...sections].join('\n')], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const safeName = title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'goreecloud-ai-conversation'
+    anchor.href = url
+    anchor.download = `${safeName}.md`
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
   function newConversation() { controllerRef.current?.abort(); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setRetryMessages(null); setSidebarOpen(false) }
 
   async function openConversation(id: string) {
@@ -177,6 +247,12 @@ export default function App() {
         const item = history.find((entry) => entry.id === conversationId)
         await persist(conversationId, messages, selectedModel, item?.title, workspace.id)
       }
+      setDialog(null)
+      return
+    }
+    if (dialog.kind === 'workspace-instructions') {
+      await saveWorkspace(dialog.id, { instructions: value.slice(0, 20_000) })
+      await refreshWorkspaces()
       setDialog(null)
       return
     }
@@ -261,33 +337,36 @@ export default function App() {
     <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`} aria-label="Primary navigation">
       <div className="brand-row"><img className="brand-icon" src="/artwork/icon.svg" alt=""/><div><strong>GoreeCloud AI</strong><span>Local intelligence</span></div><button className="icon-button mobile-only" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19}/></button></div>
       <button className="new-chat" onClick={newConversation}><MessageSquarePlus size={18}/>New chat</button>
-      <nav className="nav-stack"><button className="nav-item active"><Sparkles size={18}/>Chat</button><button className="nav-item"><Search size={18}/>Search & research</button><button className="nav-item" onClick={() => setContextOpen(true)}><FileText size={18}/>Workspaces</button><button className="nav-item"><Globe2 size={18}/>Library</button></nav>
-      <div className="sidebar-section"><span className="section-label">Recent</span>{history.length === 0 ? <span className="history-item">No saved conversations</span> : history.map((item) => <div key={item.id} className="history-row"><button className={`history-item ${item.id === conversationId ? 'active' : ''}`} onClick={() => void openConversation(item.id)}>{item.parentConversationId ? '↳ ' : ''}{item.title}</button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'rename', id: item.id, value: item.title })} aria-label={`Rename ${item.title}`}><Pencil size={14}/></button><button className="icon-button history-action" onClick={() => void deleteConversation(item.id)} aria-label={`Delete ${item.title}`}><Trash2 size={14}/></button></div>)}</div>
+      <nav className="nav-stack"><button className="nav-item active"><Sparkles size={18}/>Chat</button><button className="nav-item" onClick={focusHistorySearch}><Search size={18}/>Search conversations</button><button className="nav-item" onClick={() => setContextOpen(true)}><FileText size={18}/>Workspaces</button><button className="nav-item" disabled title="The governed knowledge Library is not enabled in this Development build"><Globe2 size={18}/>Library</button></nav>
+      <div className="history-search"><Search size={14}/><input ref={historySearchRef} value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Search conversations" aria-label="Search saved conversations"/>{historyQuery && <button type="button" onClick={() => setHistoryQuery('')} aria-label="Clear conversation search"><X size={14}/></button>}</div>
+      <div className="sidebar-section"><span className="section-label">{historyQuery ? 'Matches' : 'Recent'}</span>{history.length === 0 ? <span className="history-empty">No saved conversations</span> : visibleHistory.length === 0 ? <span className="history-empty">No matching conversations</span> : visibleHistory.map((item) => <div key={item.id} className="history-row"><button className={`history-item ${item.id === conversationId ? 'active' : ''}`} onClick={() => void openConversation(item.id)}>{item.parentConversationId ? '↳ ' : ''}{item.title}</button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'rename', id: item.id, value: item.title })} aria-label={`Rename ${item.title}`}><Pencil size={14}/></button><button className="icon-button history-action" onClick={() => void deleteConversation(item.id)} aria-label={`Delete ${item.title}`}><Trash2 size={14}/></button></div>)}</div>
       <div className="sidebar-footer"><div className={`runtime-pill ${runtimeState}`}>{runtimeState === 'ready' ? <CheckCircle2 size={15}/> : <ShieldCheck size={15}/>} {runtimeState === 'checking' ? 'Checking local runtime' : runtimeState === 'ready' ? 'Local runtime ready' : 'Runtime unavailable'}</div><span>Privacy Shield · Wardveil Security</span></div>
     </aside>
 
     <main className="main-column">
-      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model"><option value="">Select model</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
+      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model"><option value="">Select model</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label="Export conversation as Markdown" title="Export conversation as Markdown"><Download size={19}/></button><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
 
       <section className="conversation" aria-live="polite"><div className="conversation-inner">
         {messages.map((message, index) => <article className={`message ${message.role}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><button onClick={() => void navigator.clipboard.writeText(message.content)} aria-label="Copy message"><Copy size={14}/></button>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
         {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>Generation interrupted</strong><span>{generationError}</span></div><button onClick={() => void retryGeneration()} disabled={!retryMessages || isGenerating}><RefreshCw size={14}/>Retry</button></div>}
+        <div ref={conversationEndRef} aria-hidden="true"/>
       </div></section>
 
-      <div className="composer-wrap"><form className="composer" onSubmit={submitPrompt}><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit() } }} placeholder={runtimeState === 'offline' ? 'Retry the local runtime or continue when it reconnects…' : 'Message GoreeCloud AI'} rows={1}/><div className="composer-toolbar"><div className="composer-tools"><input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={(event) => void attachFiles(event.target.files)}/><button type="button" className="tool-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} aria-label="Attach file"><Paperclip size={18}/></button><button type="button" className="tool-chip"><Globe2 size={16}/>Research</button></div>{isGenerating ? <button type="button" className="send-button" onClick={stopGeneration} aria-label="Stop generation"><Square size={17} fill="currentColor"/></button> : <button type="submit" className="send-button" disabled={!prompt.trim() || !selectedModel} aria-label="Send message"><Send size={17}/></button>}</div></form><p className="composer-note">{isUploading ? 'Staging attachment for Wardveil verification…' : 'Local by default. External research is disclosed through Privacy Shield.'}</p></div>
+      <div className="composer-wrap"><form className="composer" onSubmit={submitPrompt}><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit() } }} placeholder={runtimeState === 'offline' ? 'Retry the local runtime or continue when it reconnects…' : 'Message GoreeCloud AI'} rows={1}/><div className="composer-toolbar"><div className="composer-tools"><input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={(event) => void attachFiles(event.target.files)}/><button type="button" className="tool-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} aria-label="Attach file"><Paperclip size={18}/></button><button type="button" className="tool-chip" disabled title="External research is not connected in this Development build"><Globe2 size={16}/>Research</button></div>{isGenerating ? <button type="button" className="send-button" onClick={stopGeneration} aria-label="Stop generation"><Square size={17} fill="currentColor"/></button> : <button type="submit" className="send-button" disabled={!prompt.trim() || !selectedModel} aria-label="Send message"><Send size={17}/></button>}</div></form><p className="composer-note">{isUploading ? 'Staging attachment for Wardveil verification…' : 'Local by default. External research is disclosed through Privacy Shield.'}</p></div>
     </main>
 
     <aside className={`context-panel ${contextOpen ? 'is-open' : ''}`} aria-label="Conversation context"><div className="context-heading"><div><strong>Context</strong><span>Conversation resources</span></div><button className="icon-button" onClick={() => setContextOpen(false)} aria-label="Close context panel"><X size={19}/></button></div>
       <div className="context-card"><span className="context-card-icon"><Bot size={19}/></span><div><strong>{currentRole?.name || 'Direct model'}</strong><p>{currentRole ? `${currentRole.purpose}. Runtime: ${selectedModel}.` : selectedModel ? `Using installed Ollama model ${selectedModel}.` : 'No model selected.'}</p></div></div>
       <div className="context-card"><span className="context-card-icon"><ShieldCheck size={19}/></span><div><strong>Private processing</strong><p>This conversation is configured for the local Ollama runtime.</p></div></div>
       <div className="context-card"><span className="context-card-icon"><GitBranch size={19}/></span><div><strong>Lineage</strong><p>{currentSummary?.parentConversationId ? `Branched from conversation ${currentSummary.parentConversationId.slice(0, 8)} at message ${Number(currentSummary.parentMessageIndex) + 1}.` : 'This is a root conversation.'}</p></div></div>
-      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>Persistent instructions, files, knowledge, model role, tools, and research preferences.</p><select className="context-select" value={selectedWorkspaceId ?? ''} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button></div></div>
+      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.'}</p><select className="context-select" value={selectedWorkspaceId ?? ''} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select><div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}</div></div></div>
       <div className="context-card context-card-wide"><span className="context-card-icon"><Paperclip size={19}/></span><div><strong>{selectedWorkspace ? 'Workspace files' : 'Unassigned files'}</strong><p>{fileError || (workspaceFiles.length ? `${verifiedWorkspaceFiles.length} verified · ${restrictedWorkspaceFiles.length} restricted. Only Wardveil-clean attachments may become available to AI context.` : 'No files stored here yet.')}</p>{workspaceFiles.slice(0, 5).map((file) => <span className={`file-chip ${file.status}`} key={file.id}><span>{file.name}</span><em>{fileTrustLabel[file.status]}</em></span>)}</div></div>
     </aside>
 
     <TextDialog open={dialog?.kind === 'rename'} title="Rename conversation" label="Choose a concise name for this conversation." initialValue={dialog?.kind === 'rename' ? dialog.value : ''} onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'edit'} title="Edit message" label="Resubmitting will regenerate the conversation from this point." initialValue={dialog?.kind === 'edit' ? dialog.value : ''} multiline confirmLabel="Save & resubmit" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace'} title="New Workspace" label="Name this persistent AI workspace." initialValue={dialog?.kind === 'workspace' ? dialog.value : ''} confirmLabel="Create Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
+    <TextDialog open={dialog?.kind === 'workspace-instructions'} title="Workspace instructions" label="These private instructions are applied as system context to local model requests in this Workspace. They do not grant authorization or enable blocked tools." initialValue={dialog?.kind === 'workspace-instructions' ? dialog.value : ''} multiline confirmLabel="Save instructions" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     {sidebarOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>} 
   </div>
 }
