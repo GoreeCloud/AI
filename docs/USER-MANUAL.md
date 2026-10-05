@@ -48,6 +48,8 @@ Deleting a saved conversation now opens a confirmation dialog before local remov
 
 When a conversation, Workspace, or file request is rejected, the interface can include a short backend-provided reason when one is available. This detail is normalized and length-bounded before display; it is intended for actionable Development feedback rather than raw diagnostic output.
 
+Local conversation, Workspace, file-list, and file-delete browser requests also use bounded client deadlines so a stalled local request returns control to the interface. Attachment uploads use a longer deadline because local file transfer and verification can reasonably take more time.
+
 Text-entry and destructive confirmation dialogs block duplicate submissions while an asynchronous change is in progress. Text-entry save failures remain visible in the dialog so the user can correct or retry the change.
 
 Actual model identifiers remain runtime infrastructure and may change independently of the user-facing role names.
