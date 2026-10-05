@@ -4,7 +4,7 @@
 
 ### Added — Workspace context and conversation utilities
 
-- Applied persisted Workspace instructions transiently as private system context on local model requests for the selected Workspace while keeping those instructions out of the persisted conversation transcript.
+- Moved Workspace instruction resolution to the backend: the browser sends the selected Workspace ID, the backend resolves the saved Workspace, and its instructions are applied transiently as private system context while remaining outside the persisted conversation transcript.
 - Added saved-conversation search across title, model and Workspace name.
 - Added user-controlled local Markdown conversation export and a manual local-model inventory refresh control.
 - Disabled the not-yet-connected knowledge Library and external Research controls so the Development interface no longer presents those no-op surfaces as available capabilities.
