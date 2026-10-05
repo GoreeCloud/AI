@@ -41,9 +41,9 @@ Implement accepted backup/restore/export/recovery, management, service coordinat
 
 ## Pending consumer work
 
-### Official Anchor Glaze UI 1.6.0 consumer conformance
+### Official Anchor Glaze 1.7.0 consumer conformance
 
-Adopt current Official Anchor **GLAZE UI V1.6 / 1.6.0** from the live `GoreeCloud/glaze-ui` lifecycle authority and complete exact-revision product accessibility, responsive, performance and conformance evidence. Shared Glaze UI Anchor status does not certify the GoreeCloud AI consumer.
+Adopt current Official Anchor **Glaze V1.7 / 1.7.0** from the live `GoreeCloud/glaze` lifecycle authority and complete exact-revision product accessibility, responsive, performance and conformance evidence. Shared Glaze Anchor status does not certify the GoreeCloud AI consumer.
 
 ### Application Foundation adoption
 
