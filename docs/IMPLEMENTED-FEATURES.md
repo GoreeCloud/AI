@@ -15,6 +15,7 @@ This file records capabilities that exist in the current repository source. An e
 - Runtime presentation distinguishes an unreachable local runtime from a reachable runtime with no installed models, with explicit refresh/install guidance.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
 - Conversation create/update persistence now uses closed supported-field sets, bounded title/model/message shapes, strict UUID-backed Workspace/parent references, and fail-closed malformed-input rejection.
+- Conversation and Workspace read-modify-write mutations are serialized within one Node.js process through a shared tested mutation-queue primitive, reducing lost-update races in the current local JSON stores.
 - Deleting a Workspace through the backend clears saved-conversation Workspace references so the persistence layer does not retain dangling associations.
 - Client-side saved-conversation search across title, selected model and Workspace name.
 - Streaming follow is user-controlled: scrolling away from the bottom suspends automatic following and exposes a compact jump-to-latest control.
@@ -41,6 +42,8 @@ This file records capabilities that exist in the current repository source. An e
 
 - Private attachment staging with restrictive permissions, SHA-256 binding, metadata, quotas, aggregate storage limits, deletion and Workspace-reference reconciliation.
 - Attachment Workspace context is server-owned: upload Workspace identifiers must be valid existing Workspaces before storage, and Workspace deletion is blocked while file dependencies remain so Wardveil-bound artifact context is not silently rebound.
+- Attachment upload and Workspace deletion share a backend lifecycle queue so an upload cannot validate a Workspace and then race that Workspace's deletion before storage completes.
+- Confirmed UI deletion is available for stored files and dependency-free Workspaces; file deletion retains backend extraction/reference cleanup, and Workspace deletion retains dependency and conversation-detachment safeguards.
 - Node-native Wardveil artifact trust gate with resource/digest binding, fail-closed unavailable/unknown handling and non-destructive quarantine handoff state.
 - Explicit attachment trust presentation states: Verified, Unverified, Held and Blocked.
 - Passive post-release text extraction for bounded UTF-8 plain text, Markdown and JSON with source-digest revalidation and private derived records.
@@ -73,4 +76,5 @@ This file records capabilities that exist in the current repository source. An e
 - No authenticated production Wardveil scanner transport is connected.
 - No authenticated production Identity, Privacy Shield or GoreeCloud Policy runtime adapter is accepted.
 - Native RAG execution remains disabled; indexing, retrieval and model-context eligibility remain false.
+- Current conversation/Workspace mutation serialization is process-local and does not replace a production transactional/distributed persistence architecture.
 - Current source/CI evidence does not prove real target-host GPU capacity, sustained throughput, all model capabilities, production deployment or Anchor qualification.
