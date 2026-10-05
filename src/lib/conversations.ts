@@ -1,4 +1,4 @@
-import { responseError } from './http'
+import { fetchWithDeadline, responseError } from './http'
 import type { ChatMessage } from './ollama'
 
 export interface ConversationSummary {
@@ -26,7 +26,7 @@ interface CreateConversationInput {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, { credentials: 'same-origin', ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } })
+  const response = await fetchWithDeadline(path, { credentials: 'same-origin', ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } })
   if (!response.ok) throw await responseError(response, 'Conversation request failed')
   return response.json() as Promise<T>
 }
