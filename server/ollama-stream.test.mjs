@@ -34,6 +34,17 @@ test('accepts a final NDJSON line without a trailing newline', () => {
   assert.deepEqual(emitted, [{ message: { role: 'assistant', content: 'done' } }])
 })
 
+test('rejects an incomplete stream when terminal completion is required', () => {
+  const parser = createBoundedOllamaNdjsonParser({
+    maxStreamBytes: 1024,
+    maxLineBytes: 512,
+    requireTerminalChunk: true,
+    onChunk: () => {},
+  })
+  parser.push(Buffer.from('{"message":{"role":"assistant","content":"partial"}}\n'))
+  assert.throws(() => parser.finish(), /terminal chunk/)
+})
+
 test('maps bounded upstream runtime errors to a non-sensitive public error', () => {
   const emitted = []
   const parser = createBoundedOllamaNdjsonParser({
