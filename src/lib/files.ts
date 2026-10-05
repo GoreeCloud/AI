@@ -1,4 +1,4 @@
-import { responseError } from './http'
+import { fetchWithDeadline, responseError } from './http'
 
 export type FileTrustStatus = 'available' | 'held' | 'blocked' | 'unverified'
 
@@ -27,7 +27,7 @@ export interface StoredFile {
 }
 
 export async function uploadFile(file: File, workspaceId?: string | null): Promise<StoredFile> {
-  const response = await fetch('/api/files', {
+  const response = await fetchWithDeadline('/api/files', {
     method: 'POST',
     credentials: 'same-origin',
     headers: {
@@ -36,19 +36,19 @@ export async function uploadFile(file: File, workspaceId?: string | null): Promi
       ...(workspaceId ? { 'X-Workspace-Id': workspaceId } : {}),
     },
     body: file,
-  })
+  }, 120_000)
   if (!response.ok) throw await responseError(response, 'File upload failed')
   return response.json() as Promise<StoredFile>
 }
 
 export async function listFiles(): Promise<StoredFile[]> {
-  const response = await fetch('/api/files', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+  const response = await fetchWithDeadline('/api/files', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
   if (!response.ok) throw await responseError(response, 'File list failed')
   const data = await response.json() as { files: StoredFile[] }
   return data.files
 }
 
 export async function removeFile(id: string): Promise<void> {
-  const response = await fetch(`/api/files/${id}`, { method: 'DELETE', credentials: 'same-origin' })
+  const response = await fetchWithDeadline(`/api/files/${id}`, { method: 'DELETE', credentials: 'same-origin' })
   if (!response.ok) throw await responseError(response, 'File deletion failed')
 }
