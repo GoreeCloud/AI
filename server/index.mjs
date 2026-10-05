@@ -7,6 +7,7 @@ import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
 import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
 import { createMutationQueue } from './mutation-queue.mjs'
+import { validateConversationReferenceState, validateWorkspaceFileReferenceState } from './reference-integrity.mjs'
 
 const PORT = positiveNumberEnv('PORT', 8787)
 const OLLAMA_URL = (process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434').replace(/\/$/, '')
@@ -99,6 +100,13 @@ async function handleConversations(req, res, pathname) {
     if (req.method === 'POST') {
       const input = await readJson(req)
       if (!validateConversationCreateInput(input)) return json(res, 400, { error: 'Invalid conversation input' })
+      const workspaceExists = !input.workspaceId || Boolean(await getWorkspace(input.workspaceId))
+      const parentConversation = input.parentConversationId ? await getConversation(input.parentConversationId) : null
+      const references = validateConversationReferenceState(input, { workspaceExists, parentConversation })
+      if (!references.ok) {
+        const status = references.reason === 'workspace_not_found' || references.reason === 'parent_not_found' ? 404 : 400
+        return json(res, status, { error: 'Invalid conversation references', reason: references.reason })
+      }
       return json(res, 201, await createConversation(input))
     }
   }
@@ -112,6 +120,9 @@ async function handleConversations(req, res, pathname) {
   if (req.method === 'PATCH') {
     const patch = await readJson(req)
     if (!validateConversationPatch(patch)) return json(res, 400, { error: 'Invalid conversation patch' })
+    if (typeof patch.workspaceId === 'string' && !(await getWorkspace(patch.workspaceId))) {
+      return json(res, 404, { error: 'Workspace not found' })
+    }
     const conversation = await updateConversation(id, patch)
     return conversation ? json(res, 200, conversation) : json(res, 404, { error: 'Conversation not found' })
   }
@@ -138,19 +149,23 @@ async function handleWorkspaces(req, res, pathname) {
   if (req.method === 'PATCH') {
     const patch = await readJson(req)
     if (!validateWorkspacePatch(patch)) return json(res, 400, { error: 'Invalid Workspace patch' })
+    if (!(await getWorkspace(id))) return json(res, 404, { error: 'Workspace not found' })
+    if (patch.fileIds !== undefined) {
+      const references = validateWorkspaceFileReferenceState(id, patch.fileIds, await listFiles())
+      if (!references.ok) return json(res, 409, { error: 'Invalid Workspace file references', reason: references.reason })
+    }
     const workspace = await updateWorkspace(id, patch)
-    return workspace ? json(res, 200, workspace) : json(res, 404, { error: 'Workspace not found' })
+    return json(res, 200, workspace)
   }
   if (req.method === 'DELETE') {
     return withWorkspaceAttachmentLifecycle(async () => {
       const workspace = await getWorkspace(id)
       if (!workspace) return json(res, 404, { error: 'Workspace not found' })
       const fileReferences = await countWorkspaceFileReferences(id)
-      const declaredFileReferences = Array.isArray(workspace.fileIds) ? workspace.fileIds.length : 0
-      if (fileReferences || declaredFileReferences) {
+      if (fileReferences) {
         return json(res, 409, {
           error: 'Workspace still has file dependencies',
-          references: { files: fileReferences, workspaceFileIds: declaredFileReferences },
+          references: { files: fileReferences },
         })
       }
       const deleted = await deleteWorkspace(id)
