@@ -37,6 +37,31 @@ function validMessages(value) {
   )
 }
 
+function validTimestamp(value) {
+  if (typeof value !== 'string' || value.length > 64) return false
+  const parsed = new Date(value)
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value
+}
+
+export function validateStoredConversation(value) {
+  if (!record(value) || typeof value.id !== 'string' || !UUID.test(value.id)) return false
+  if (!validTitle(value.title) || value.title.trim() !== value.title || !validModel(value.model) || !validOptionalUuid(value.workspaceId)) return false
+  if (!validMessages(value.messages) || !validOptionalUuid(value.parentConversationId)) return false
+  const hasParent = typeof value.parentConversationId === 'string'
+  const hasParentIndex = Number.isSafeInteger(value.parentMessageIndex) && value.parentMessageIndex >= 0 && value.parentMessageIndex <= 1_000_000
+  if (hasParent !== hasParentIndex) return false
+  if (!hasParent && value.parentMessageIndex !== null) return false
+  if (!validTimestamp(value.createdAt) || !validTimestamp(value.updatedAt)) return false
+  return Date.parse(value.updatedAt) >= Date.parse(value.createdAt)
+}
+
+export function validateConversationStore(value) {
+  if (!record(value) || value.version !== 1 || !Array.isArray(value.conversations)) return false
+  if (value.conversations.length > 100_000 || !value.conversations.every(validateStoredConversation)) return false
+  const ids = value.conversations.map((conversation) => conversation.id)
+  return new Set(ids).size === ids.length
+}
+
 export function validateConversationCreateInput(input) {
   if (!record(input) || Object.keys(input).some((key) => !CREATE_FIELDS.has(key))) return false
   if (input.title !== undefined && !validTitle(input.title)) return false
@@ -65,7 +90,8 @@ async function load() {
   try {
     const raw = await readFile(STORE_PATH, 'utf8')
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed.conversations) ? parsed.conversations : []
+    if (!validateConversationStore(parsed)) throw new Error('Conversation store failed validation')
+    return parsed.conversations
   } catch (error) {
     if (error?.code === 'ENOENT') return []
     throw error

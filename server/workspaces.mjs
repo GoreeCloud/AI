@@ -5,6 +5,7 @@ import { createMutationQueue } from './mutation-queue.mjs'
 
 const DATA_DIR = process.env.GOREECLOUD_AI_DATA_DIR ?? path.resolve('data')
 const STORE_PATH = path.join(DATA_DIR, 'workspaces.json')
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const MODEL_ROLE_IDS = new Set(['assistant', 'reasoner', 'engineer', 'utility', 'embeddings', 'vision', 'second-opinion'])
 const CREATE_FIELDS = new Set(['name', 'instructions', 'defaultModelRole', 'researchEnabled'])
 const PATCH_FIELDS = new Set(['name', 'instructions', 'defaultModelRole', 'fileIds', 'knowledgeCollectionIds', 'toolIds', 'researchEnabled'])
@@ -35,6 +36,33 @@ function validIdList(value) {
     value.every((item) => typeof item === 'string' && item.length >= 1 && item.length <= 256 && item.trim() === item)
 }
 
+function validUuidList(value) {
+  return Array.isArray(value) && value.length <= 1_000 && new Set(value).size === value.length &&
+    value.every((item) => typeof item === 'string' && UUID.test(item))
+}
+
+function validTimestamp(value) {
+  if (typeof value !== 'string' || value.length > 64) return false
+  const parsed = new Date(value)
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value
+}
+
+export function validateStoredWorkspace(value) {
+  if (!record(value) || typeof value.id !== 'string' || !UUID.test(value.id)) return false
+  if (!validName(value.name) || value.name.trim() !== value.name || !validInstructions(value.instructions) || !validRole(value.defaultModelRole)) return false
+  if (!validUuidList(value.fileIds) || !validIdList(value.knowledgeCollectionIds) || !validIdList(value.toolIds)) return false
+  if (typeof value.researchEnabled !== 'boolean') return false
+  if (!validTimestamp(value.createdAt) || !validTimestamp(value.updatedAt)) return false
+  return Date.parse(value.updatedAt) >= Date.parse(value.createdAt)
+}
+
+export function validateWorkspaceStore(value) {
+  if (!record(value) || value.version !== 1 || !Array.isArray(value.workspaces)) return false
+  if (value.workspaces.length > 10_000 || !value.workspaces.every(validateStoredWorkspace)) return false
+  const ids = value.workspaces.map((workspace) => workspace.id)
+  return new Set(ids).size === ids.length
+}
+
 export function validateWorkspaceCreateInput(input) {
   if (!record(input) || Object.keys(input).some((key) => !CREATE_FIELDS.has(key))) return false
   if (input.name !== undefined && !validName(input.name)) return false
@@ -59,7 +87,8 @@ export function validateWorkspacePatch(input) {
 async function load() {
   try {
     const parsed = JSON.parse(await readFile(STORE_PATH, 'utf8'))
-    return Array.isArray(parsed.workspaces) ? parsed.workspaces : []
+    if (!validateWorkspaceStore(parsed)) throw new Error('Workspace store failed validation')
+    return parsed.workspaces
   } catch (error) {
     if (error?.code === 'ENOENT') return []
     throw error
