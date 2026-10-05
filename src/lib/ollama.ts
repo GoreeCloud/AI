@@ -27,6 +27,7 @@ interface ChatChunk {
 }
 
 const MAX_STREAM_BUFFER_CHARS = 1_100_000
+const MAX_STREAM_OUTPUT_CHARS = 2_000_000
 const MAX_DISCOVERED_MODELS = 256
 const MAX_MODEL_STRING_CHARS = 512
 
@@ -139,6 +140,7 @@ export class OllamaClient {
 
     let completed = false
     let terminalChunkSeen = false
+    let emittedChars = 0
     try {
       while (true) {
         const { value, done } = await reader.read()
@@ -156,7 +158,11 @@ export class OllamaClient {
           if (chunk.error) throw new Error(chunk.error)
           if (chunk.done === true) terminalChunkSeen = true
           const token = chunk.message?.content
-          if (token) options.onToken(token)
+          if (token) {
+            emittedChars += token.length
+            if (emittedChars > MAX_STREAM_OUTPUT_CHARS) throw new Error('Streaming response exceeded the client output limit')
+            options.onToken(token)
+          }
         }
       }
 
@@ -168,7 +174,11 @@ export class OllamaClient {
         if (chunk.error) throw new Error(chunk.error)
         if (chunk.done === true) terminalChunkSeen = true
         const token = chunk.message?.content
-        if (token) options.onToken(token)
+        if (token) {
+          emittedChars += token.length
+          if (emittedChars > MAX_STREAM_OUTPUT_CHARS) throw new Error('Streaming response exceeded the client output limit')
+          options.onToken(token)
+        }
       }
       if (!terminalChunkSeen) throw new Error('Streaming response ended before completion')
       completed = true
