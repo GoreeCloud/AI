@@ -46,6 +46,8 @@ Keyboard controls include Ctrl/Command+K to open conversation search. Escape sto
 
 Deleting a saved conversation now opens a confirmation dialog before local removal. If conversation history cannot be refreshed, opened, or deleted, the sidebar keeps a visible error message rather than silently discarding the failure.
 
+The Context panel shows the current saved conversation's message count and its created/updated times. When conversation history, Workspace state, or file listings fail to refresh, the affected surface provides a Retry control so transient local failures can be retried without reloading the entire application.
+
 When a conversation, Workspace, or file request is rejected, the interface can include a short backend-provided reason when one is available. This detail is normalized and length-bounded before display; it is intended for actionable Development feedback rather than raw diagnostic output.
 
 Local conversation, Workspace, file-list, and file-delete browser requests also use bounded client deadlines so a stalled local request returns control to the interface. Attachment uploads use a longer deadline because local file transfer and verification can reasonably take more time.
