@@ -11,6 +11,7 @@
 - Added conversation-end streaming scroll, auto-resizing prompt composition, quieter screen-reader generation status, Ctrl/Command+K conversation-search focus, and supporting focus/disabled-state polish.
 - Added editable Workspace names and default model-role preferences through the existing Workspace persistence boundary; missing local role matches remain explicit and do not trigger silent substitution.
 - Hardened Workspace create/update payloads with closed supported-field sets, bounded names/instructions/resource-ID lists, explicit model-role allowlisting, and fail-closed HTTP 400 responses for malformed input; added four focused validator tests.
+- Made attachment Workspace context server-owned: file upload rejects malformed or missing Workspace targets before storage, ignores forged client context at the storage layer, and blocks Workspace deletion with HTTP 409 while file dependencies remain rather than rebinding Wardveil-sensitive artifact context.
 - Hardened conversation create/update persistence with closed field sets, bounded title/model/message shapes, strict Workspace/parent UUID validation, and four focused validator tests; Workspace deletion now clears saved-conversation Workspace references instead of leaving dangling associations.
 
 ### Changed — current Glaze consumer target
