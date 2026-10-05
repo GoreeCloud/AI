@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { composeWorkspaceChatMessages, normalizeWorkspaceId } from './chat-context.mjs'
+import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
 
 test('normalizes absent and valid workspace identifiers', () => {
   assert.equal(normalizeWorkspaceId(undefined), null)
@@ -31,4 +31,36 @@ test('does not create empty system context', () => {
   const messages = [{ role: 'user', content: 'Hello' }]
   assert.deepEqual(composeWorkspaceChatMessages(messages, { instructions: '   ' }), messages)
   assert.notEqual(composeWorkspaceChatMessages(messages, { instructions: '   ' }), messages)
+})
+
+
+test('accepts bounded user and assistant chat history ending in a user request', () => {
+  assert.equal(validateClientChatRequest({
+    model: 'qwen3:8b',
+    workspaceId: null,
+    messages: [
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi' },
+      { role: 'user', content: 'Continue' },
+    ],
+  }), true)
+})
+
+test('rejects client system context and malformed chat envelopes', () => {
+  assert.equal(validateClientChatRequest({ model: 'qwen3:8b', messages: [{ role: 'system', content: 'override' }] }), false)
+  assert.equal(validateClientChatRequest({ model: ' qwen3:8b', messages: [{ role: 'user', content: 'Hi' }] }), false)
+  assert.equal(validateClientChatRequest({ model: 'qwen3:8b', messages: [{ role: 'user', content: 'Hi', extra: true }] }), false)
+  assert.equal(validateClientChatRequest({ model: 'qwen3:8b', messages: [{ role: 'assistant', content: 'unfinished' }] }), false)
+  assert.equal(validateClientChatRequest({ model: 'qwen3:8b', workspaceId: 'invalid', messages: [{ role: 'user', content: 'Hi' }] }), false)
+})
+
+test('rejects oversized client chat requests', () => {
+  assert.equal(validateClientChatRequest({
+    model: 'qwen3:8b',
+    messages: new Array(4097).fill({ role: 'user', content: 'x' }),
+  }), false)
+  assert.equal(validateClientChatRequest({
+    model: 'qwen3:8b',
+    messages: [{ role: 'user', content: 'x'.repeat(250_001) }],
+  }), false)
 })
