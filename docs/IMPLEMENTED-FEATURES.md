@@ -12,7 +12,12 @@ This file records capabilities that exist in the current repository source. An e
 - Node.js application backend bound to the local application boundary.
 - Backend-owned local model discovery and streamed NDJSON chat through the replaceable local model runtime.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
+- Client-side saved-conversation search across title, selected model and Workspace name.
+- User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
 - Native Workspaces with instructions, default model role, file references, knowledge/tool placeholders and research preferences.
+- Workspace instructions are applied transiently as a private system-context message to local model requests for the selected Workspace without being inserted into persisted conversation history or creating authorization.
+- Manual local-model inventory refresh through the existing backend-owned Ollama discovery boundary.
+- Inactive knowledge Library and external Research controls are explicitly disabled in the Development UI instead of presenting no-op controls as usable capabilities.
 
 ## Model routing and Development validation
 
