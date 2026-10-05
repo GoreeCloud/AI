@@ -29,9 +29,10 @@ function validRole(value) {
 }
 
 function validIdList(value) {
-  return Array.isArray(value) && value.length <= 1_000 && value.every((item) =>
-    typeof item === 'string' && item.length >= 1 && item.length <= 256 && item.trim() === item
-  )
+  return Array.isArray(value) &&
+    value.length <= 1_000 &&
+    new Set(value).size === value.length &&
+    value.every((item) => typeof item === 'string' && item.length >= 1 && item.length <= 256 && item.trim() === item)
 }
 
 export function validateWorkspaceCreateInput(input) {
