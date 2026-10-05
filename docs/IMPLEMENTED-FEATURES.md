@@ -37,6 +37,7 @@ This file records capabilities that exist in the current repository source. An e
 ## File, trust and knowledge foundations
 
 - Private attachment staging with restrictive permissions, SHA-256 binding, metadata, quotas, aggregate storage limits, deletion and Workspace-reference reconciliation.
+- Attachment Workspace context is server-owned: upload Workspace identifiers must be valid existing Workspaces before storage, and Workspace deletion is blocked while file dependencies remain so Wardveil-bound artifact context is not silently rebound.
 - Node-native Wardveil artifact trust gate with resource/digest binding, fail-closed unavailable/unknown handling and non-destructive quarantine handoff state.
 - Explicit attachment trust presentation states: Verified, Unverified, Held and Blocked.
 - Passive post-release text extraction for bounded UTF-8 plain text, Markdown and JSON with source-digest revalidation and private derived records.
