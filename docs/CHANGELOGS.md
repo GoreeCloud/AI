@@ -1,5 +1,24 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-05
+
+### Added — Workspace context and conversation utilities
+
+- Applied persisted Workspace instructions transiently as private system context on local model requests for the selected Workspace while keeping those instructions out of the persisted conversation transcript.
+- Added saved-conversation search across title, model and Workspace name.
+- Added user-controlled local Markdown conversation export and a manual local-model inventory refresh control.
+- Disabled the not-yet-connected knowledge Library and external Research controls so the Development interface no longer presents those no-op surfaces as available capabilities.
+- Added conversation-end scrolling and supporting focus/disabled-state polish.
+
+### Changed — current Glaze consumer target
+
+- Reverified the live `GoreeCloud/glaze` lifecycle registry and advanced GoreeCloud AI's declared consumer target from the superseded 1.6.0 target to current Official Anchor **Glaze V1.7 / 1.7.0**.
+- GoreeCloud AI remains migration-required/nonconformant for Glaze. This target reconciliation does not create consumer acceptance, release authority, deployment authority, Seal qualification, or Anchor qualification.
+
+### Validation boundary
+
+- These changes are Development source on Draft PR #1. Exact-head CI and runtime evidence remain authoritative for validation; this entry does not treat source mutation or documentation as proof of successful build, deployment, or production acceptance.
+
 ## 2026-09-30
 
 ### Added — agent intelligence Development foundation
