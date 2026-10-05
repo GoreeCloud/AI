@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Bot, CheckCircle2, ChevronDown, Copy, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
+import { ConfirmDialog } from './components/ConfirmDialog'
 import { MarkdownMessage } from './components/MarkdownMessage'
 import { TextDialog } from './components/TextDialog'
 import { OllamaClient, type ChatMessage, type OllamaModel } from './lib/ollama'
 import { createConversation, getConversation, listConversations, removeConversation, saveConversation, type ConversationSummary } from './lib/conversations'
 import { resolveModelRoles, roleForModel, type ModelRoleId } from './lib/modelRoles'
-import { createWorkspace, listWorkspaces, saveWorkspace, type Workspace } from './lib/workspaces'
-import { listFiles, uploadFile, type StoredFile } from './lib/files'
+import { createWorkspace, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from './lib/workspaces'
+import { listFiles, removeFile, uploadFile, type StoredFile } from './lib/files'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -23,6 +24,8 @@ type DialogState =
   | { kind: 'workspace'; value: string }
   | { kind: 'workspace-rename'; id: string; value: string }
   | { kind: 'workspace-instructions'; id: string; value: string }
+  | { kind: 'workspace-delete'; id: string; name: string }
+  | { kind: 'file-delete'; id: string; name: string }
   | null
 
 export default function App() {
@@ -44,6 +47,7 @@ export default function App() {
   const [runtimeState, setRuntimeState] = useState<'checking' | 'ready' | 'no-models' | 'offline'>('checking')
   const [dialog, setDialog] = useState<DialogState>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [retryMessages, setRetryMessages] = useState<ChatMessage[] | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
@@ -305,6 +309,7 @@ export default function App() {
       setDialog(null)
       return
     }
+    if (dialog.kind !== 'edit') return
     const message = messages[dialog.index]
     if (message?.role !== 'user' || isGenerating) return
     const next = messages.slice(0, dialog.index + 1)
@@ -313,6 +318,34 @@ export default function App() {
     const id = await ensureConversation(next)
     await persist(id, next)
     await generate(next, id)
+  }
+
+  async function confirmDeletion() {
+    if (!dialog) return
+    if (dialog.kind === 'file-delete') {
+      setFileError(null)
+      try {
+        await removeFile(dialog.id)
+        await Promise.all([refreshFiles(), refreshWorkspaces()])
+        setDialog(null)
+      } catch (error) {
+        setFileError(error instanceof Error ? error.message : 'File deletion failed.')
+        setDialog(null)
+      }
+      return
+    }
+    if (dialog.kind === 'workspace-delete') {
+      setWorkspaceError(null)
+      try {
+        await removeWorkspace(dialog.id)
+        if (selectedWorkspaceId === dialog.id) setSelectedWorkspaceId(null)
+        await Promise.all([refreshWorkspaces(), refreshHistory()])
+        setDialog(null)
+      } catch (error) {
+        setWorkspaceError(error instanceof Error ? error.message : 'Workspace deletion failed.')
+        setDialog(null)
+      }
+    }
   }
 
   async function regenerate(index: number) {
@@ -402,8 +435,8 @@ export default function App() {
       <div className="context-card"><span className="context-card-icon"><Bot size={19}/></span><div><strong>{currentRole?.name || 'Direct model'}</strong><p>{currentRole ? `${currentRole.purpose}. Runtime: ${selectedModel}.` : selectedModel ? `Using installed Ollama model ${selectedModel}.` : 'No model selected.'}</p></div></div>
       <div className="context-card"><span className="context-card-icon"><ShieldCheck size={19}/></span><div><strong>Private processing</strong><p>This conversation is configured for the local Ollama runtime.</p></div></div>
       <div className="context-card"><span className="context-card-icon"><GitBranch size={19}/></span><div><strong>Lineage</strong><p>{currentSummary?.parentConversationId ? `Branched from conversation ${currentSummary.parentConversationId.slice(0, 8)} at message ${Number(currentSummary.parentMessageIndex) + 1}.` : 'This is a root conversation.'}</p></div></div>
-      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.'}</p><select className="context-select" value={selectedWorkspaceId ?? ''} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{selectedWorkspace && <label className="context-field"><span>Default model role</span><select className="context-select" value={selectedWorkspace.defaultModelRole} onChange={(event) => void changeWorkspaceRole(event.target.value as ModelRoleId)}>{resolvedRoles.filter((role) => role.conversational).map((role) => <option key={role.id} value={role.id}>{role.name}{role.model ? ` · ${role.model.name}` : ' · no installed match'}</option>)}</select></label>}<div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-rename', id: selectedWorkspace.id, value: selectedWorkspace.name })}><Pencil size={15}/>Rename</button>}{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}</div></div></div>
-      <div className="context-card context-card-wide"><span className="context-card-icon"><Paperclip size={19}/></span><div><strong>{selectedWorkspace ? 'Workspace files' : 'Unassigned files'}</strong><p>{fileError || (workspaceFiles.length ? `${verifiedWorkspaceFiles.length} verified · ${restrictedWorkspaceFiles.length} restricted. Only Wardveil-clean attachments may become available to AI context.` : 'No files stored here yet.')}</p>{workspaceFiles.slice(0, 5).map((file) => <span className={`file-chip ${file.status}`} key={file.id}><span>{file.name}</span><em>{fileTrustLabel[file.status]}</em></span>)}</div></div>
+      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{workspaceError || (selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.')}</p><select className="context-select" value={selectedWorkspaceId ?? ''} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{selectedWorkspace && <label className="context-field"><span>Default model role</span><select className="context-select" value={selectedWorkspace.defaultModelRole} onChange={(event) => void changeWorkspaceRole(event.target.value as ModelRoleId)}>{resolvedRoles.filter((role) => role.conversational).map((role) => <option key={role.id} value={role.id}>{role.name}{role.model ? ` · ${role.model.name}` : ' · no installed match'}</option>)}</select></label>}<div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-rename', id: selectedWorkspace.id, value: selectedWorkspace.name })}><Pencil size={15}/>Rename</button>}{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}{selectedWorkspace && <button className="context-action context-action-icon danger-action" disabled={selectedWorkspace.fileIds.length > 0 || workspaceFiles.length > 0} onClick={() => setDialog({ kind: 'workspace-delete', id: selectedWorkspace.id, name: selectedWorkspace.name })} aria-label={`Delete Workspace ${selectedWorkspace.name}`} title={selectedWorkspace.fileIds.length > 0 || workspaceFiles.length > 0 ? 'Remove Workspace files before deleting this Workspace' : 'Delete Workspace'}><Trash2 size={15}/></button>}</div></div></div>
+      <div className="context-card context-card-wide"><span className="context-card-icon"><Paperclip size={19}/></span><div><strong>{selectedWorkspace ? 'Workspace files' : 'Unassigned files'}</strong><p>{fileError || (workspaceFiles.length ? `${verifiedWorkspaceFiles.length} verified · ${restrictedWorkspaceFiles.length} restricted. Only Wardveil-clean attachments may become available to AI context.` : 'No files stored here yet.')}</p>{workspaceFiles.slice(0, 5).map((file) => <div className={`file-chip ${file.status}`} key={file.id}><span>{file.name}</span><span className="file-chip-actions"><em>{fileTrustLabel[file.status]}</em><button type="button" className="file-delete-button" onClick={() => setDialog({ kind: 'file-delete', id: file.id, name: file.name })} aria-label={`Delete ${file.name}`} title={`Delete ${file.name}`}><Trash2 size={13}/></button></span></div>)}</div></div>
     </aside>
 
     <TextDialog open={dialog?.kind === 'rename'} title="Rename conversation" label="Choose a concise name for this conversation." initialValue={dialog?.kind === 'rename' ? dialog.value : ''} onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
@@ -411,6 +444,8 @@ export default function App() {
     <TextDialog open={dialog?.kind === 'workspace'} title="New Workspace" label="Name this persistent AI workspace." initialValue={dialog?.kind === 'workspace' ? dialog.value : ''} confirmLabel="Create Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-rename'} title="Rename Workspace" label="Choose a concise name for this Workspace." initialValue={dialog?.kind === 'workspace-rename' ? dialog.value : ''} confirmLabel="Save name" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-instructions'} title="Workspace instructions" label="These private instructions are applied as system context to local model requests in this Workspace. They do not grant authorization or enable blocked tools." initialValue={dialog?.kind === 'workspace-instructions' ? dialog.value : ''} multiline confirmLabel="Save instructions" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
+    <ConfirmDialog open={dialog?.kind === 'workspace-delete'} title="Delete Workspace?" description={dialog?.kind === 'workspace-delete' ? `Delete ${dialog.name}. Saved conversations will be detached from this Workspace. Workspaces with file dependencies cannot be deleted.` : ''} confirmLabel="Delete Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDeletion}/>
+    <ConfirmDialog open={dialog?.kind === 'file-delete'} title="Delete file?" description={dialog?.kind === 'file-delete' ? `Delete ${dialog.name} from GoreeCloud AI local storage. This also removes its derived text extraction and Workspace file reference.` : ''} confirmLabel="Delete file" onCancel={() => setDialog(null)} onConfirm={confirmDeletion}/>
     {sidebarOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>} 
   </div>
 }
