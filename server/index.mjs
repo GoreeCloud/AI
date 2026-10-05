@@ -1,6 +1,6 @@
 import http from 'node:http'
 import { createConversation, deleteConversation, getConversation, listConversations, updateConversation } from './conversations.mjs'
-import { createWorkspace, deleteWorkspace, detachFileFromWorkspaces, getWorkspace, listWorkspaces, updateWorkspace } from './workspaces.mjs'
+import { createWorkspace, deleteWorkspace, detachFileFromWorkspaces, getWorkspace, listWorkspaces, updateWorkspace, validateWorkspaceCreateInput, validateWorkspacePatch } from './workspaces.mjs'
 import { deleteFile, getFileRecord, getFileStorageUsage, listFiles, storeFile } from './files.mjs'
 import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text-extraction.mjs'
 import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs'
@@ -121,7 +121,11 @@ async function handleConversations(req, res, pathname) {
 async function handleWorkspaces(req, res, pathname) {
   if (pathname === '/api/workspaces') {
     if (req.method === 'GET') return json(res, 200, { workspaces: await listWorkspaces() })
-    if (req.method === 'POST') return json(res, 201, await createWorkspace(await readJson(req)))
+    if (req.method === 'POST') {
+      const input = await readJson(req)
+      if (!validateWorkspaceCreateInput(input)) return json(res, 400, { error: 'Invalid Workspace input' })
+      return json(res, 201, await createWorkspace(input))
+    }
   }
   const match = pathname.match(/^\/api\/workspaces\/([0-9a-f-]+)$/i)
   if (!match) return false
@@ -131,7 +135,9 @@ async function handleWorkspaces(req, res, pathname) {
     return workspace ? json(res, 200, workspace) : json(res, 404, { error: 'Workspace not found' })
   }
   if (req.method === 'PATCH') {
-    const workspace = await updateWorkspace(id, await readJson(req))
+    const patch = await readJson(req)
+    if (!validateWorkspacePatch(patch)) return json(res, 400, { error: 'Invalid Workspace patch' })
+    const workspace = await updateWorkspace(id, patch)
     return workspace ? json(res, 200, workspace) : json(res, 404, { error: 'Workspace not found' })
   }
   if (req.method === 'DELETE') return (await deleteWorkspace(id)) ? json(res, 200, { deleted: true }) : json(res, 404, { error: 'Workspace not found' })
