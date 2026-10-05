@@ -1,7 +1,7 @@
 import http from 'node:http'
 import { createConversation, deleteConversation, detachWorkspaceFromConversations, getConversation, listConversations, updateConversation, validateConversationCreateInput, validateConversationPatch } from './conversations.mjs'
 import { createWorkspace, deleteWorkspace, detachFileFromWorkspaces, getWorkspace, listWorkspaces, updateWorkspace, validateWorkspaceCreateInput, validateWorkspacePatch } from './workspaces.mjs'
-import { deleteFile, getFileRecord, getFileStorageUsage, listFiles, storeFile } from './files.mjs'
+import { countWorkspaceFileReferences, deleteFile, getFileRecord, getFileStorageUsage, listFiles, storeFile } from './files.mjs'
 import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text-extraction.mjs'
 import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs'
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
@@ -145,6 +145,16 @@ async function handleWorkspaces(req, res, pathname) {
     return workspace ? json(res, 200, workspace) : json(res, 404, { error: 'Workspace not found' })
   }
   if (req.method === 'DELETE') {
+    const workspace = await getWorkspace(id)
+    if (!workspace) return json(res, 404, { error: 'Workspace not found' })
+    const fileReferences = await countWorkspaceFileReferences(id)
+    const declaredFileReferences = Array.isArray(workspace.fileIds) ? workspace.fileIds.length : 0
+    if (fileReferences || declaredFileReferences) {
+      return json(res, 409, {
+        error: 'Workspace still has file dependencies',
+        references: { files: fileReferences, workspaceFileIds: declaredFileReferences },
+      })
+    }
     const deleted = await deleteWorkspace(id)
     if (!deleted) return json(res, 404, { error: 'Workspace not found' })
     const conversationReferencesRemoved = await detachWorkspaceFromConversations(id)
@@ -169,9 +179,13 @@ async function handleFiles(req, res, pathname) {
       })
     }
     if (req.method === 'POST') {
+      const workspaceId = normalizeWorkspaceId(req.headers['x-workspace-id'])
+      if (workspaceId === undefined) return json(res, 400, { error: 'Invalid Workspace ID' })
+      if (workspaceId && !(await getWorkspace(workspaceId))) return json(res, 404, { error: 'Workspace not found' })
       const file = await storeFile(req, MAX_FILE_BYTES, ARTIFACT_SCANNER, {
         maxFileCount: MAX_FILE_COUNT,
         maxTotalBytes: MAX_TOTAL_FILE_BYTES,
+        workspaceId,
       })
       return json(res, file.status === 'available' ? 201 : 202, file)
     }
