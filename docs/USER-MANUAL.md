@@ -38,6 +38,8 @@ While a response is streaming, GoreeCloud AI follows the latest output until you
 
 The download control exports the current visible conversation to a local Markdown file. This is a user-controlled browser export of the conversation transcript and basic model/Workspace metadata; it is not an Everkeep-governed backup, recovery, or full portability export.
 
+When a conversation, Workspace, or file request is rejected, the interface can include a short backend-provided reason when one is available. This detail is normalized and length-bounded before display; it is intended for actionable Development feedback rather than raw diagnostic output.
+
 Actual model identifiers remain runtime infrastructure and may change independently of the user-facing role names.
 
 ## Workspaces

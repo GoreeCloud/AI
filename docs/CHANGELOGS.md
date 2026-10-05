@@ -23,6 +23,7 @@
 - Removed the configured Ollama endpoint from the unauthenticated health payload and added regression coverage for the non-sensitive public health contract.
 - Made streamed-response persistence deterministic outside React state updater callbacks and separated conversation-save failures from model/runtime failures so completed or manually stopped output remains visible with an explicit save warning.
 - Improved text-dialog accessibility with explicit descriptions and Escape-key dismissal while preserving separate alert-dialog confirmation behavior.
+- Added shared bounded client API error details for conversation, Workspace, and file failures; public detail is whitespace-normalized and capped before display so actionable backend reasons do not become unbounded UI output.
 
 ### Changed — current Glaze consumer target
 
