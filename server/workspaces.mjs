@@ -1,12 +1,14 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { createMutationQueue } from './mutation-queue.mjs'
 
 const DATA_DIR = process.env.GOREECLOUD_AI_DATA_DIR ?? path.resolve('data')
 const STORE_PATH = path.join(DATA_DIR, 'workspaces.json')
 const MODEL_ROLE_IDS = new Set(['assistant', 'reasoner', 'engineer', 'utility', 'embeddings', 'vision', 'second-opinion'])
 const CREATE_FIELDS = new Set(['name', 'instructions', 'defaultModelRole', 'researchEnabled'])
 const PATCH_FIELDS = new Set(['name', 'instructions', 'defaultModelRole', 'fileIds', 'knowledgeCollectionIds', 'toolIds', 'researchEnabled'])
+const withMutation = createMutationQueue()
 
 function now() { return new Date().toISOString() }
 
@@ -79,7 +81,8 @@ export async function getWorkspace(id) {
 }
 
 export async function createWorkspace(input = {}) {
-  const workspaces = await load()
+  return withMutation(async () => {
+    const workspaces = await load()
   const timestamp = now()
   const workspace = {
     id: randomUUID(),
@@ -94,12 +97,14 @@ export async function createWorkspace(input = {}) {
     updatedAt: timestamp,
   }
   workspaces.push(workspace)
-  await save(workspaces)
-  return workspace
+    await save(workspaces)
+    return workspace
+  })
 }
 
 export async function updateWorkspace(id, patch = {}) {
-  const workspaces = await load()
+  return withMutation(async () => {
+    const workspaces = await load()
   const index = workspaces.findIndex((workspace) => workspace.id === id)
   if (index < 0) return null
   const current = workspaces[index]
@@ -114,13 +119,15 @@ export async function updateWorkspace(id, patch = {}) {
     ...(typeof patch.researchEnabled === 'boolean' ? { researchEnabled: patch.researchEnabled } : {}),
     updatedAt: now(),
   }
-  await save(workspaces)
-  return workspaces[index]
+    await save(workspaces)
+    return workspaces[index]
+  })
 }
 
 export async function detachFileFromWorkspaces(fileId) {
   if (typeof fileId !== 'string' || !fileId) return 0
-  const workspaces = await load()
+  return withMutation(async () => {
+    const workspaces = await load()
   let changed = 0
   const timestamp = now()
   const next = workspaces.map((workspace) => {
@@ -132,14 +139,17 @@ export async function detachFileFromWorkspaces(fileId) {
       updatedAt: timestamp,
     }
   })
-  if (changed) await save(next)
-  return changed
+    if (changed) await save(next)
+    return changed
+  })
 }
 
 export async function deleteWorkspace(id) {
-  const workspaces = await load()
+  return withMutation(async () => {
+    const workspaces = await load()
   const next = workspaces.filter((workspace) => workspace.id !== id)
   if (next.length === workspaces.length) return false
-  await save(next)
-  return true
+    await save(next)
+    return true
+  })
 }
