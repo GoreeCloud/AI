@@ -33,6 +33,7 @@ This file records capabilities that exist in the current repository source. An e
 - User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
 - Rendered fenced code blocks include a compact copy glyph with accessible success/failure feedback; inline code rendering remains unchanged.
 - Every non-welcome conversation message exposes a copy control that reports success or failure with a state glyph, updated accessible label, and polite assistive announcement instead of silently assuming clipboard access.
+- Global keyboard handling keeps Ctrl/Command+K conversation search and adds context-aware Escape behavior: an active generation is stopped first, otherwise transient navigation/context panels close; open dialogs retain their own Escape semantics.
 - Native Workspaces with editable names, instructions, default model roles, file references, knowledge/tool placeholders and research preferences.
 - Fail-closed Workspace create/update validation for supported fields, model-role identifiers, instruction/name bounds, research preference types, and bounded resource-ID collections.
 - Workspace resource-ID collections reject duplicate entries before persistence; the UI exposes every Workspace file for management and the context panel remains scrollable for larger attachment sets.

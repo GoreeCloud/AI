@@ -42,6 +42,8 @@ Assistant fenced code blocks include a copy glyph in the code surface. Successfu
 
 Every non-welcome conversation message also includes a copy glyph in its message actions. A successful copy changes to a confirmation glyph; a clipboard failure changes to a warning glyph. Both outcomes update the accessible label and are announced politely to assistive technology.
 
+Keyboard controls include Ctrl/Command+K to open conversation search. Escape stops an active response generation; when no generation is active and no dialog is open, Escape closes the transient navigation and context panels. Dialogs keep their own Escape-to-dismiss behavior.
+
 Deleting a saved conversation now opens a confirmation dialog before local removal. If conversation history cannot be refreshed, opened, or deleted, the sidebar keeps a visible error message rather than silently discarding the failure.
 
 When a conversation, Workspace, or file request is rejected, the interface can include a short backend-provided reason when one is available. This detail is normalized and length-bounded before display; it is intended for actionable Development feedback rather than raw diagnostic output.

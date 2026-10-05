@@ -129,11 +129,23 @@ export default function App() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault()
         focusHistorySearch()
+        return
+      }
+      if (event.key !== 'Escape' || dialog) return
+      if (isGenerating) {
+        event.preventDefault()
+        stopGeneration()
+        return
+      }
+      if (sidebarOpen || contextOpen) {
+        event.preventDefault()
+        setSidebarOpen(false)
+        setContextOpen(false)
       }
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [])
+  }, [contextOpen, dialog, isGenerating, sidebarOpen])
 
   async function persist(id: string, nextMessages: ChatMessage[], model = selectedModel, explicitTitle?: string, workspaceId = selectedWorkspaceId) {
     const firstUser = nextMessages.find((message) => message.role === 'user')?.content.trim()
