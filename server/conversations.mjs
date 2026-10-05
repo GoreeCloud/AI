@@ -4,6 +4,58 @@ import { randomUUID } from 'node:crypto'
 
 const DATA_DIR = process.env.GOREECLOUD_AI_DATA_DIR ?? path.resolve('data')
 const STORE_PATH = path.join(DATA_DIR, 'conversations.json')
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const CREATE_FIELDS = new Set(['title', 'model', 'workspaceId', 'parentConversationId', 'parentMessageIndex'])
+const PATCH_FIELDS = new Set(['title', 'model', 'workspaceId', 'messages'])
+const MESSAGE_ROLES = new Set(['system', 'user', 'assistant'])
+
+function record(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function validOptionalUuid(value) {
+  return value === null || (typeof value === 'string' && UUID.test(value))
+}
+
+function validModel(value) {
+  return typeof value === 'string' && value.length <= 512 && value.trim() === value
+}
+
+function validTitle(value) {
+  return typeof value === 'string' && value.trim().length >= 1 && value.trim().length <= 120
+}
+
+function validMessages(value) {
+  return Array.isArray(value) && value.length <= 4096 && value.every((message) =>
+    record(message) &&
+    Object.keys(message).every((key) => key === 'role' || key === 'content') &&
+    MESSAGE_ROLES.has(message.role) &&
+    typeof message.content === 'string' &&
+    message.content.length <= 250_000
+  )
+}
+
+export function validateConversationCreateInput(input) {
+  if (!record(input) || Object.keys(input).some((key) => !CREATE_FIELDS.has(key))) return false
+  if (input.title !== undefined && !validTitle(input.title)) return false
+  if (input.model !== undefined && !validModel(input.model)) return false
+  if (input.workspaceId !== undefined && !validOptionalUuid(input.workspaceId)) return false
+  if (input.parentConversationId !== undefined && !validOptionalUuid(input.parentConversationId)) return false
+  if (input.parentMessageIndex !== undefined && input.parentMessageIndex !== null &&
+      (!Number.isSafeInteger(input.parentMessageIndex) || input.parentMessageIndex < 0 || input.parentMessageIndex > 1_000_000)) return false
+  if ((input.parentConversationId === null || input.parentConversationId === undefined) &&
+      input.parentMessageIndex !== null && input.parentMessageIndex !== undefined) return false
+  return true
+}
+
+export function validateConversationPatch(input) {
+  if (!record(input) || Object.keys(input).some((key) => !PATCH_FIELDS.has(key))) return false
+  if (input.title !== undefined && !validTitle(input.title)) return false
+  if (input.model !== undefined && !validModel(input.model)) return false
+  if (input.workspaceId !== undefined && !validOptionalUuid(input.workspaceId)) return false
+  if (input.messages !== undefined && !validMessages(input.messages)) return false
+  return true
+}
 
 function now() { return new Date().toISOString() }
 
@@ -19,7 +71,7 @@ async function load() {
 }
 
 async function save(conversations) {
-  await mkdir(DATA_DIR, { recursive: true })
+  await mkdir(DATA_DIR, { recursive: true, mode: 0o700 })
   const temp = `${STORE_PATH}.tmp`
   await writeFile(temp, JSON.stringify({ version: 1, conversations }, null, 2), { mode: 0o600 })
   await rename(temp, STORE_PATH)
@@ -78,4 +130,18 @@ export async function deleteConversation(id) {
   if (next.length === conversations.length) return false
   await save(next)
   return true
+}
+
+export async function detachWorkspaceFromConversations(workspaceId) {
+  if (typeof workspaceId !== 'string' || !UUID.test(workspaceId)) return 0
+  const conversations = await load()
+  let changed = 0
+  const timestamp = now()
+  const next = conversations.map((conversation) => {
+    if (conversation.workspaceId !== workspaceId) return conversation
+    changed += 1
+    return { ...conversation, workspaceId: null, updatedAt: timestamp }
+  })
+  if (changed) await save(next)
+  return changed
 }
