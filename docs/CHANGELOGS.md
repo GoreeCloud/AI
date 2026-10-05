@@ -31,6 +31,7 @@
 - Narrowed the browser chat-message role type to `user | assistant`, matching the backend rule that client-authored `system` context is not accepted or persisted.
 - Replaced floating `latest` JavaScript dependency declarations with the exact validated versions, added a lockfile, and changed CI/Development setup to lockfile-backed `npm ci --include=dev --ignore-scripts` for reproducible installs and reduced lifecycle-script exposure.
 - Declared the validated Node.js engine floor (`^20.19.0 || >=22.12.0`) and moved Vite plus its React plugin to development-only dependencies so runtime dependency classification matches their actual build role.
+- Expanded `check:server` to syntax-check every non-test server module, including agent-intelligence, relationship-integrity, runtime-readiness, evidence-envelope/replay, and durable evidence-use registry modules.
 
 ### Changed — current Glaze consumer target
 

@@ -79,7 +79,7 @@ This file records capabilities that exist in the current repository source. An e
 - `docs/USER-MANUAL.md` as the sole authoritative repository user manual under the GitHub-only manual-storage and root-cleanliness rules.
 - Repository-native specification, benefits, competitive objectives, branding references and implementation documentation.
 - Platform Contract 2.0 declaration using the canonical Forge lifecycle and evaluating all nine Integral Platform Systems with incomplete integrations represented as blocked, migration-required, or nonconformant rather than passed.
-- Exact-head CI for TypeScript checking, server syntax, Node tests, production client build, Wardveil reference tests/contract validation and Python compilation.
+- Exact-head CI for TypeScript checking, explicit syntax validation of every non-test server module, Node tests, production client build, Wardveil reference tests/contract validation and Python compilation.
 - JavaScript dependencies are pinned to the exact validated versions in `package.json` and `package-lock.json`; CI and documented Development setup use lockfile-backed `npm ci --include=dev --ignore-scripts` rather than floating `latest` resolution.
 
 ## Material limitations
