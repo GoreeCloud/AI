@@ -21,6 +21,7 @@ type DialogState =
   | { kind: 'rename'; id: string; value: string }
   | { kind: 'edit'; index: number; value: string }
   | { kind: 'workspace'; value: string }
+  | { kind: 'workspace-rename'; id: string; value: string }
   | { kind: 'workspace-instructions'; id: string; value: string }
   | null
 
@@ -250,6 +251,14 @@ export default function App() {
     }
   }
 
+  async function changeWorkspaceRole(roleId: ModelRoleId) {
+    if (!selectedWorkspace) return
+    const updated = await saveWorkspace(selectedWorkspace.id, { defaultModelRole: roleId })
+    setWorkspaces((current) => current.map((workspace) => workspace.id === updated.id ? updated : workspace))
+    const role = resolvedRoles.find((item) => item.id === roleId && item.model)
+    if (role?.model?.name) await changeModel(role.model.name)
+  }
+
   async function confirmDialog(value: string) {
     if (!dialog) return
     if (dialog.kind === 'workspace') {
@@ -261,6 +270,12 @@ export default function App() {
         const item = history.find((entry) => entry.id === conversationId)
         await persist(conversationId, messages, selectedModel, item?.title, workspace.id)
       }
+      setDialog(null)
+      return
+    }
+    if (dialog.kind === 'workspace-rename') {
+      await saveWorkspace(dialog.id, { name: value.slice(0, 120) })
+      await refreshWorkspaces()
       setDialog(null)
       return
     }
@@ -374,13 +389,14 @@ export default function App() {
       <div className="context-card"><span className="context-card-icon"><Bot size={19}/></span><div><strong>{currentRole?.name || 'Direct model'}</strong><p>{currentRole ? `${currentRole.purpose}. Runtime: ${selectedModel}.` : selectedModel ? `Using installed Ollama model ${selectedModel}.` : 'No model selected.'}</p></div></div>
       <div className="context-card"><span className="context-card-icon"><ShieldCheck size={19}/></span><div><strong>Private processing</strong><p>This conversation is configured for the local Ollama runtime.</p></div></div>
       <div className="context-card"><span className="context-card-icon"><GitBranch size={19}/></span><div><strong>Lineage</strong><p>{currentSummary?.parentConversationId ? `Branched from conversation ${currentSummary.parentConversationId.slice(0, 8)} at message ${Number(currentSummary.parentMessageIndex) + 1}.` : 'This is a root conversation.'}</p></div></div>
-      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.'}</p><select className="context-select" value={selectedWorkspaceId ?? ''} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select><div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}</div></div></div>
+      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.'}</p><select className="context-select" value={selectedWorkspaceId ?? ''} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{selectedWorkspace && <label className="context-field"><span>Default model role</span><select className="context-select" value={selectedWorkspace.defaultModelRole} onChange={(event) => void changeWorkspaceRole(event.target.value as ModelRoleId)}>{resolvedRoles.filter((role) => role.conversational).map((role) => <option key={role.id} value={role.id}>{role.name}{role.model ? ` · ${role.model.name}` : ' · no installed match'}</option>)}</select></label>}<div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-rename', id: selectedWorkspace.id, value: selectedWorkspace.name })}><Pencil size={15}/>Rename</button>}{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}</div></div></div>
       <div className="context-card context-card-wide"><span className="context-card-icon"><Paperclip size={19}/></span><div><strong>{selectedWorkspace ? 'Workspace files' : 'Unassigned files'}</strong><p>{fileError || (workspaceFiles.length ? `${verifiedWorkspaceFiles.length} verified · ${restrictedWorkspaceFiles.length} restricted. Only Wardveil-clean attachments may become available to AI context.` : 'No files stored here yet.')}</p>{workspaceFiles.slice(0, 5).map((file) => <span className={`file-chip ${file.status}`} key={file.id}><span>{file.name}</span><em>{fileTrustLabel[file.status]}</em></span>)}</div></div>
     </aside>
 
     <TextDialog open={dialog?.kind === 'rename'} title="Rename conversation" label="Choose a concise name for this conversation." initialValue={dialog?.kind === 'rename' ? dialog.value : ''} onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'edit'} title="Edit message" label="Resubmitting will regenerate the conversation from this point." initialValue={dialog?.kind === 'edit' ? dialog.value : ''} multiline confirmLabel="Save & resubmit" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace'} title="New Workspace" label="Name this persistent AI workspace." initialValue={dialog?.kind === 'workspace' ? dialog.value : ''} confirmLabel="Create Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
+    <TextDialog open={dialog?.kind === 'workspace-rename'} title="Rename Workspace" label="Choose a concise name for this Workspace." initialValue={dialog?.kind === 'workspace-rename' ? dialog.value : ''} confirmLabel="Save name" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-instructions'} title="Workspace instructions" label="These private instructions are applied as system context to local model requests in this Workspace. They do not grant authorization or enable blocked tools." initialValue={dialog?.kind === 'workspace-instructions' ? dialog.value : ''} multiline confirmLabel="Save instructions" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     {sidebarOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>} 
   </div>
