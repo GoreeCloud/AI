@@ -15,6 +15,7 @@ This file records capabilities that exist in the current repository source. An e
 - Client-side saved-conversation search across title, selected model and Workspace name.
 - User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
 - Native Workspaces with editable names, instructions, default model roles, file references, knowledge/tool placeholders and research preferences.
+- Fail-closed Workspace create/update validation for supported fields, model-role identifiers, instruction/name bounds, research preference types, and bounded resource-ID collections.
 - Workspace instructions are resolved by the backend from the selected Workspace ID and applied transiently as private system context to local model requests without being inserted into persisted conversation history or creating authorization.
 - Manual local-model inventory refresh through the existing backend-owned Ollama discovery boundary.
 - Inactive knowledge Library and external Research controls are explicitly disabled in the Development UI instead of presenting no-op controls as usable capabilities.
