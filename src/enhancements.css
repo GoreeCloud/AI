@@ -27,9 +27,11 @@
 .dialog-card input, .dialog-card textarea { width: 100%; border: 1px solid var(--border-strong); border-radius: 14px; outline: 0; padding: 11px 12px; background: rgba(255,255,255,.04); color: var(--text); resize: vertical; }
 .dialog-card input:focus, .dialog-card textarea:focus { border-color: rgba(115,168,255,.5); box-shadow: 0 0 0 3px rgba(115,168,255,.08); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.secondary-button, .primary-button, .generation-error button { border: 0; border-radius: 11px; padding: 9px 13px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.secondary-button, .primary-button, .danger-button, .generation-error button { border: 0; border-radius: 11px; padding: 9px 13px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
 .secondary-button { color: var(--soft); background: rgba(255,255,255,.055); }
 .primary-button { color: #09111f; background: linear-gradient(145deg, #a9cbff, #6d9cff); }
+.danger-button { color: #fff; background: rgba(210, 62, 62, .84); }
+.danger-button:hover { background: rgba(224, 72, 72, .94); }
 .primary-button:disabled { cursor: default; opacity: .4; }
 
 .generation-error { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; align-items: center; gap: 11px; padding: 13px 14px; border: 1px solid rgba(255,139,139,.2); border-radius: 15px; background: rgba(255,139,139,.055); color: var(--danger); }
