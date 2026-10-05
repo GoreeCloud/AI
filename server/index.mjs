@@ -5,6 +5,7 @@ import { deleteFile, getFileRecord, getFileStorageUsage, listFiles, storeFile } 
 import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text-extraction.mjs'
 import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs'
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
+import { composeWorkspaceChatMessages, normalizeWorkspaceId } from './chat-context.mjs'
 
 const PORT = positiveNumberEnv('PORT', 8787)
 const OLLAMA_URL = (process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434').replace(/\/$/, '')
@@ -55,7 +56,8 @@ function validMessages(messages) {
 }
 
 function validateChat(body) {
-  return body && typeof body === 'object' && typeof body.model === 'string' && body.model.trim() && validMessages(body.messages) && body.messages.length > 0
+  if (!body || typeof body !== 'object' || typeof body.model !== 'string' || !body.model.trim() || !validMessages(body.messages) || body.messages.length === 0) return false
+  return normalizeWorkspaceId(body.workspaceId) !== undefined
 }
 
 async function ollamaFetch(path, init = {}) {
@@ -74,13 +76,17 @@ async function handleModels(res) {
 
 async function handleChat(req, res) {
   const body = await readJson(req)
-  if (!validateChat(body)) return json(res, 400, { error: 'model and valid messages are required' })
+  if (!validateChat(body)) return json(res, 400, { error: 'model, valid messages, and a valid optional workspaceId are required' })
+  const workspaceId = normalizeWorkspaceId(body.workspaceId)
+  const workspace = workspaceId ? await getWorkspace(workspaceId) : null
+  if (workspaceId && !workspace) return json(res, 404, { error: 'Workspace not found' })
+  const messages = composeWorkspaceChatMessages(body.messages, workspace)
   const controller = new AbortController()
   req.on('close', () => controller.abort())
   const upstream = await ollamaFetch('/api/chat', {
     method: 'POST', signal: controller.signal,
     headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
-    body: JSON.stringify({ model: body.model.trim(), messages: body.messages, stream: true }),
+    body: JSON.stringify({ model: body.model.trim(), messages, stream: true }),
   })
   if (!upstream.ok || !upstream.body) return json(res, 502, { error: 'Ollama chat request failed', upstreamStatus: upstream.status })
   res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
