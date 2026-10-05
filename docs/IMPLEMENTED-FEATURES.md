@@ -32,6 +32,7 @@ This file records capabilities that exist in the current repository source. An e
 - Text-entry and destructive confirmation dialogs guard asynchronous submissions against duplicate activation; text-entry save failures remain visible in the dialog for retry instead of becoming unhandled UI failures.
 - User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
 - Rendered fenced code blocks include a compact copy glyph with accessible success/failure feedback; inline code rendering remains unchanged.
+- Fenced code blocks now render a bounded dark code surface with horizontal overflow, visible language labels when Markdown declares a language (and a neutral Code label otherwise), monospaced typography, and clipboard capability detection before copy attempts.
 - Every non-welcome conversation message exposes a copy control that reports success or failure with a state glyph, updated accessible label, and polite assistive announcement instead of silently assuming clipboard access.
 - Global keyboard handling keeps Ctrl/Command+K conversation search and adds context-aware Escape behavior: an active generation is stopped first, otherwise transient navigation/context panels close; open dialogs retain their own Escape semantics.
 - Native Workspaces with editable names, instructions, default model roles, file references, knowledge/tool placeholders and research preferences.
