@@ -5,7 +5,7 @@ import { countWorkspaceFileReferences, deleteFile, getFileRecord, getFileStorage
 import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text-extraction.mjs'
 import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs'
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
-import { composeWorkspaceChatMessages, normalizeWorkspaceId } from './chat-context.mjs'
+import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
 
 const PORT = positiveNumberEnv('PORT', 8787)
 const OLLAMA_URL = (process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434').replace(/\/$/, '')
@@ -55,11 +55,6 @@ function validMessages(messages) {
   return Array.isArray(messages) && messages.every((message) => message && ['system', 'user', 'assistant'].includes(message.role) && typeof message.content === 'string')
 }
 
-function validateChat(body) {
-  if (!body || typeof body !== 'object' || typeof body.model !== 'string' || !body.model.trim() || !validMessages(body.messages) || body.messages.length === 0) return false
-  return normalizeWorkspaceId(body.workspaceId) !== undefined
-}
-
 async function ollamaFetch(path, init = {}) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -76,7 +71,7 @@ async function handleModels(res) {
 
 async function handleChat(req, res) {
   const body = await readJson(req)
-  if (!validateChat(body)) return json(res, 400, { error: 'model, valid messages, and a valid optional workspaceId are required' })
+  if (!validateClientChatRequest(body)) return json(res, 400, { error: 'A bounded model, user/assistant history ending in a user message, and a valid optional workspaceId are required' })
   const workspaceId = normalizeWorkspaceId(body.workspaceId)
   const workspace = workspaceId ? await getWorkspace(workspaceId) : null
   if (workspaceId && !workspace) return json(res, 404, { error: 'Workspace not found' })
