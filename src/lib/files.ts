@@ -1,3 +1,5 @@
+import { responseError } from './http'
+
 export type FileTrustStatus = 'available' | 'held' | 'blocked' | 'unverified'
 
 export interface FileSecurityState {
@@ -35,18 +37,18 @@ export async function uploadFile(file: File, workspaceId?: string | null): Promi
     },
     body: file,
   })
-  if (!response.ok) throw new Error(`File upload failed (${response.status})`)
+  if (!response.ok) throw await responseError(response, 'File upload failed')
   return response.json() as Promise<StoredFile>
 }
 
 export async function listFiles(): Promise<StoredFile[]> {
   const response = await fetch('/api/files', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-  if (!response.ok) throw new Error(`File list failed (${response.status})`)
+  if (!response.ok) throw await responseError(response, 'File list failed')
   const data = await response.json() as { files: StoredFile[] }
   return data.files
 }
 
 export async function removeFile(id: string): Promise<void> {
   const response = await fetch(`/api/files/${id}`, { method: 'DELETE', credentials: 'same-origin' })
-  if (!response.ok) throw new Error(`File deletion failed (${response.status})`)
+  if (!response.ok) throw await responseError(response, 'File deletion failed')
 }
