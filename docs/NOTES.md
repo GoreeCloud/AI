@@ -29,7 +29,7 @@ Current source version is `0.1.0-dev.0`. The application is not Anchor-qualified
 
 The following are not established by current source alone:
 
-- current Official Anchor Glaze UI `1.6.0` implementation and GoreeCloud AI-specific acceptance;
+- current Official Anchor Glaze `1.7.0` implementation and GoreeCloud AI-specific acceptance;
 - authenticated GoreeCloud Identity transport and production application authorization;
 - authenticated Privacy Shield enforcement, capability/evidence authority, durable authorization, revocation and replay acceptance;
 - accepted live Wardveil transport/runtime evidence;
@@ -47,7 +47,7 @@ A structurally valid caller-supplied trust record remains non-authoritative. `pr
 
 The current central machine-readable authority is Platform Contract `0.4`, accepted in `GoreeCloud/GoreeCloud` at exact merge revision `6cb150d512647a0401b4da9e4741d7591693dee0`. GoreeCloud AI must evaluate exactly nine Integral Platform Systems: GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability. GoreeCloud Sync remains separately governed and must not appear as a tenth `platform_systems` entry.
 
-The current mandatory Official Anchor Glaze UI target is `1.6.0`. Prior GoreeCloud AI references to Glaze UI `1.4.1`, `1.1.0`, or experimental `2.x` targets are historical or stale current-state material and must not be relabeled as current acceptance.
+The current mandatory Official Anchor Glaze target is `1.7.0` from `GoreeCloud/glaze`. Prior GoreeCloud AI references to Glaze UI `1.6.0`, `1.4.1`, `1.1.0`, or experimental `2.x` targets are historical or stale current-state material and must not be relabeled as current acceptance.
 
 The Contract 0.4 declaration keeps all nine application-specific integrations fail-closed unless accepted evidence exists. Adding Policy and Observability declarations records applicability and blockers; it does not manufacture runtime integration or conformance.
 
