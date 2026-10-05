@@ -19,6 +19,7 @@ This file records capabilities that exist in the current repository source. An e
 - Local control-plane browser requests now have bounded client deadlines, with a longer allowance for attachment uploads.
 - Runtime presentation distinguishes an unreachable local runtime from a reachable runtime with no installed models, with explicit refresh/install guidance.
 - Browser model discovery now uses the shared bounded local-request deadline and sanitizes the returned inventory to at most 256 valid model records with bounded string fields and non-negative finite size metadata; malformed entries and unneeded arbitrary detail payloads are not consumed by the UI.
+- Browser model discovery deduplicates accepted model names while preserving the 256-model cap; browser streaming independently requires terminal completion and rejects chunks after completion.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
 - Persisted conversation and Workspace stores validate their versioned envelopes and stored-record schemas on load; malformed timestamps, invalid resource shapes, unsupported versions, and duplicate record IDs fail closed instead of being consumed as application state.
 - Stream completion and user-abort persistence is performed exactly once outside React state-updater callbacks; if persistence fails after a successful or stopped response, the visible response is retained and a save warning is shown without falsely marking the local model runtime offline.
