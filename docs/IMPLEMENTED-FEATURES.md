@@ -17,6 +17,7 @@ This file records capabilities that exist in the current repository source. An e
 - Shared browser API failures now surface bounded, whitespace-normalized public error details for conversations, Workspaces and files instead of status codes alone; displayed detail is capped to prevent oversized or control-character-heavy error text from dominating the interface.
 - Runtime presentation distinguishes an unreachable local runtime from a reachable runtime with no installed models, with explicit refresh/install guidance.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
+- Persisted conversation and Workspace stores validate their versioned envelopes and stored-record schemas on load; malformed timestamps, invalid resource shapes, unsupported versions, and duplicate record IDs fail closed instead of being consumed as application state.
 - Stream completion and user-abort persistence is performed exactly once outside React state-updater callbacks; if persistence fails after a successful or stopped response, the visible response is retained and a save warning is shown without falsely marking the local model runtime offline.
 - Conversation create/update persistence now uses closed supported-field sets, bounded title/model/message shapes, strict UUID-backed Workspace/parent references, and fail-closed malformed-input rejection.
 - Conversation creation now resolves referenced Workspaces and parent conversations against live server state and validates the parent message index before persistence; Workspace reassignment also requires a live Workspace.
@@ -30,6 +31,7 @@ This file records capabilities that exist in the current repository source. An e
 - Text-entry dialogs expose their descriptions to assistive technology and support Escape-key dismissal; confirmation dialogs retain their separate alert-dialog confirmation behavior.
 - Text-entry and destructive confirmation dialogs guard asynchronous submissions against duplicate activation; text-entry save failures remain visible in the dialog for retry instead of becoming unhandled UI failures.
 - User-controlled local Markdown conversation export containing the visible conversation transcript plus model/Workspace metadata; this browser export is not an Everkeep-governed backup or portability acceptance path.
+- Rendered fenced code blocks include a compact copy glyph with accessible success/failure feedback; inline code rendering remains unchanged.
 - Native Workspaces with editable names, instructions, default model roles, file references, knowledge/tool placeholders and research preferences.
 - Fail-closed Workspace create/update validation for supported fields, model-role identifiers, instruction/name bounds, research preference types, and bounded resource-ID collections.
 - Workspace resource-ID collections reject duplicate entries before persistence; the UI exposes every Workspace file for management and the context panel remains scrollable for larger attachment sets.

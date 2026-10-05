@@ -38,6 +38,8 @@ While a response is streaming, GoreeCloud AI follows the latest output until you
 
 The download control exports the current visible conversation to a local Markdown file. This is a user-controlled browser export of the conversation transcript and basic model/Workspace metadata; it is not an Everkeep-governed backup, recovery, or full portability export.
 
+Assistant fenced code blocks include a copy glyph in the code surface. Successful and failed copy attempts update the control state and provide a polite accessibility announcement; inline code is unaffected.
+
 Deleting a saved conversation now opens a confirmation dialog before local removal. If conversation history cannot be refreshed, opened, or deleted, the sidebar keeps a visible error message rather than silently discarding the failure.
 
 When a conversation, Workspace, or file request is rejected, the interface can include a short backend-provided reason when one is available. This detail is normalized and length-bounded before display; it is intended for actionable Development feedback rather than raw diagnostic output.
@@ -74,6 +76,8 @@ The development application intentionally does not connect directly to ClamAV. U
 ## Attachment Quotas and Deletion
 
 The local development attachment library enforces configurable per-file, file-count, and aggregate-byte limits. Local file-store and delete mutations are serialized within one Node.js process. Conversation and Workspace mutations now use the same process-local serialization principle, and attachment upload versus Workspace deletion is serialized at the backend lifecycle boundary to prevent a validated Workspace from disappearing before an upload is committed. This is Development single-process protection, not a distributed transaction model.
+
+Conversation and Workspace JSON stores are also validated when loaded. The Development backend requires the expected store version, canonical stored identifiers and timestamps, bounded record shapes, and unique record IDs; invalid persisted state fails closed rather than being treated as a valid local database.
 
 Deleting a file removes its released or staged bytes, its derived text extraction when present, and stale Workspace file references. This is application cleanup only; it is not Wardveil quarantine, secure erasure, Everkeep retention proof, or proof that no other copies exist.
 
