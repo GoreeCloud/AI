@@ -6,6 +6,8 @@ import { deleteTextExtraction, extractTextFile, getTextExtraction } from './text
 import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs'
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
 import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
+import { createBoundedOllamaNdjsonParser } from './ollama-stream.mjs'
+import { buildPublicHealthState } from './health-state.mjs'
 import { createMutationQueue } from './mutation-queue.mjs'
 import { validateConversationReferenceState, validateWorkspaceFileReferenceState } from './reference-integrity.mjs'
 
@@ -18,6 +20,8 @@ const MAX_FILE_COUNT = positiveNumberEnv('MAX_FILE_COUNT', 1_000)
 const MAX_TOTAL_FILE_BYTES = positiveNumberEnv('MAX_TOTAL_FILE_BYTES', 1024 * 1024 * 1024)
 const MAX_TEXT_EXTRACTION_BYTES = positiveNumberEnv('MAX_TEXT_EXTRACTION_BYTES', 2 * 1024 * 1024)
 const REQUEST_TIMEOUT_MS = positiveNumberEnv('REQUEST_TIMEOUT_MS', 120_000)
+const MAX_CHAT_STREAM_BYTES = positiveNumberEnv('MAX_CHAT_STREAM_BYTES', 16 * 1024 * 1024)
+const MAX_CHAT_STREAM_LINE_BYTES = positiveNumberEnv('MAX_CHAT_STREAM_LINE_BYTES', 1024 * 1024)
 const withWorkspaceAttachmentLifecycle = createMutationQueue()
 
 // A deployed Wardveil transport adapter is intentionally not fabricated here.
@@ -89,9 +93,48 @@ async function handleChat(req, res) {
   if (!upstream.ok || !upstream.body) return json(res, 502, { error: 'Ollama chat request failed', upstreamStatus: upstream.status })
   res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
   const reader = upstream.body.getReader()
+  const pending = []
+  const parser = createBoundedOllamaNdjsonParser({
+    maxStreamBytes: MAX_CHAT_STREAM_BYTES,
+    maxLineBytes: MAX_CHAT_STREAM_LINE_BYTES,
+    onChunk: (chunk) => pending.push(chunk),
+  })
+
+  async function flushPending() {
+    while (pending.length && !res.destroyed && !res.writableEnded) {
+      const writable = res.write(`${JSON.stringify(pending.shift())}\n`)
+      if (!writable) {
+        await new Promise((resolve) => {
+          const settled = () => {
+            res.off('drain', settled)
+            res.off('close', settled)
+            resolve()
+          }
+          res.once('drain', settled)
+          res.once('close', settled)
+        })
+      }
+    }
+  }
+
   try {
-    while (true) { const { value, done } = await reader.read(); if (done) break; res.write(Buffer.from(value)) }
-  } finally { reader.releaseLock(); res.end() }
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      parser.push(value)
+      await flushPending()
+    }
+    parser.finish()
+    await flushPending()
+  } catch (error) {
+    try { await reader.cancel(error) } catch {}
+    if (error?.name !== 'AbortError' && !res.destroyed && !res.writableEnded) {
+      res.write(`${JSON.stringify({ error: 'Local runtime stream was rejected' })}\n`)
+    }
+  } finally {
+    reader.releaseLock()
+    if (!res.writableEnded) res.end()
+  }
 }
 
 async function handleConversations(req, res, pathname) {
@@ -260,7 +303,7 @@ async function handleFiles(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost')
-    if (url.pathname === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok', service: 'goreecloud-ai', ollama: OLLAMA_URL, wardveilArtifactScanner: ARTIFACT_SCANNER ? 'configured' : 'unconfigured' })
+    if (url.pathname === '/api/health' && req.method === 'GET') return json(res, 200, buildPublicHealthState({ artifactScannerConfigured: Boolean(ARTIFACT_SCANNER) }))
     if (!authorized(req)) return json(res, 401, { error: 'Unauthorized' })
     if (url.pathname === '/api/ollama/models' && req.method === 'GET') return await handleModels(res)
     if (url.pathname === '/api/ollama/chat' && req.method === 'POST') return await handleChat(req, res)

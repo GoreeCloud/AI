@@ -24,6 +24,24 @@ interface ChatChunk {
   error?: string
 }
 
+const MAX_STREAM_BUFFER_CHARS = 1_100_000
+
+function parseChatChunk(line: string): ChatChunk {
+  let value: unknown
+  try { value = JSON.parse(line) }
+  catch { throw new Error('Streaming response contained invalid NDJSON') }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Streaming response chunk is invalid')
+  const chunk = value as ChatChunk
+  if (chunk.error !== undefined && typeof chunk.error !== 'string') throw new Error('Streaming response error is invalid')
+  if (chunk.done !== undefined && typeof chunk.done !== 'boolean') throw new Error('Streaming response completion state is invalid')
+  if (chunk.message !== undefined) {
+    if (!chunk.message || typeof chunk.message !== 'object' || chunk.message.role !== 'assistant' || typeof chunk.message.content !== 'string') {
+      throw new Error('Streaming response message is invalid')
+    }
+  }
+  return chunk
+}
+
 export interface StreamChatOptions {
   model: string
   messages: ChatMessage[]
@@ -76,28 +94,40 @@ export class OllamaClient {
     const decoder = new TextDecoder()
     let buffer = ''
 
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
+    let completed = false
+    try {
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        if (buffer.length > MAX_STREAM_BUFFER_CHARS) throw new Error('Streaming response exceeded the client buffer limit')
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
 
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-        const chunk = JSON.parse(trimmed) as ChatChunk
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          const chunk = parseChatChunk(trimmed)
+          if (chunk.error) throw new Error(chunk.error)
+          const token = chunk.message?.content
+          if (token) options.onToken(token)
+        }
+      }
+
+      buffer += decoder.decode()
+      if (buffer.length > MAX_STREAM_BUFFER_CHARS) throw new Error('Streaming response exceeded the client buffer limit')
+      if (buffer.trim()) {
+        const chunk = parseChatChunk(buffer.trim())
         if (chunk.error) throw new Error(chunk.error)
         const token = chunk.message?.content
         if (token) options.onToken(token)
       }
-    }
-
-    if (buffer.trim()) {
-      const chunk = JSON.parse(buffer) as ChatChunk
-      if (chunk.error) throw new Error(chunk.error)
-      const token = chunk.message?.content
-      if (token) options.onToken(token)
+      completed = true
+    } finally {
+      if (!completed) {
+        try { await reader.cancel() } catch {}
+      }
+      reader.releaseLock()
     }
   }
 }
