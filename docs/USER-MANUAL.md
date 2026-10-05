@@ -40,7 +40,9 @@ Actual model identifiers remain runtime infrastructure and may change independen
 
 Workspaces currently persist development state including name, instructions, default model role, file references, knowledge-collection placeholders, tool placeholders, and research preference state.
 
-For a selected Workspace, **Add instructions** or **Edit instructions** opens the private instruction editor. For each request, the browser sends the selected Workspace ID and the backend resolves the saved Workspace before prepending its instructions transiently as system context. The instructions are not inserted into the persisted conversation transcript, do not authorize tools or data access, and cannot override blocked Identity, Privacy Shield, Wardveil, Policy, knowledge, or external-processing gates.
+For a selected Workspace, **Rename** updates its display name and the **Default model role** selector updates the persisted role preference. When the chosen role has a recognized installed local model, GoreeCloud AI selects that model; when no matching model is installed, the UI states that no installed match exists instead of silently substituting one.
+
+**Add instructions** or **Edit instructions** opens the private instruction editor. For each request, the browser sends the selected Workspace ID and the backend resolves the saved Workspace before prepending its instructions transiently as system context. The instructions are not inserted into the persisted conversation transcript, do not authorize tools or data access, and cannot override blocked Identity, Privacy Shield, Wardveil, Policy, knowledge, or external-processing gates.
 
 Workspace membership and access boundaries are not yet backed by production GoreeCloud Identity multi-user/session enforcement and GoreeCloud AI application authorization.
 
