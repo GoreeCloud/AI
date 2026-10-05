@@ -15,6 +15,7 @@
 - Hardened conversation create/update persistence with closed field sets, bounded title/model/message shapes, strict Workspace/parent UUID validation, and four focused validator tests; Workspace deletion now clears saved-conversation Workspace references instead of leaving dangling associations.
 - Hardened the live chat boundary with closed, bounded user/assistant message envelopes that must end in a user request; client-authored `system` context is rejected so Workspace system instructions remain backend-owned.
 - Improved streaming ergonomics so deliberate user scrolling suspends automatic output following and a glyph control returns to the latest message; runtime presentation now distinguishes “no local models installed” from an unreachable runtime.
+- Hardened browser model discovery with the shared local-request deadline, a 256-model inventory bound, bounded model metadata strings, finite non-negative size validation, and omission of malformed records and arbitrary runtime-detail payloads.
 - Added copy controls to rendered fenced code blocks with success/failure state and accessible announcements while preserving inline-code rendering.
 - Improved fenced-code readability with language labels and bounded horizontal scrolling.
 - Added bounded browser deadlines for local conversation, Workspace, and file control-plane requests; attachment uploads receive a longer allowance.
