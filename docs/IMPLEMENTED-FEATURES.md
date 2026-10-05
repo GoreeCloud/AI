@@ -27,6 +27,7 @@ This file records capabilities that exist in the current repository source. An e
 - Deleting a Workspace through the backend clears saved-conversation Workspace references so the persistence layer does not retain dangling associations.
 - Conversation, Workspace and file resource routes require canonical UUID paths rather than accepting arbitrary hex/hyphen identifiers.
 - Client-side saved-conversation search across title, selected model and Workspace name.
+- Conversation Context surfaces persisted message count plus created/updated timestamps, and history/Workspace/file load failures expose explicit local retry controls so transient control-plane failures are recoverable without reloading the application.
 - Conversation deletion now uses an explicit confirmation dialog; history refresh/open/delete failures are surfaced in the sidebar instead of being silently swallowed.
 - Streaming follow is user-controlled: scrolling away from the bottom suspends automatic following and exposes a compact jump-to-latest control.
 - Text-entry dialogs expose their descriptions to assistive technology and support Escape-key dismissal; confirmation dialogs retain their separate alert-dialog confirmation behavior.
