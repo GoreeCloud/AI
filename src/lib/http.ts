@@ -22,3 +22,17 @@ export async function responseError(response: Response, fallback: string): Promi
   } catch {}
   return new Error(detail ? `${fallback} (${response.status}): ${detail}` : `${fallback} (${response.status})`)
 }
+
+
+export async function fetchWithDeadline(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 15_000): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Local GoreeCloud AI request timed out.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
