@@ -8,7 +8,7 @@ const STORE_PATH = path.join(DATA_DIR, 'conversations.json')
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const CREATE_FIELDS = new Set(['title', 'model', 'workspaceId', 'parentConversationId', 'parentMessageIndex'])
 const PATCH_FIELDS = new Set(['title', 'model', 'workspaceId', 'messages'])
-const MESSAGE_ROLES = new Set(['system', 'user', 'assistant'])
+const MESSAGE_ROLES = new Set(['user', 'assistant'])
 const withMutation = createMutationQueue()
 
 function record(value) {
