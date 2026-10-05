@@ -62,6 +62,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .runtime-pill { display: inline-flex; align-items: center; gap: 7px; width: fit-content; padding: 7px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.035); font-size: 11px; font-weight: 650; }
 .runtime-pill.ready { color: var(--success); border-color: rgba(114,214,154,.2); background: rgba(114,214,154,.07); }
 .runtime-pill.offline { color: var(--danger); border-color: rgba(255,139,139,.18); }
+.runtime-pill.no-models { color: var(--soft); border-color: var(--border-strong); background: rgba(255,255,255,.045); }
 .main-column { min-width: 0; min-height: 100vh; display: flex; flex-direction: column; }
 .topbar { position: sticky; top: 0; z-index: 20; min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,.055); background: rgba(11,13,17,.64); backdrop-filter: blur(18px) saturate(130%); }
 .topbar-actions { display: flex; gap: 6px; }
@@ -71,7 +72,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .model-picker:hover { background: rgba(255,255,255,.05); }
 .model-picker select { max-width: 260px; color: inherit; background: transparent; border: 0; outline: 0; appearance: none; font-weight: inherit; }
 .model-picker option { color: #111827; }
-.conversation { flex: 1; width: 100%; padding: 44px 20px 180px; overflow: auto; }
+.model-picker select:disabled { cursor: not-allowed; opacity: .72; }
+.conversation { position: relative; flex: 1; width: 100%; padding: 44px 20px 180px; overflow: auto; }
+.jump-latest { position: fixed; right: 24px; bottom: 154px; z-index: 22; width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--soft); background: var(--surface-2); box-shadow: 0 12px 34px rgba(0,0,0,.3); backdrop-filter: blur(16px); cursor: pointer; }
+.jump-latest:hover { color: var(--text); background: var(--surface-3); }
 .conversation-inner { width: min(820px, 100%); margin: 0 auto; display: grid; gap: 34px; }
 .message { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; }
 .message-avatar { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: rgba(255,255,255,.055); color: var(--soft); font-size: 12px; font-weight: 800; overflow: hidden; }
@@ -118,6 +122,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   .mobile-only, .desktop-hidden { display: inline-grid; }
   .brand-row .mobile-only { margin-left: auto; }
   .composer-wrap { left: 0; }
+  .jump-latest { right: 16px; bottom: 142px; }
   .scrim { display: block; position: fixed; inset: 0; z-index: 25; border: 0; background: rgba(0,0,0,.44); backdrop-filter: blur(2px); }
 }
 @media (max-width: 600px) {
