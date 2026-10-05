@@ -101,7 +101,16 @@ export class OllamaClient {
     if (!response.ok) throw await responseError(response, 'Model discovery failed')
     const data = (await response.json()) as ListModelsResponse
     if (!Array.isArray(data.models)) return []
-    return data.models.slice(0, MAX_DISCOVERED_MODELS).map(parseDiscoveredModel).filter((model): model is OllamaModel => Boolean(model))
+    const models: OllamaModel[] = []
+    const seen = new Set<string>()
+    for (const value of data.models) {
+      const model = parseDiscoveredModel(value)
+      if (!model || seen.has(model.name)) continue
+      seen.add(model.name)
+      models.push(model)
+      if (models.length >= MAX_DISCOVERED_MODELS) break
+    }
+    return models
   }
 
   async streamChat(options: StreamChatOptions): Promise<void> {
@@ -129,6 +138,7 @@ export class OllamaClient {
     let buffer = ''
 
     let completed = false
+    let terminalChunkSeen = false
     try {
       while (true) {
         const { value, done } = await reader.read()
@@ -142,7 +152,9 @@ export class OllamaClient {
           const trimmed = line.trim()
           if (!trimmed) continue
           const chunk = parseChatChunk(trimmed)
+          if (terminalChunkSeen) throw new Error('Streaming response continued after completion')
           if (chunk.error) throw new Error(chunk.error)
+          if (chunk.done === true) terminalChunkSeen = true
           const token = chunk.message?.content
           if (token) options.onToken(token)
         }
@@ -152,10 +164,13 @@ export class OllamaClient {
       if (buffer.length > MAX_STREAM_BUFFER_CHARS) throw new Error('Streaming response exceeded the client buffer limit')
       if (buffer.trim()) {
         const chunk = parseChatChunk(buffer.trim())
+        if (terminalChunkSeen) throw new Error('Streaming response continued after completion')
         if (chunk.error) throw new Error(chunk.error)
+        if (chunk.done === true) terminalChunkSeen = true
         const token = chunk.message?.content
         if (token) options.onToken(token)
       }
+      if (!terminalChunkSeen) throw new Error('Streaming response ended before completion')
       completed = true
     } finally {
       if (!completed) {
