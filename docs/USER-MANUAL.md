@@ -30,11 +30,17 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 The current application supports Ollama model discovery through the backend, friendly GoreeCloud model-role selection, streaming chat responses, stop generation, Markdown/GFM rendering, persistent conversations, rename/edit, retry/recovery, conversation branching with parent lineage metadata, and Workspace association.
 
+Use **Search conversations** in the sidebar to filter saved conversations by title, model, or Workspace name. Use the refresh control beside the model picker to re-query installed local models through the GoreeCloud AI backend.
+
+The download control exports the current visible conversation to a local Markdown file. This is a user-controlled browser export of the conversation transcript and basic model/Workspace metadata; it is not an Everkeep-governed backup, recovery, or full portability export.
+
 Actual model identifiers remain runtime infrastructure and may change independently of the user-facing role names.
 
 ## Workspaces
 
 Workspaces currently persist development state including name, instructions, default model role, file references, knowledge-collection placeholders, tool placeholders, and research preference state.
+
+For a selected Workspace, **Add instructions** or **Edit instructions** opens the private instruction editor. Saved Workspace instructions are prepended transiently as a system-context message for each local model request in that Workspace. They are not inserted into the persisted conversation transcript, do not authorize tools or data access, and cannot override blocked Identity, Privacy Shield, Wardveil, Policy, knowledge, or external-processing gates.
 
 Workspace membership and access boundaries are not yet backed by production GoreeCloud Identity multi-user/session enforcement and GoreeCloud AI application authorization.
 
@@ -152,7 +158,7 @@ A passing runtime validation proves only the application/runtime path exercised 
 
 ## Glaze UI Migration State
 
-The current authoritative Official Anchor consumer target is **GLAZE UI V1.6 / 1.6.0**. Existing 2.x-labeled source is historical migration input and does not establish current conformance. GoreeCloud AI remains migration/reconciliation-required until its interface targets the accepted 1.6.0 revision and completes application-specific exact-revision conformance/acceptance. Design-system promotion does not automatically promote this application.
+The current authoritative Official Anchor consumer target is **Glaze V1.7 / 1.7.0** from `GoreeCloud/glaze`. Existing older Glaze UI and 2.x-labeled source is historical migration input and does not establish current conformance. GoreeCloud AI remains migration/reconciliation-required until its interface completes application-specific exact-revision 1.7.0 conformance/acceptance. Design-system promotion does not automatically promote this application.
 
 ## Privacy and External Processing
 
@@ -176,7 +182,7 @@ The Draft branch still requires, among other evidence:
 - GoreeCloud Mesh integration where required;
 - additional safe parser decisions before broader ingestion;
 - actual provenance/chunking/embeddings/indexing/retrieval/RAG/model-context execution with permission and privacy enforcement;
-- migration/reconciliation to GLAZE UI V1.6 / 1.6.0 and exact current consumer conformance evidence;
+- migration/reconciliation to Glaze V1.7 / 1.7.0 and exact current consumer conformance evidence;
 - deployment and broader production-readiness validation.
 
 Do not represent successful source checks, a knowledge-eligibility/authorization assessment, or local runtime validation as Anchor or production-ready evidence.
