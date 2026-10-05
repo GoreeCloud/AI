@@ -15,6 +15,8 @@ This file records capabilities that exist in the current repository source. An e
 - Runtime presentation distinguishes an unreachable local runtime from a reachable runtime with no installed models, with explicit refresh/install guidance.
 - Persistent conversations with rename, delete, edit/resubmit, regeneration, branching and branch lineage.
 - Conversation create/update persistence now uses closed supported-field sets, bounded title/model/message shapes, strict UUID-backed Workspace/parent references, and fail-closed malformed-input rejection.
+- Conversation creation now resolves referenced Workspaces and parent conversations against live server state and validates the parent message index before persistence; Workspace reassignment also requires a live Workspace.
+- Conversation Workspace association is serialized with Workspace deletion and attachment intake so a Workspace cannot disappear between relationship validation and persistence.
 - Conversation and Workspace read-modify-write mutations are serialized within one Node.js process through a shared tested mutation-queue primitive, reducing lost-update races in the current local JSON stores.
 - Deleting a Workspace through the backend clears saved-conversation Workspace references so the persistence layer does not retain dangling associations.
 - Client-side saved-conversation search across title, selected model and Workspace name.
@@ -42,6 +44,7 @@ This file records capabilities that exist in the current repository source. An e
 
 - Private attachment staging with restrictive permissions, SHA-256 binding, metadata, quotas, aggregate storage limits, deletion and Workspace-reference reconciliation.
 - Attachment Workspace context is server-owned: upload Workspace identifiers must be valid existing Workspaces before storage, and Workspace deletion is blocked while file dependencies remain so Wardveil-bound artifact context is not silently rebound.
+- Workspace `fileIds` updates are accepted only when every referenced file exists and is owned by that Workspace according to the server file catalog; stale declared IDs are not treated as authoritative deletion dependencies.
 - Attachment upload and Workspace deletion share a backend lifecycle queue so an upload cannot validate a Workspace and then race that Workspace's deletion before storage completes.
 - Confirmed UI deletion is available for stored files and dependency-free Workspaces; file deletion retains backend extraction/reference cleanup, and Workspace deletion retains dependency and conversation-detachment safeguards.
 - Node-native Wardveil artifact trust gate with resource/digest binding, fail-closed unavailable/unknown handling and non-destructive quarantine handoff state.
