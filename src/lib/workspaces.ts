@@ -1,3 +1,4 @@
+import { responseError } from './http'
 import type { ModelRoleId } from './modelRoles'
 
 export interface Workspace {
@@ -23,7 +24,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   })
-  if (!response.ok) throw new Error(`Workspace request failed (${response.status})`)
+  if (!response.ok) throw await responseError(response, 'Workspace request failed')
   return response.json() as Promise<T>
 }
 
