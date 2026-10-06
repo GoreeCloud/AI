@@ -126,6 +126,13 @@ class CodeRepositoryFileManifestTests(unittest.TestCase):
         payload["source"]["token"] = "unexpected"
         self.assertIn("repository_file_manifest_contains_sensitive_key", evaluate_repository_file_manifest(payload, TARGET, now=NOW).reason_codes)
 
+        payload = valid_payload()
+        payload["truncated"] = True
+        self.assertIn("repository_file_manifest_truncation_invalid", evaluate_repository_file_manifest(payload, TARGET, now=NOW).reason_codes)
+
+        with self.assertRaisesRegex(ValueError, "repository_file_manifest_path_blocked"):
+            RepositoryFileManifestTarget("GoreeCloud", "code", "main", ".env/child").validate()
+
     def test_query_aware_selection_prioritizes_matching_paths(self):
         payload = valid_payload()
         payload["entries"].extend([
