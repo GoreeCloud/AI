@@ -2,6 +2,12 @@
 
 GoreeCloud AI is GoreeCloud's first-party AI application and local-model experience. It is designed around Glaze UI, integrates with Ollama as an initial replaceable model-runtime foundation, and uses GoreeCloud platform services rather than exposing infrastructure as the product identity.
 
+## Model provider architecture
+
+GoreeCloud AI keeps the application boundary provider-independent. Ollama remains the initial replaceable local model-runtime foundation, while optional external providers can be integrated behind a GoreeCloud-owned provider gateway without becoming mandatory dependencies or authorization authorities.
+
+See [Model Provider Architecture](docs/MODEL_PROVIDER_ARCHITECTURE.md) for the approved first-person architecture decision, including optional OpenAI API support, local-only operation, routing, privacy, credentials, tools, cost, fallback, and future-provider boundaries.
+
 ## Current source milestone
 
 This repository now includes the first executable **Wardveil Security artifact-intake boundary** for GoreeCloud AI.
