@@ -30,6 +30,7 @@
 - Hardened streamed local-model output with strict UTF-8/NDJSON parsing, total-stream and per-event byte limits, public-field reduction, upstream cancellation on malformed output, and HTTP backpressure handling; the browser now applies its own bounded parser and releases/cancels stream readers deterministically.
 - Require a terminal local-runtime stream chunk before accepting upstream EOF, so abruptly truncated model streams fail closed instead of appearing successfully complete.
 - Added a 2,000,000-character cumulative browser output ceiling so many small valid stream chunks cannot grow assistant UI/state without a total client-side bound.
+- Sanitized streamed runtime error text in the browser adapter with control-character removal, whitespace normalization, and a 320-character cap.
 - Removed the configured Ollama endpoint from the unauthenticated health payload and added regression coverage for the non-sensitive public health contract.
 - Made streamed-response persistence deterministic outside React state updater callbacks and separated conversation-save failures from model/runtime failures so completed or manually stopped output remains visible with an explicit save warning.
 - Improved text-dialog accessibility with explicit descriptions and Escape-key dismissal while preserving separate alert-dialog confirmation behavior.
