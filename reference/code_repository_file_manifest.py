@@ -110,7 +110,7 @@ def _bounded_string(value: object, maximum: int, *, required: bool = False) -> b
 def _path_shape_valid(path: str, *, allow_root: bool) -> bool:
     if allow_root and path == "":
         return True
-    if not path or len(path) > 1_024 or path.startswith("/") or path.endswith("/") or "\" in path:
+    if not path or len(path) > 1_024 or path.startswith("/") or path.endswith("/") or "\\" in path:
         return False
     if any(ord(char) < 32 or ord(char) == 127 for char in path):
         return False
