@@ -16,6 +16,7 @@ from reference.code_repository_context import (
     RepositoryContextTarget,
     evaluate_repository_context,
 )
+from reference.repository_context_selection import select_repository_context
 
 NOW = datetime(2026, 10, 6, 20, 0, tzinfo=timezone.utc)
 TARGET = RepositoryContextTarget("GoreeCloud", "code", "main")
@@ -182,6 +183,25 @@ class CodeRepositoryContextTests(unittest.TestCase):
         payload["pullRequests"][0]["webUrl"] = "javascript:alert(1)"
         decision = evaluate_repository_context(payload, TARGET, now=NOW)
         self.assertIn("repository_context_invalid_pullRequests_item", decision.reason_codes)
+
+    def test_query_aware_selection_prioritizes_matching_repository_items(self):
+        payload = valid_payload()
+        payload["branches"].append({"name": "feature/session-retry", "sha": "def", "protected": False})
+        payload["commits"][0]["message"] = "Improve session retry handling"
+        payload["issues"][0]["title"] = "Session retry timeout"
+        result = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(result, "session retry", limit=3)
+        self.assertEqual(selected[0].kind, "branch")
+        self.assertTrue(any(candidate.kind == "commit" for candidate in selected))
+        self.assertTrue(any(candidate.kind == "issue" for candidate in selected))
+
+    def test_query_aware_selection_is_bounded_and_returns_no_false_matches(self):
+        result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
+        self.assertEqual(select_repository_context(result, "unmatched-topic"), ())
+        selected = select_repository_context(result, "developer", limit=1)
+        self.assertLessEqual(len(selected), 1)
+        if selected:
+            self.assertLessEqual(len(selected[0].text), 600)
 
     def test_intake_gate_returns_context_only_after_acceptance(self):
         result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
