@@ -8,6 +8,7 @@ import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge
 import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
 import { createBoundedOllamaNdjsonParser } from './ollama-stream.mjs'
 import { sanitizePublicModelCatalog } from './model-catalog.mjs'
+import { readBoundedJsonResponse } from './bounded-json-response.mjs'
 import { buildPublicHealthState } from './health-state.mjs'
 import { createMutationQueue } from './mutation-queue.mjs'
 import { validateConversationReferenceState, validateWorkspaceFileReferenceState } from './reference-integrity.mjs'
@@ -23,6 +24,7 @@ const MAX_TEXT_EXTRACTION_BYTES = positiveNumberEnv('MAX_TEXT_EXTRACTION_BYTES',
 const REQUEST_TIMEOUT_MS = positiveNumberEnv('REQUEST_TIMEOUT_MS', 120_000)
 const MAX_CHAT_STREAM_BYTES = positiveNumberEnv('MAX_CHAT_STREAM_BYTES', 16 * 1024 * 1024)
 const MAX_CHAT_STREAM_LINE_BYTES = positiveNumberEnv('MAX_CHAT_STREAM_LINE_BYTES', 1024 * 1024)
+const MAX_MODEL_CATALOG_BYTES = positiveNumberEnv('MAX_MODEL_CATALOG_BYTES', 1024 * 1024)
 const withWorkspaceAttachmentLifecycle = createMutationQueue()
 
 // A deployed Wardveil transport adapter is intentionally not fabricated here.
@@ -69,7 +71,8 @@ async function handleModels(res) {
   const upstream = await ollamaFetch('/api/tags', { headers: { Accept: 'application/json' } })
   if (!upstream.ok) return json(res, 502, { error: 'Ollama model discovery failed', upstreamStatus: upstream.status })
   try {
-    const models = sanitizePublicModelCatalog(await upstream.json())
+    const catalog = await readBoundedJsonResponse(upstream, MAX_MODEL_CATALOG_BYTES)
+    const models = sanitizePublicModelCatalog(catalog)
     return json(res, 200, { models })
   } catch {
     return json(res, 502, { error: 'Ollama model discovery returned an invalid catalog' })
