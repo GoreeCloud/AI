@@ -11,6 +11,7 @@ This file records capabilities that exist in the current repository source. An e
 - React/TypeScript/Vite client with a responsive conversation shell, navigation and context surfaces.
 - Node.js application backend bound to the local application boundary.
 - Backend-owned local model discovery and streamed NDJSON chat through the replaceable local model runtime.
+- All backend local-runtime HTTP requests now use a tested wrapper that preserves the existing deadline/cancellation behavior while forcing redirects to fail closed, preventing a configured local runtime from redirecting GoreeCloud AI requests to an unexpected target.
 - The live `/models` route now reduces Ollama inventory data through the tested public catalog sanitizer before browser delivery: only unique trimmed model names are published, names are bounded to 512 characters, the public inventory is capped at 256 entries, arbitrary runtime metadata is omitted, and invalid catalog envelopes fail closed.
 - The `/models` route now also bounds the upstream Ollama catalog body to 1 MiB before JSON parsing, with strict UTF-8 and JSON decoding, so oversized or malformed successful runtime responses fail closed before catalog sanitization.
 - Browser chat types and backend chat input are limited to user/assistant message shapes ending in a user request; client-authored `system` messages are not representable in the client contract and are rejected server-side so private Workspace system context remains backend-owned.
