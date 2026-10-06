@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goreecloud.com/contracts/ai/code.repository-file-context.schema.json",
+  "title": "GoreeCloud Code repository file context for GoreeCloud AI",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "recordType",
+    "producer",
+    "scope",
+    "generatedAt",
+    "source",
+    "repository",
+    "file",
+    "limits",
+    "evidence"
+  ],
+  "properties": {
+    "contractVersion": { "const": "0.1.0" },
+    "recordType": { "const": "repository_file_context" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service", "authoritative", "role"],
+      "properties": {
+        "service": { "const": "goreecloud-code-api" },
+        "authoritative": { "const": false },
+        "role": { "const": "provider-neutral-evidence-broker" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "repositoryId", "ref", "path"],
+      "properties": {
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "name"],
+          "properties": {
+            "owner": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "name": { "type": "string", "minLength": 1, "maxLength": 256 }
+          }
+        },
+        "repositoryId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "path": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "generatedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "providerHealthy", "capabilities"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "providerHealthy": { "const": true },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "owner", "name", "private", "webUrl"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "owner": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "private": { "type": "boolean" },
+        "webUrl": { "$ref": "#/$defs/webUrl" }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha", "size", "encoding", "content", "contentSha256", "truncated"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sha": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "size": { "type": "integer", "minimum": 0 },
+        "encoding": { "const": "utf-8" },
+        "content": { "type": "string", "maxLength": 65536 },
+        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "truncated": { "type": "boolean" },
+        "webUrl": { "$ref": "#/$defs/webUrl" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentChars"],
+      "properties": {
+        "contentChars": { "const": 65536 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["webUrls"],
+      "properties": {
+        "webUrls": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/webUrl" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "webUrl": {
+      "type": "string",
+      "pattern": "^https?://",
+      "maxLength": 4096
+    }
+  }
+}
