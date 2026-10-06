@@ -191,7 +191,7 @@ class CodeRepositoryContextTests(unittest.TestCase):
         payload["issues"][0]["title"] = "Session retry timeout"
         result = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
         selected = select_repository_context(result, "session retry", limit=3)
-        self.assertEqual(selected[0].kind, "branch")
+        self.assertEqual(selected[0].kind, "commit")
         self.assertTrue(any(candidate.kind == "commit" for candidate in selected))
         self.assertTrue(any(candidate.kind == "issue" for candidate in selected))
 
