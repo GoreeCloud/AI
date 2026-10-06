@@ -313,8 +313,8 @@ def evaluate_repository_context(
     if (
         not isinstance(capabilities, list)
         or len(capabilities) > 32
-        or len(set(capabilities)) != len(capabilities)
         or any(not _bounded_string(capability, 128, required=True) for capability in capabilities)
+        or len(set(capabilities)) != len(capabilities)
         or "repositories:read" not in capabilities
     ):
         return _blocked("repository_context_read_capability_missing")
@@ -357,8 +357,8 @@ def evaluate_repository_context(
     if (
         not isinstance(web_urls, list)
         or len(web_urls) > 64
-        or len(set(web_urls)) != len(web_urls)
         or any(not _is_web_url(url) or len(url) > 4_096 for url in web_urls)
+        or len(set(web_urls)) != len(web_urls)
     ):
         return _blocked("repository_context_invalid_evidence_url")
 
