@@ -7,6 +7,7 @@ import { assessKnowledgeAuthorizationInput } from './knowledge-authorization.mjs
 import { assessKnowledgeEligibility, getKnowledgeEligibility } from './knowledge-eligibility.mjs'
 import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatRequest } from './chat-context.mjs'
 import { createBoundedOllamaNdjsonParser } from './ollama-stream.mjs'
+import { sanitizePublicModelCatalog } from './model-catalog.mjs'
 import { buildPublicHealthState } from './health-state.mjs'
 import { createMutationQueue } from './mutation-queue.mjs'
 import { validateConversationReferenceState, validateWorkspaceFileReferenceState } from './reference-integrity.mjs'
