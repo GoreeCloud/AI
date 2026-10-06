@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "contracts" / "code.repository-context.schema.json"
 SOURCE = ROOT / "reference" / "code_repository_context.py"
+SELECTOR = ROOT / "reference" / "repository_context_selection.py"
 TESTS = ROOT / "scripts" / "test_code_repository_context.py"
 DOC = ROOT / "docs" / "CODE_REPOSITORY_CONTEXT.md"
 README = ROOT / "README.md"
@@ -18,11 +19,12 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    for path in (CONTRACT, SOURCE, TESTS, DOC, README):
+    for path in (CONTRACT, SOURCE, SELECTOR, TESTS, DOC, README):
         require(path.is_file(), f"missing required file: {path.relative_to(ROOT)}")
 
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
     source = SOURCE.read_text(encoding="utf-8")
+    selector = SELECTOR.read_text(encoding="utf-8")
     docs = (DOC.read_text(encoding="utf-8") + "\n" + README.read_text(encoding="utf-8")).lower()
 
     properties = contract.get("properties") or {}
@@ -48,6 +50,14 @@ def main() -> None:
         "write_authorized: bool = False",
     ):
         require(token in source, f"consumer boundary missing invariant: {token}")
+
+    for token in (
+        "MAX_QUERY_CHARS = 512",
+        "MAX_QUERY_TERMS = 32",
+        "MAX_RESULT_TEXT_CHARS = 600",
+        "ranked.sort",
+    ):
+        require(token in selector, f"repository selection missing invariant: {token}")
 
     for phrase in (
         "provider-neutral",
