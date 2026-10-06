@@ -167,6 +167,22 @@ class CodeRepositoryContextTests(unittest.TestCase):
         decision = evaluate_repository_context(payload, TARGET, now=NOW)
         self.assertIn("repository_context_invalid_evidence_url", decision.reason_codes)
 
+    def test_collection_items_require_complete_typed_shapes(self):
+        payload = valid_payload()
+        del payload["commits"][0]["sha"]
+        decision = evaluate_repository_context(payload, TARGET, now=NOW)
+        self.assertIn("repository_context_invalid_commits_item", decision.reason_codes)
+
+        payload = valid_payload()
+        payload["issues"][0]["number"] = "1"
+        decision = evaluate_repository_context(payload, TARGET, now=NOW)
+        self.assertIn("repository_context_invalid_issues_item", decision.reason_codes)
+
+        payload = valid_payload()
+        payload["pullRequests"][0]["webUrl"] = "javascript:alert(1)"
+        decision = evaluate_repository_context(payload, TARGET, now=NOW)
+        self.assertIn("repository_context_invalid_pullRequests_item", decision.reason_codes)
+
     def test_intake_gate_returns_context_only_after_acceptance(self):
         result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
         self.assertTrue(result.decision.accepted)
