@@ -126,6 +126,9 @@ class CodeRepositoryFileContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "repository_file_context_path_blocked"):
             RepositoryFileContextTarget("GoreeCloud", "code", "main", ".env").validate()
 
+        with self.assertRaisesRegex(ValueError, "repository_file_context_path_blocked"):
+            RepositoryFileContextTarget("GoreeCloud", "code", "main", ".env/child.txt").validate()
+
     def test_gate_returns_context_only_after_acceptance(self):
         result = RepositoryFileContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
         self.assertTrue(result.decision.accepted)
