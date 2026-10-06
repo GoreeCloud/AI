@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -52,7 +53,7 @@ _SENSITIVE_KEYS = {
 }
 from reference.repository_path_policy import repository_path_allowed
 
-_HASH_RE = __import__("re").compile(r"^[0-9a-f]{64}$")
+_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _utc(value: datetime | None = None) -> datetime:
