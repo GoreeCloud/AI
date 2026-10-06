@@ -35,6 +35,10 @@ GoreeCloud AI does not connect directly to Forgejo and does not receive Forgejo 
 
 See [`docs/CODE_REPOSITORY_CONTEXT.md`](docs/CODE_REPOSITORY_CONTEXT.md) and [`contracts/code.repository-context.schema.json`](contracts/code.repository-context.schema.json).
 
+### Repository context selection
+
+`reference/repository_context_selection.py` deterministically ranks the accepted repository snapshot against a query. It can focus repository description, branches, commits, issues, and pull requests into a bounded set of matching entries before downstream reasoning uses the context. The default result limit is eight, the hard result limit is twenty, and selected text is capped at 600 characters per item.
+
 ## Validation
 
 ```bash
