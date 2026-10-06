@@ -68,8 +68,12 @@ async function ollamaFetch(path, init = {}) {
 async function handleModels(res) {
   const upstream = await ollamaFetch('/api/tags', { headers: { Accept: 'application/json' } })
   if (!upstream.ok) return json(res, 502, { error: 'Ollama model discovery failed', upstreamStatus: upstream.status })
-  const data = await upstream.json()
-  json(res, 200, { models: Array.isArray(data.models) ? data.models : [] })
+  try {
+    const models = sanitizePublicModelCatalog(await upstream.json())
+    return json(res, 200, { models })
+  } catch {
+    return json(res, 502, { error: 'Ollama model discovery returned an invalid catalog' })
+  }
 }
 
 async function handleChat(req, res) {
