@@ -312,7 +312,10 @@ def evaluate_repository_file_manifest(
             return _blocked("repository_file_manifest_duplicate_path")
         seen_paths.add(path)
 
-    if not isinstance(payload.get("truncated"), bool):
+    truncated = payload.get("truncated")
+    if not isinstance(truncated, bool):
+        return _blocked("repository_file_manifest_truncation_invalid")
+    if truncated and len(entries) != MAX_FILE_MANIFEST_ITEMS:
         return _blocked("repository_file_manifest_truncation_invalid")
 
     evidence = payload.get("evidence")
