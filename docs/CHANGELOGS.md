@@ -17,6 +17,7 @@
 - Improved streaming ergonomics so deliberate user scrolling suspends automatic output following and a glyph control returns to the latest message; runtime presentation now distinguishes “no local models installed” from an unreachable runtime.
 - Hardened browser model discovery with the shared local-request deadline, a 256-model inventory bound, bounded model metadata strings, finite non-negative size validation, and omission of malformed records and arbitrary runtime-detail payloads.
 - Wired the tested public model-catalog sanitizer into the live backend `/models` route so browsers receive only unique bounded model names; malformed catalog envelopes now fail closed instead of forwarding raw Ollama model objects.
+- Added a 1 MiB pre-parse byte ceiling with strict UTF-8/JSON decoding for successful Ollama model-catalog responses, preventing oversized upstream JSON from being parsed into backend memory.
 - Added copy controls to rendered fenced code blocks with success/failure state and accessible announcements while preserving inline-code rendering.
 - Improved fenced-code readability with language labels and bounded horizontal scrolling.
 - Added bounded browser deadlines for local conversation, Workspace, and file control-plane requests; attachment uploads receive a longer allowance.
