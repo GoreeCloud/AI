@@ -28,6 +28,7 @@ interface ChatChunk {
 
 const MAX_STREAM_BUFFER_CHARS = 1_100_000
 const MAX_STREAM_OUTPUT_CHARS = 2_000_000
+const MAX_STREAM_ERROR_CHARS = 320
 const MAX_DISCOVERED_MODELS = 256
 const MAX_MODEL_STRING_CHARS = 512
 
@@ -60,13 +61,22 @@ function parseDiscoveredModel(value: unknown): OllamaModel | undefined {
 }
 
 
+function boundedStreamError(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_STREAM_ERROR_CHARS)
+}
+
 function parseChatChunk(line: string): ChatChunk {
   let value: unknown
   try { value = JSON.parse(line) }
   catch { throw new Error('Streaming response contained invalid NDJSON') }
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Streaming response chunk is invalid')
   const chunk = value as ChatChunk
-  if (chunk.error !== undefined && typeof chunk.error !== 'string') throw new Error('Streaming response error is invalid')
+  if (chunk.error !== undefined) {
+    if (typeof chunk.error !== 'string') throw new Error('Streaming response error is invalid')
+    const error = boundedStreamError(chunk.error)
+    if (!error) throw new Error('Streaming response error is invalid')
+    chunk.error = error
+  }
   if (chunk.done !== undefined && typeof chunk.done !== 'boolean') throw new Error('Streaming response completion state is invalid')
   if (chunk.message !== undefined) {
     if (!chunk.message || typeof chunk.message !== 'object' || chunk.message.role !== 'assistant' || typeof chunk.message.content !== 'string') {
