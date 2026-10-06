@@ -37,7 +37,15 @@
       "additionalProperties": false,
       "required": ["repository", "repositoryId"],
       "properties": {
-        "repository": { "$ref": "#/$defs/repositoryId" },
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "name"],
+          "properties": {
+            "owner": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "name": { "type": "string", "minLength": 1, "maxLength": 256 }
+          }
+        },
         "repositoryId": { "type": "string", "minLength": 1, "maxLength": 256 },
         "ref": { "type": "string", "minLength": 1, "maxLength": 255 }
       }
