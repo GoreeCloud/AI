@@ -49,6 +49,12 @@ _ITEM_KEYS = {
     "issues": {"number", "title", "state", "author", "updatedAt", "webUrl"},
     "pullRequests": {"number", "title", "state", "base", "head", "author", "updatedAt", "webUrl"},
 }
+_ITEM_REQUIRED = {
+    "branches": {"name", "sha", "protected"},
+    "commits": {"sha", "message", "authoredAt", "webUrl"},
+    "issues": {"number", "title", "state", "webUrl"},
+    "pullRequests": {"number", "title", "state", "base", "head", "webUrl"},
+}
 _SENSITIVE_KEYS = {
     "authorization",
     "credential",
@@ -116,6 +122,56 @@ def _is_web_url(value: object) -> bool:
         return False
     parsed = urlparse(value)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def _bounded_string(value: object, maximum: int, *, required: bool = False) -> bool:
+    if not isinstance(value, str):
+        return False
+    if required and not value:
+        return False
+    return len(value) <= maximum
+
+
+def _valid_collection_item(collection_name: str, item: Mapping[str, object]) -> bool:
+    if not _ITEM_REQUIRED[collection_name].issubset(item):
+        return False
+
+    if collection_name == "branches":
+        return (
+            _bounded_string(item.get("name"), 255, required=True)
+            and _bounded_string(item.get("sha"), 128, required=True)
+            and isinstance(item.get("protected"), bool)
+        )
+
+    if collection_name == "commits":
+        return (
+            _bounded_string(item.get("sha"), 128, required=True)
+            and _bounded_string(item.get("message"), 4_000)
+            and _bounded_string(item.get("authoredAt"), 64, required=True)
+            and (item.get("authorName") is None or _bounded_string(item.get("authorName"), 256))
+            and _is_web_url(item.get("webUrl"))
+        )
+
+    number = item.get("number")
+    if not isinstance(number, int) or isinstance(number, bool) or number < 1:
+        return False
+    if not _bounded_string(item.get("title"), 1_000):
+        return False
+    if item.get("author") is not None and not _bounded_string(item.get("author"), 256):
+        return False
+    if item.get("updatedAt") is not None and not _bounded_string(item.get("updatedAt"), 64):
+        return False
+    if not _is_web_url(item.get("webUrl")):
+        return False
+
+    if collection_name == "issues":
+        return item.get("state") in {"open", "closed"}
+
+    return (
+        item.get("state") in {"open", "closed", "merged"}
+        and _bounded_string(item.get("base"), 255)
+        and _bounded_string(item.get("head"), 255)
+    )
 
 
 @dataclass(frozen=True)
@@ -230,10 +286,18 @@ def evaluate_repository_context(
         return _blocked("invalid_repository_context_repository")
     if repository.get("owner") != target.owner or repository.get("name") != target.name:
         return _blocked("repository_context_repository_mismatch")
-    if not isinstance(repository.get("id"), str) or not repository.get("id"):
+    if not _bounded_string(repository.get("id"), 256, required=True):
         return _blocked("repository_context_repository_id_missing")
     if scope.get("repositoryId") != repository.get("id"):
         return _blocked("repository_context_repository_id_mismatch")
+    if not _bounded_string(repository.get("defaultBranch"), 255, required=True):
+        return _blocked("repository_context_default_branch_invalid")
+    if not isinstance(repository.get("private"), bool):
+        return _blocked("repository_context_visibility_invalid")
+    if repository.get("description") is not None and not _bounded_string(repository.get("description"), 1_000):
+        return _blocked("repository_context_description_invalid")
+    if repository.get("updatedAt") is not None and not _bounded_string(repository.get("updatedAt"), 64):
+        return _blocked("repository_context_updated_time_invalid")
     if not _is_web_url(repository.get("webUrl")):
         return _blocked("repository_context_invalid_repository_url")
 
@@ -246,7 +310,13 @@ def evaluate_repository_context(
         return _blocked("repository_context_provider_missing")
     if source.get("providerHealthy") is not True:
         return _blocked("repository_context_provider_unhealthy")
-    if not isinstance(capabilities, list) or "repositories:read" not in capabilities:
+    if (
+        not isinstance(capabilities, list)
+        or len(capabilities) > 32
+        or len(set(capabilities)) != len(capabilities)
+        or any(not _bounded_string(capability, 128, required=True) for capability in capabilities)
+        or "repositories:read" not in capabilities
+    ):
         return _blocked("repository_context_read_capability_missing")
 
     generated = payload.get("generatedAt")
@@ -273,14 +343,23 @@ def evaluate_repository_context(
         if len(collection) > limit or len(collection) > MAX_CONTEXT_ITEMS:
             return _blocked(f"repository_context_{collection_name}_limit_exceeded")
         for item in collection:
-            if not isinstance(item, Mapping) or _unexpected_keys(item, allowed_keys):
+            if (
+                not isinstance(item, Mapping)
+                or _unexpected_keys(item, allowed_keys)
+                or not _valid_collection_item(collection_name, item)
+            ):
                 return _blocked(f"repository_context_invalid_{collection_name}_item")
 
     evidence = payload.get("evidence")
     if not isinstance(evidence, Mapping) or _unexpected_keys(evidence, {"webUrls"}):
         return _blocked("invalid_repository_context_evidence")
     web_urls = evidence.get("webUrls")
-    if not isinstance(web_urls, list) or len(web_urls) > 64 or any(not _is_web_url(url) for url in web_urls):
+    if (
+        not isinstance(web_urls, list)
+        or len(web_urls) > 64
+        or len(set(web_urls)) != len(web_urls)
+        or any(not _is_web_url(url) or len(url) > 4_096 for url in web_urls)
+    ):
         return _blocked("repository_context_invalid_evidence_url")
 
     return RepositoryContextDecision(
