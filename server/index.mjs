@@ -9,6 +9,7 @@ import { composeWorkspaceChatMessages, normalizeWorkspaceId, validateClientChatR
 import { createBoundedOllamaNdjsonParser } from './ollama-stream.mjs'
 import { sanitizePublicModelCatalog } from './model-catalog.mjs'
 import { readBoundedJsonResponse } from './bounded-json-response.mjs'
+import { createRuntimeFetch } from './runtime-fetch.mjs'
 import { buildPublicHealthState } from './health-state.mjs'
 import { createMutationQueue } from './mutation-queue.mjs'
 import { validateConversationReferenceState, validateWorkspaceFileReferenceState } from './reference-integrity.mjs'
@@ -61,11 +62,10 @@ async function readJson(req) {
   catch { throw Object.assign(new Error('Invalid JSON request body'), { status: 400 }) }
 }
 
-async function ollamaFetch(path, init = {}) {
-  const deadline = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-  const signal = init.signal ? AbortSignal.any([init.signal, deadline]) : deadline
-  return fetch(`${OLLAMA_URL}${path}`, { ...init, signal })
-}
+const ollamaFetch = createRuntimeFetch({
+  baseUrl: OLLAMA_URL,
+  timeoutMs: REQUEST_TIMEOUT_MS,
+})
 
 async function handleModels(res) {
   const upstream = await ollamaFetch('/api/tags', { headers: { Accept: 'application/json' } })
