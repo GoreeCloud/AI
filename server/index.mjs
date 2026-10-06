@@ -10,6 +10,7 @@ import { createBoundedOllamaNdjsonParser } from './ollama-stream.mjs'
 import { sanitizePublicModelCatalog } from './model-catalog.mjs'
 import { readBoundedJsonResponse } from './bounded-json-response.mjs'
 import { createRuntimeFetch } from './runtime-fetch.mjs'
+import { publicResponseHeaders } from './public-response-headers.mjs'
 import { buildPublicHealthState } from './health-state.mjs'
 import { createMutationQueue } from './mutation-queue.mjs'
 import { validateConversationReferenceState, validateWorkspaceFileReferenceState } from './reference-integrity.mjs'
@@ -41,7 +42,7 @@ function positiveNumberEnv(name, fallback) {
 }
 
 function json(res, status, payload) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
+  res.writeHead(status, publicResponseHeaders('application/json; charset=utf-8'))
   res.end(JSON.stringify(payload))
 }
 
@@ -94,7 +95,7 @@ async function handleChat(req, res) {
     body: JSON.stringify({ model: body.model.trim(), messages, stream: true }),
   })
   if (!upstream.ok || !upstream.body) return json(res, 502, { error: 'Ollama chat request failed', upstreamStatus: upstream.status })
-  res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
+  res.writeHead(200, publicResponseHeaders('application/x-ndjson; charset=utf-8'))
   const reader = upstream.body.getReader()
   const pending = []
   const parser = createBoundedOllamaNdjsonParser({
