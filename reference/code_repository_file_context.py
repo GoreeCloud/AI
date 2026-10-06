@@ -119,12 +119,15 @@ def _bounded_string(value: object, maximum: int, *, required: bool = False) -> b
 
 
 def _path_allowed(path: str) -> bool:
-    basename = path.rsplit("/", 1)[-1].lower()
-    if basename == ".env" or (basename.startswith(".env.") and basename not in _ALLOWED_ENV_TEMPLATES):
-        return False
-    if basename in _BLOCKED_BASENAMES:
-        return False
-    return _BLOCKED_KEY_EXTENSION_RE.search(basename) is None
+    for segment in path.split("/"):
+        basename = segment.lower()
+        if basename == ".env" or (basename.startswith(".env.") and basename not in _ALLOWED_ENV_TEMPLATES):
+            return False
+        if basename in _BLOCKED_BASENAMES:
+            return False
+        if _BLOCKED_KEY_EXTENSION_RE.search(basename) is not None:
+            return False
+    return True
 
 
 @dataclass(frozen=True)
