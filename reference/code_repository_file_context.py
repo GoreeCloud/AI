@@ -34,6 +34,7 @@ _FILE_KEYS = {
     "encoding",
     "content",
     "contentSha256",
+    "excerptSha256",
     "truncated",
     "webUrl",
 }
