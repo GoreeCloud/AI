@@ -110,7 +110,12 @@ def _candidate(
     normalized_text = " ".join(normalize("NFKC", bounded_text.casefold()).split())
     counts = Counter(re.findall(r"[^\W_]+", normalized_text))
     score = sum(counts[term] for term in terms)
-    if score and normalized_query in normalized_text:
+    # A phrase boost must also respect word boundaries. A partial suffix
+    # such as "retry" within "retryable" is not an exact phrase match.
+    if score and re.search(
+        rf"(?<![^\W_]){re.escape(normalized_query)}(?![^\W_])",
+        normalized_text,
+    ):
         score += max(2, len(terms))
     return RepositoryContextCandidate(
         kind=kind,
