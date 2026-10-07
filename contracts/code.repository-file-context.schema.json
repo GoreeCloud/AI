@@ -87,6 +87,7 @@
         "encoding": { "const": "utf-8" },
         "content": { "type": "string", "maxLength": 65536 },
         "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "excerptSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "truncated": { "type": "boolean" },
         "webUrl": { "$ref": "#/$defs/webUrl" }
       }
