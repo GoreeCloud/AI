@@ -129,6 +129,25 @@ class CodeRepositoryFileContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "repository_file_context_path_blocked"):
             RepositoryFileContextTarget("GoreeCloud", "code", "main", ".env/child.txt").validate()
 
+    def test_rejects_malformed_file_paths_before_provider_access(self):
+        invalid_paths = (
+            "../README.md",
+            "src/../README.md",
+            "src/./README.md",
+            "/README.md",
+            "docs/",
+            "docs//README.md",
+            "docs\\README.md",
+            "src/" + chr(10) + "README.md",
+        )
+        for path in invalid_paths:
+            with self.subTest(path=repr(path)):
+                with self.assertRaisesRegex(ValueError, "repository_file_context_scope_invalid"):
+                    RepositoryFileContextTarget("GoreeCloud", "code", "main", path).validate()
+
+    def test_accepts_ordinary_nested_source_path_shape(self):
+        RepositoryFileContextTarget("GoreeCloud", "code", "main", "src/README.md").validate()
+
     def test_gate_returns_context_only_after_acceptance(self):
         result = RepositoryFileContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
         self.assertTrue(result.decision.accepted)
