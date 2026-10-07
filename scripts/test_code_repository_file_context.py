@@ -156,6 +156,20 @@ class CodeRepositoryFileContextTests(unittest.TestCase):
             evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes,
         )
 
+    def test_rejects_credential_bearing_evidence_urls(self):
+        for url in (
+            "https://user:pass@git.example.test/GoreeCloud/code",
+            "https://git.example.test/GoreeCloud/code?access_token=hidden",
+            "https://git.example.test/GoreeCloud/code#fragment",
+        ):
+            with self.subTest(url=url):
+                payload = valid_payload()
+                payload["file"]["webUrl"] = url
+                self.assertIn(
+                    "repository_file_context_invalid_file_url",
+                    evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes,
+                )
+
     def test_sensitive_fields_and_secret_paths_fail_closed(self):
         payload = valid_payload()
         payload["source"]["token"] = "unexpected"

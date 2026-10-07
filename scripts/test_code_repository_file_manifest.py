@@ -93,6 +93,20 @@ class CodeRepositoryFileManifestTests(unittest.TestCase):
         payload["entries"][0]["path"] = "docs/README.md"
         self.assertIn("repository_file_manifest_entry_not_direct_child", evaluate_repository_file_manifest(payload, TARGET, now=NOW).reason_codes)
 
+    def test_rejects_credential_bearing_manifest_evidence_urls(self):
+        for url in (
+            "https://user:pass@git.example.test/GoreeCloud/code",
+            "https://git.example.test/GoreeCloud/code?access_token=hidden",
+            "https://git.example.test/GoreeCloud/code#fragment",
+        ):
+            with self.subTest(url=url):
+                payload = valid_payload()
+                payload["evidence"]["webUrls"] = [url]
+                self.assertIn(
+                    "repository_file_manifest_invalid_evidence_url",
+                    evaluate_repository_file_manifest(payload, TARGET, now=NOW).reason_codes,
+                )
+
     def test_blocked_paths_and_duplicate_paths_fail_closed(self):
         payload = valid_payload()
         payload["entries"][0] = {"name": ".env", "path": ".env", "type": "file", "size": 32, "sha": "secret"}
