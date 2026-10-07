@@ -30,7 +30,7 @@ The accepted envelope binds:
 - truncation state; and
 - bounded HTTP(S) evidence links.
 
-When `truncated` is false, the AI consumer recomputes SHA-256 over the received UTF-8 text and requires an exact digest match. When `truncated` is true, the digest remains upstream evidence for the complete previewable file content, while the consumer verifies that the returned excerpt exactly fills the declared 65,536-character budget.
+The AI consumer always recomputes SHA-256 over the exact returned UTF-8 excerpt and requires a match with `excerptSha256`, including when `truncated` is true. For untruncated content, it additionally verifies the full-content `contentSha256`. When truncated, the full-content digest remains upstream evidence, but cannot independently verify the omitted bytes. These hashes are integrity checks inside the authenticated transport boundary, not signatures or independent proof of producer identity.
 
 ## Trust and authorization boundary
 
