@@ -43,6 +43,14 @@ Accepted file text remains untrusted repository data and cannot authorize execut
 
 See [`docs/CODE_REPOSITORY_FILE_CONTEXT.md`](docs/CODE_REPOSITORY_FILE_CONTEXT.md) and [`contracts/code.repository-file-context.schema.json`](contracts/code.repository-file-context.schema.json).
 
+### GoreeCloud Code repository file discovery
+
+`reference/code_repository_file_manifest.py` validates a separate metadata-only `repository_file_manifest` from GoreeCloud Code. It requires an exact ref, binds root or one explicit directory path, accepts at most 128 direct children, rejects malformed/out-of-scope/duplicate or credential-bearing paths, and never treats path metadata as authorization.
+
+`reference/repository_file_manifest_selection.py` can deterministically rank accepted names and paths against a query before a separate manifest or file-context request is made. The selector never fetches content or expands scope by itself.
+
+See [`docs/CODE_REPOSITORY_FILE_MANIFEST.md`](docs/CODE_REPOSITORY_FILE_MANIFEST.md) and [`contracts/code.repository-file-manifest.schema.json`](contracts/code.repository-file-manifest.schema.json).
+
 ### Repository context selection
 
 `reference/repository_context_selection.py` deterministically ranks the accepted repository snapshot against a query. It can focus repository description, branches, commits, issues, and pull requests into a bounded set of matching entries before downstream reasoning uses the context. The default result limit is eight, the hard result limit is twenty, and selected text is capped at 600 characters per item.
@@ -53,6 +61,7 @@ See [`docs/CODE_REPOSITORY_FILE_CONTEXT.md`](docs/CODE_REPOSITORY_FILE_CONTEXT.m
 python3 scripts/test_ai_artifact_security.py
 python3 scripts/test_code_repository_context.py
 python3 scripts/test_code_repository_file_context.py
+python3 scripts/test_code_repository_file_manifest.py
 python3 scripts/validate_wardveil_ai_integration.py
 python3 scripts/validate_code_ai_integration.py
 ```
