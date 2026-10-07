@@ -92,7 +92,16 @@ def select_repository_context(
             candidates.append(_candidate("pull_request", f"pull:{number}", text, _web_url(pull_request, repository_url), normalized_query, terms))
 
     ranked = [candidate for candidate in candidates if candidate.score > 0]
-    ranked.sort(key=lambda candidate: (-candidate.score, _kind_order(candidate.kind), candidate.key))
+    # Favor candidates covering more distinct query terms before raw repetition.
+    # This keeps one frequently repeated term from outranking broader relevance.
+    ranked.sort(
+        key=lambda candidate: (
+            -_term_coverage(candidate.text, terms),
+            -candidate.score,
+            _kind_order(candidate.kind),
+            candidate.key,
+        )
+    )
     return tuple(ranked[:limit])
 
 
@@ -124,6 +133,12 @@ def _candidate(
         web_url=web_url,
         score=score,
     )
+
+
+def _term_coverage(text: str, terms: tuple[str, ...]) -> int:
+    normalized_text = " ".join(normalize("NFKC", text.casefold()).split())
+    words = set(re.findall(r"[^\W_]+", normalized_text))
+    return sum(term in words for term in terms)
 
 
 def _items(value: object) -> tuple[Mapping[str, object], ...]:
