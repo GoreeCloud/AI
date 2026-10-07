@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from unicodedata import normalize
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -45,8 +46,10 @@ def select_repository_context(
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 20:
         raise ValueError("invalid_repository_context_selection_limit")
 
-    normalized_query = " ".join(query.lower().split())
-    terms = tuple(dict.fromkeys(re.findall(r"[a-z0-9]+", normalized_query)))[:MAX_QUERY_TERMS]
+    normalized_query = " ".join(normalize("NFKC", query.casefold()).split())
+    # Unicode words permit localized repository titles, paths, and messages;
+    # underscores and punctuation remain word separators like ASCII paths.
+    terms = tuple(dict.fromkeys(re.findall(r"[^\\W_]+", normalized_query)))[:MAX_QUERY_TERMS]
     if not terms:
         raise ValueError("valid_repository_query_required")
 
@@ -104,8 +107,8 @@ def _candidate(
     # Score only text that the consumer will actually receive, and match complete
     # words rather than substrings (e.g. "ai" must not match "main").
     bounded_text = text[:MAX_RESULT_TEXT_CHARS]
-    normalized_text = " ".join(bounded_text.lower().split())
-    counts = Counter(re.findall(r"[a-z0-9]+", normalized_text))
+    normalized_text = " ".join(normalize("NFKC", bounded_text.casefold()).split())
+    counts = Counter(re.findall(r"[^\\W_]+", normalized_text))
     score = sum(counts[term] for term in terms)
     if score and normalized_query in normalized_text:
         score += max(2, len(terms))
