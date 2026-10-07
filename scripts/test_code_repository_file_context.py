@@ -118,6 +118,19 @@ class CodeRepositoryFileContextTests(unittest.TestCase):
         payload["file"]["content"] = "x" * (MAX_FILE_CONTEXT_CHARS - 1)
         self.assertIn("repository_file_context_truncation_invalid", evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes)
 
+    def test_unicode_scalar_truncation_boundary(self):
+        payload = valid_payload()
+        payload["file"]["content"] = "🙂" + "x" * (MAX_FILE_CONTEXT_CHARS - 1)
+        payload["file"]["truncated"] = True
+        payload["file"]["contentSha256"] = "a" * 64
+        self.assertTrue(evaluate_repository_file_context(payload, TARGET, now=NOW).accepted)
+
+        payload["file"]["content"] += "x"
+        self.assertIn(
+            "repository_file_context_content_invalid",
+            evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes,
+        )
+
     def test_sensitive_fields_and_secret_paths_fail_closed(self):
         payload = valid_payload()
         payload["source"]["token"] = "unexpected"
