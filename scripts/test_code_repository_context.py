@@ -225,6 +225,24 @@ class CodeRepositoryContextTests(unittest.TestCase):
         self.assertEqual(selected[0].kind, "branch")
         self.assertEqual(selected[0].key, "feature/session-retry")
 
+    def test_distinct_query_term_coverage_beats_single_term_repetition(self):
+        payload = valid_payload()
+        payload["commits"][0]["message"] = "session session session session session"
+        payload["issues"][0]["title"] = "retry then session"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(intake, "session retry")
+        self.assertEqual(selected[0].kind, "issue")
+        self.assertEqual(selected[0].text, "retry then session")
+        self.assertGreater(next(item.score for item in selected if item.kind == "commit"), selected[0].score)
+
+    def test_frequency_still_breaks_ties_after_equal_term_coverage(self):
+        payload = valid_payload()
+        payload["commits"][0]["message"] = "session retry session"
+        payload["issues"][0]["title"] = "retry then session"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(intake, "session retry")
+        self.assertEqual(selected[0].kind, "commit")
+
     def test_exact_phrase_bonus_excludes_word_prefixes(self):
         payload = valid_payload()
         payload["commits"][0]["message"] = "session retryable session session"
