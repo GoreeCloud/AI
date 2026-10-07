@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -45,7 +46,7 @@ def select_repository_context(
         raise ValueError("invalid_repository_context_selection_limit")
 
     normalized_query = " ".join(query.lower().split())
-    terms = tuple(dict.fromkeys(re.findall(r"[a-z0-9_.:/-]+", normalized_query)))[:MAX_QUERY_TERMS]
+    terms = tuple(dict.fromkeys(re.findall(r"[a-z0-9]+", normalized_query)))[:MAX_QUERY_TERMS]
     if not terms:
         raise ValueError("valid_repository_query_required")
 
@@ -100,14 +101,18 @@ def _candidate(
     normalized_query: str,
     terms: tuple[str, ...],
 ) -> RepositoryContextCandidate:
-    normalized_text = " ".join(text.lower().split())
-    score = sum(normalized_text.count(term) for term in terms)
-    if normalized_query in normalized_text:
+    # Score only text that the consumer will actually receive, and match complete
+    # words rather than substrings (e.g. "ai" must not match "main").
+    bounded_text = text[:MAX_RESULT_TEXT_CHARS]
+    normalized_text = " ".join(bounded_text.lower().split())
+    counts = Counter(re.findall(r"[a-z0-9]+", normalized_text))
+    score = sum(counts[term] for term in terms)
+    if score and normalized_query in normalized_text:
         score += max(2, len(terms))
     return RepositoryContextCandidate(
         kind=kind,
         key=key,
-        text=text[:MAX_RESULT_TEXT_CHARS],
+        text=bounded_text,
         web_url=web_url,
         score=score,
     )

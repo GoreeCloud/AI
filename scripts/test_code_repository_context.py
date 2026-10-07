@@ -203,6 +203,28 @@ class CodeRepositoryContextTests(unittest.TestCase):
         if selected:
             self.assertLessEqual(len(selected[0].text), 600)
 
+    def test_query_terms_match_complete_words_not_substrings(self):
+        result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
+        # Neither the branch "main" nor words such as "maintainable" contain
+        # a standalone "ai" term.
+        self.assertEqual(select_repository_context(result, "ai"), ())
+        self.assertEqual(select_repository_context(result, "form"), ())
+        self.assertEqual(select_repository_context(result, "developer")[0].kind, "repository")
+
+    def test_query_match_is_scored_only_within_returned_preview(self):
+        payload = valid_payload()
+        payload["commits"][0]["message"] = "x" * 600 + " hiddenkeyword"
+        result = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        self.assertEqual(select_repository_context(result, "hiddenkeyword"), ())
+
+    def test_hyphenated_branch_matches_complete_query_terms(self):
+        payload = valid_payload()
+        payload["branches"].append({"name": "feature/session-retry", "sha": "def", "protected": False})
+        result = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(result, "session retry")
+        self.assertEqual(selected[0].kind, "branch")
+        self.assertEqual(selected[0].key, "feature/session-retry")
+
     def test_intake_gate_returns_context_only_after_acceptance(self):
         result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
         self.assertTrue(result.decision.accepted)
