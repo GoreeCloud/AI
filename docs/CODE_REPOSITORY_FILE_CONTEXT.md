@@ -26,6 +26,7 @@ The accepted envelope binds:
 - UTF-8 file text capped at 65,536 characters;
 - provider object SHA;
 - SHA-256 digest of the complete previewable file content before AI-specific text truncation;
+- SHA-256 digest of the exact excerpt included in the envelope;
 - truncation state; and
 - bounded HTTP(S) evidence links.
 
