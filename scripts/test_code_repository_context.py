@@ -225,6 +225,25 @@ class CodeRepositoryContextTests(unittest.TestCase):
         self.assertEqual(selected[0].kind, "branch")
         self.assertEqual(selected[0].key, "feature/session-retry")
 
+    def test_localized_query_casefolding_and_exact_words(self):
+        payload = valid_payload()
+        payload["repository"]["description"] = "Caf" + chr(0xE9) + " integration"
+        payload["commits"][0]["message"] = "Stra" + chr(0xDF) + "e maintenance"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        self.assertEqual(select_repository_context(intake, "CAF" + chr(0xC9))[0].kind, "repository")
+        self.assertEqual(select_repository_context(intake, "STRASSE")[0].kind, "commit")
+        self.assertEqual(select_repository_context(intake, "caf"), ())
+
+    def test_unicode_normalization_and_non_latin_terms(self):
+        payload = valid_payload()
+        payload["repository"]["description"] = "Caf" + chr(0xE9) + " workspace"
+        payload["issues"][0]["title"] = chr(0x4FEE) + chr(0x590D) + " build"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        self.assertEqual(select_repository_context(intake, "cafe" + chr(0x301))[0].kind, "repository")
+        self.assertEqual(select_repository_context(intake, chr(0x4FEE) + chr(0x590D))[0].kind, "issue")
+        with self.assertRaisesRegex(ValueError, "valid_repository_query_required"):
+            select_repository_context(intake, "!!!")
+
     def test_intake_gate_returns_context_only_after_acceptance(self):
         result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
         self.assertTrue(result.decision.accepted)
