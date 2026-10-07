@@ -118,6 +118,14 @@ def _bounded_string(value: object, maximum: int, *, required: bool = False) -> b
     return len(value) <= maximum
 
 
+def _valid_file_path_shape(path: str) -> bool:
+    if not path or len(path) > 1_024 or path.startswith("/") or path.endswith("/") or "\\" in path:
+        return False
+    if any(ord(char) < 32 or ord(char) == 127 for char in path):
+        return False
+    return all(segment not in {"", ".", ".."} for segment in path.split("/"))
+
+
 def _path_allowed(path: str) -> bool:
     for segment in path.split("/"):
         basename = segment.lower()
@@ -141,6 +149,8 @@ class RepositoryFileContextTarget:
         if not self.owner or not self.name or not self.ref or not self.path:
             raise ValueError("repository_file_context_scope_required")
         if len(self.owner) > 256 or len(self.name) > 256 or len(self.ref) > 255 or len(self.path) > 1_024:
+            raise ValueError("repository_file_context_scope_invalid")
+        if not _valid_file_path_shape(self.path):
             raise ValueError("repository_file_context_scope_invalid")
         if not _path_allowed(self.path):
             raise ValueError("repository_file_context_path_blocked")
