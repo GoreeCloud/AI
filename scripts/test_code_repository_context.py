@@ -225,6 +225,25 @@ class CodeRepositoryContextTests(unittest.TestCase):
         self.assertEqual(selected[0].kind, "branch")
         self.assertEqual(selected[0].key, "feature/session-retry")
 
+    def test_exact_phrase_bonus_excludes_word_prefixes(self):
+        payload = valid_payload()
+        payload["commits"][0]["message"] = "session retryable session session"
+        payload["issues"][0]["title"] = "session retry"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(intake, "session retry")
+        self.assertEqual(selected[0].kind, "issue")
+        self.assertEqual(selected[0].score, 4)
+        self.assertEqual(next(item.score for item in selected if item.kind == "commit"), 3)
+
+    def test_exact_phrase_bonus_respects_unicode_word_boundaries(self):
+        payload = valid_payload()
+        payload["commits"][0]["message"] = "somme sommet sommet"
+        payload["issues"][0]["title"] = "somme som"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(intake, "somme som")
+        self.assertEqual(selected[0].kind, "issue")
+        self.assertEqual(selected[0].score, 4)
+
     def test_localized_query_casefolding_and_exact_words(self):
         payload = valid_payload()
         payload["repository"]["description"] = "Caf" + chr(0xE9) + " integration"
