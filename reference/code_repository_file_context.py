@@ -105,10 +105,22 @@ def _contains_sensitive_key(value: object) -> bool:
 
 
 def _is_web_url(value: object) -> bool:
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value or len(value) > 4_096:
         return False
-    parsed = urlparse(value)
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        return False
+    try:
+        parsed = urlparse(value)
+        return (
+            parsed.scheme in {"http", "https"}
+            and bool(parsed.hostname)
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.query
+            and not parsed.fragment
+        )
+    except ValueError:
+        return False
 
 
 def _bounded_string(value: object, maximum: int, *, required: bool = False) -> bool:
