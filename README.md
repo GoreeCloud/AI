@@ -41,6 +41,14 @@ GoreeCloud AI does not connect directly to Forgejo and does not receive Forgejo 
 
 See [`docs/CODE_REPOSITORY_CONTEXT.md`](docs/CODE_REPOSITORY_CONTEXT.md) and [`contracts/code.repository-context.schema.json`](contracts/code.repository-context.schema.json).
 
+### GoreeCloud Code repository file context
+
+`reference/code_repository_file_context.py` adds a separate fail-closed consumer boundary for exact file evidence from GoreeCloud Code. It requires an explicit repository, ref, and path; accepts only the versioned provider-neutral file envelope; caps file text at 65,536 characters; validates complete-content SHA-256 when the file is not truncated; preserves explicit truncation evidence; and blocks common credential-file paths.
+
+Accepted file text remains untrusted repository data and cannot authorize execution, tools, or repository writes.
+
+See [`docs/CODE_REPOSITORY_FILE_CONTEXT.md`](docs/CODE_REPOSITORY_FILE_CONTEXT.md) and [`contracts/code.repository-file-context.schema.json`](contracts/code.repository-file-context.schema.json).
+
 ### Repository context selection
 
 `reference/repository_context_selection.py` deterministically ranks the accepted repository snapshot against a query. It can focus repository description, branches, commits, issues, and pull requests into a bounded set of matching entries before downstream reasoning uses the context. The default result limit is eight, the hard result limit is twenty, and selected text is capped at 600 characters per item. Query terms match complete words (including words separated by path punctuation), not substrings, and ranking uses only the text actually returned in that 600-character preview. Query matching also supports Unicode words, case folding, and normalized accents for localized titles and commit messages without loosening the accepted-context or result-size limits. This reduces misleading matches and prevents hidden, truncated text from influencing selection. Phrase relevance boosts also require full word boundaries, so partial prefixes do not displace better exact matches. Ranking first favors coverage of distinct query terms, then uses occurrence score and exact-phrase bonuses, preventing one repeated term from overwhelming a candidate that matches more of the query.
@@ -50,6 +58,7 @@ See [`docs/CODE_REPOSITORY_CONTEXT.md`](docs/CODE_REPOSITORY_CONTEXT.md) and [`c
 ```bash
 python3 scripts/test_ai_artifact_security.py
 python3 scripts/test_code_repository_context.py
+python3 scripts/test_code_repository_file_context.py
 python3 scripts/validate_wardveil_ai_integration.py
 python3 scripts/validate_code_ai_integration.py
 ```

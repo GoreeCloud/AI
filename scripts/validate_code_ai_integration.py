@@ -6,10 +6,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "contracts" / "code.repository-context.schema.json"
+FILE_CONTRACT = ROOT / "contracts" / "code.repository-file-context.schema.json"
 SOURCE = ROOT / "reference" / "code_repository_context.py"
+FILE_SOURCE = ROOT / "reference" / "code_repository_file_context.py"
 SELECTOR = ROOT / "reference" / "repository_context_selection.py"
 TESTS = ROOT / "scripts" / "test_code_repository_context.py"
+FILE_TESTS = ROOT / "scripts" / "test_code_repository_file_context.py"
 DOC = ROOT / "docs" / "CODE_REPOSITORY_CONTEXT.md"
+FILE_DOC = ROOT / "docs" / "CODE_REPOSITORY_FILE_CONTEXT.md"
 README = ROOT / "README.md"
 
 
@@ -19,13 +23,15 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    for path in (CONTRACT, SOURCE, SELECTOR, TESTS, DOC, README):
+    for path in (CONTRACT, FILE_CONTRACT, SOURCE, FILE_SOURCE, SELECTOR, TESTS, FILE_TESTS, DOC, FILE_DOC, README):
         require(path.is_file(), f"missing required file: {path.relative_to(ROOT)}")
 
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
+    file_contract = json.loads(FILE_CONTRACT.read_text(encoding="utf-8"))
     source = SOURCE.read_text(encoding="utf-8")
+    file_source = FILE_SOURCE.read_text(encoding="utf-8")
     selector = SELECTOR.read_text(encoding="utf-8")
-    docs = (DOC.read_text(encoding="utf-8") + "\n" + README.read_text(encoding="utf-8")).lower()
+    docs = (DOC.read_text(encoding="utf-8") + "\n" + FILE_DOC.read_text(encoding="utf-8") + "\n" + README.read_text(encoding="utf-8")).lower()
 
     properties = contract.get("properties") or {}
     require(properties.get("contractVersion", {}).get("const") == "0.1.0", "unexpected contract version")
@@ -50,6 +56,25 @@ def main() -> None:
         "write_authorized: bool = False",
     ):
         require(token in source, f"consumer boundary missing invariant: {token}")
+
+    file_properties = file_contract.get("properties") or {}
+    require(file_properties.get("contractVersion", {}).get("const") == "0.1.0", "unexpected file-context contract version")
+    require(file_properties.get("recordType", {}).get("const") == "repository_file_context", "unexpected file-context record type")
+    require(file_contract.get("additionalProperties") is False, "file-context contract must reject extra fields")
+    require(file_properties.get("limits", {}).get("properties", {}).get("contentChars", {}).get("const") == 65536, "file-context character limit drifted")
+    require("excerptSha256" in file_properties.get("file", {}).get("required", []), "file excerpt digest must be required")
+
+    for token in (
+        'CODE_REPOSITORY_FILE_CONTEXT_CONTRACT_VERSION = "0.1.0"',
+        "MAX_FILE_CONTEXT_CHARS = 65_536",
+        '"repository_file_context_digest_mismatch"',
+        '"repository_file_context_excerpt_digest_mismatch"',
+        '"repository_file_context_path_blocked"',
+        'content_trust: str = "untrusted_repository_file_data"',
+        "execution_authorized: bool = False",
+        "write_authorized: bool = False",
+    ):
+        require(token in file_source, f"file-context consumer boundary missing invariant: {token}")
 
     for token in (
         "MAX_QUERY_CHARS = 512",

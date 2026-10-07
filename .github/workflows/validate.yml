@@ -31,6 +31,9 @@ jobs:
       - name: Test GoreeCloud Code repository context
         run: python3 scripts/test_code_repository_context.py
 
+      - name: Test GoreeCloud Code repository file context
+        run: python3 scripts/test_code_repository_file_context.py
+
       - name: Validate Wardveil AI integration contract
         run: python3 scripts/validate_wardveil_ai_integration.py
 
@@ -38,4 +41,4 @@ jobs:
         run: python3 scripts/validate_code_ai_integration.py
 
       - name: Compile Python sources
-        run: python3 -m py_compile reference/ai_artifact_security.py reference/code_repository_context.py reference/repository_context_selection.py scripts/test_ai_artifact_security.py scripts/test_code_repository_context.py scripts/validate_wardveil_ai_integration.py scripts/validate_code_ai_integration.py
+        run: python3 -m py_compile reference/ai_artifact_security.py reference/code_repository_context.py reference/code_repository_file_context.py reference/repository_context_selection.py scripts/test_ai_artifact_security.py scripts/test_code_repository_context.py scripts/test_code_repository_file_context.py scripts/validate_wardveil_ai_integration.py scripts/validate_code_ai_integration.py
