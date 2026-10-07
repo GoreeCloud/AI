@@ -34,6 +34,7 @@ _FILE_KEYS = {
     "encoding",
     "content",
     "contentSha256",
+    "excerptSha256",
     "truncated",
     "webUrl",
 }
@@ -298,6 +299,11 @@ def evaluate_repository_file_context(
     digest = file_context.get("contentSha256")
     if not isinstance(digest, str) or _HASH_RE.fullmatch(digest) is None:
         return _blocked("repository_file_context_digest_invalid")
+    excerpt_digest = file_context.get("excerptSha256")
+    if not isinstance(excerpt_digest, str) or _HASH_RE.fullmatch(excerpt_digest) is None:
+        return _blocked("repository_file_context_excerpt_digest_invalid")
+    if hashlib.sha256(content.encode("utf-8")).hexdigest() != excerpt_digest:
+        return _blocked("repository_file_context_excerpt_digest_mismatch")
     truncated = file_context.get("truncated")
     if not isinstance(truncated, bool):
         return _blocked("repository_file_context_truncation_invalid")

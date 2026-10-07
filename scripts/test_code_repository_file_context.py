@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import sys
 import unittest
 from copy import deepcopy
@@ -58,6 +59,7 @@ def valid_payload() -> dict:
             "encoding": "utf-8",
             "content": "# GoreeCloud\n",
             "contentSha256": README_DIGEST,
+            "excerptSha256": README_DIGEST,
             "truncated": False,
             "webUrl": "https://git.example.test/GoreeCloud/code/src/branch/main/README.md",
         },
@@ -112,10 +114,12 @@ class CodeRepositoryFileContextTests(unittest.TestCase):
         payload = valid_payload()
         payload["file"]["content"] = "x" * MAX_FILE_CONTEXT_CHARS
         payload["file"]["contentSha256"] = "1" * 64
+        payload["file"]["excerptSha256"] = hashlib.sha256(payload["file"]["content"].encode("utf-8")).hexdigest()
         payload["file"]["truncated"] = True
         self.assertTrue(evaluate_repository_file_context(payload, TARGET, now=NOW).accepted)
 
         payload["file"]["content"] = "x" * (MAX_FILE_CONTEXT_CHARS - 1)
+        payload["file"]["excerptSha256"] = hashlib.sha256(payload["file"]["content"].encode("utf-8")).hexdigest()
         self.assertIn("repository_file_context_truncation_invalid", evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes)
 
     def test_unicode_scalar_truncation_boundary(self):
@@ -123,11 +127,32 @@ class CodeRepositoryFileContextTests(unittest.TestCase):
         payload["file"]["content"] = "🙂" + "x" * (MAX_FILE_CONTEXT_CHARS - 1)
         payload["file"]["truncated"] = True
         payload["file"]["contentSha256"] = "a" * 64
+        payload["file"]["excerptSha256"] = hashlib.sha256(payload["file"]["content"].encode("utf-8")).hexdigest()
         self.assertTrue(evaluate_repository_file_context(payload, TARGET, now=NOW).accepted)
 
         payload["file"]["content"] += "x"
         self.assertIn(
             "repository_file_context_content_invalid",
+            evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes,
+        )
+
+    def test_rejects_altered_truncated_excerpt(self):
+        payload = valid_payload()
+        payload["file"]["content"] = "x" * MAX_FILE_CONTEXT_CHARS
+        payload["file"]["contentSha256"] = "f" * 64
+        payload["file"]["excerptSha256"] = hashlib.sha256(payload["file"]["content"].encode("utf-8")).hexdigest()
+        payload["file"]["truncated"] = True
+        self.assertTrue(evaluate_repository_file_context(payload, TARGET, now=NOW).accepted)
+
+        payload["file"]["content"] = "y" + payload["file"]["content"][1:]
+        self.assertIn(
+            "repository_file_context_excerpt_digest_mismatch",
+            evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes,
+        )
+
+        payload["file"]["excerptSha256"] = "invalid"
+        self.assertIn(
+            "repository_file_context_excerpt_digest_invalid",
             evaluate_repository_file_context(payload, TARGET, now=NOW).reason_codes,
         )
 
