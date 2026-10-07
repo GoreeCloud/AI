@@ -62,11 +62,13 @@ def main() -> None:
     require(file_properties.get("recordType", {}).get("const") == "repository_file_context", "unexpected file-context record type")
     require(file_contract.get("additionalProperties") is False, "file-context contract must reject extra fields")
     require(file_properties.get("limits", {}).get("properties", {}).get("contentChars", {}).get("const") == 65536, "file-context character limit drifted")
+    require("excerptSha256" in file_properties.get("file", {}).get("required", []), "file excerpt digest must be required")
 
     for token in (
         'CODE_REPOSITORY_FILE_CONTEXT_CONTRACT_VERSION = "0.1.0"',
         "MAX_FILE_CONTEXT_CHARS = 65_536",
         '"repository_file_context_digest_mismatch"',
+        '"repository_file_context_excerpt_digest_mismatch"',
         '"repository_file_context_path_blocked"',
         'content_trust: str = "untrusted_repository_file_data"',
         "execution_authorized: bool = False",
