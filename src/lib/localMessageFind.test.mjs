@@ -109,7 +109,7 @@ test('history shortcut respects modal, browser and composition key ownership', (
   ]) assert.equal(shouldOpenHistorySearchShortcut(event), false)
 })
 
-test('finder can scope matches to the user's prompts or AI responses', () => {
+test("finder can scope matches to the user\'s prompts or AI responses", () => {
   assert.deepEqual(findLocalMessages(messages, 'planning', 'all'), [0, 2])
   assert.deepEqual(findLocalMessages(messages, 'planning', 'user'), [0])
   assert.deepEqual(findLocalMessages(messages, 'planning', 'assistant'), [2])
