@@ -30,6 +30,10 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Find in current conversation:** Open the magnifying-glass control in the top bar to search messages already loaded for the selected conversation. The search matches all words without case or accent differences. Use Previous/Next (or Shift+Enter/Enter) to navigate; Escape closes the finder. IME composition is not treated as a navigation shortcut. This is not a server-side or cross-conversation message index.
+
+**Transcript format:** Choose Markdown, plain text, or JSON beside Download. The exported file includes the visible conversation and model/Workspace metadata. JSON preserves the user/assistant message roles and bodies; Markdown/text normalize metadata labels to avoid forged headings. Files remain on the user's device, may contain private data, and do not constitute Everkeep backup, an import/restore guarantee, or new sharing permission.
+
 The current application supports Ollama model discovery through the backend, friendly GoreeCloud model-role selection, streaming chat responses, stop generation, Markdown/GFM rendering, persistent conversations, rename/edit, retry/recovery, conversation branching with parent lineage metadata, and Workspace association.
 
 Use **Search conversations** in the sidebar to filter saved conversations by title, model, or Workspace name. Search supports multiple words across those fields and accent-insensitive matching; it does not index message bodies. Use the refresh control beside the model picker to re-query installed local models through the GoreeCloud AI backend.
@@ -45,6 +49,8 @@ Every non-welcome conversation message also includes a copy glyph in its message
 Keyboard controls include Ctrl/Command+K to open conversation search. Escape stops an active response generation; when no generation is active and no dialog is open, Escape closes the transient navigation and context panels. Dialogs keep their own Escape-to-dismiss behavior.
 
 Switching conversations cancels active response rendering and prevents late tokens or stale conversation loads from overwriting the newly selected conversation. If creating the new conversation fails before generation, the typed prompt remains in the composer and an error is shown for retry.
+
+In the composer, Enter sends a message only when an input method is not composing a character; Shift+Enter inserts a newline. Alt/Ctrl/Command-modified, repeated and IME-owned Enter events do not submit. Model and Workspace selectors are disabled during generation, new-conversation preparation or another selector save. A saved conversation's chosen model or Workspace is presented as applied only after its update succeeds. Failures leave the previous selection visible and show an actionable error. Changing a Workspace's default role is a separate saved operation; if an associated conversation model update then fails, the UI reports that partial outcome. A failed individual chat request no longer marks the entire model-discovery runtime unavailable.
 
 Deleting a saved conversation now opens a confirmation dialog before local removal. If conversation history cannot be refreshed, opened, or deleted, the sidebar keeps a visible error message rather than silently discarding the failure.
 

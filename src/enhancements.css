@@ -65,3 +65,13 @@
 
 /* Keep recoverable local conversation creation failures attached to the composer. */
 .composer-error { width: min(860px, 100%); margin: 8px auto 0; padding: 9px 11px; border: 1px solid rgba(255,139,139,.22); border-radius: 10px; color: var(--danger); background: rgba(255,139,139,.055); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
+/* Local-only find panel and explicit portable transcript format selection. */
+.conversation-find { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface, rgba(16,20,30,.88)); color: var(--muted); }
+.conversation-find input { flex: 1 1 180px; min-width: 120px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; font: inherit; color: var(--text); background: var(--panel, rgba(0,0,0,.18)); }
+.conversation-find-count { font-size: 12px; min-width: 100px; color: var(--muted); }
+.conversation-find .icon-button:disabled { opacity: .45; cursor: not-allowed; }
+.message.is-find-match .message-body { box-shadow: inset 3px 0 0 var(--border-strong); padding-left: 10px; }
+.message.is-find-current .message-body { box-shadow: inset 3px 0 0 var(--accent-strong); }
+.transcript-format select { max-width: 105px; border: 1px solid var(--border); color: var(--text); background: var(--panel, rgba(0,0,0,.18)); border-radius: 9px; padding: 7px 4px; font: inherit; font-size: 12px; }
+@media (max-width: 700px) { .conversation-find { padding: 8px 12px; } .transcript-format select { max-width: 75px; } }

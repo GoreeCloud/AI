@@ -54,3 +54,19 @@ export function exportFileName(title: string): string {
   const stem = title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^[.-]+|[.-]+$/g, '').slice(0, 80)
   return (stem || 'goreecloud-ai-conversation') + '.md'
 }
+
+/** A text composition candidate must not be interpreted as Enter-to-send. */
+export function shouldSubmitComposerKey(event: {
+  key: string
+  shiftKey: boolean
+  altKey?: boolean
+  ctrlKey?: boolean
+  metaKey?: boolean
+  isComposing?: boolean
+  keyCode?: number
+  repeat?: boolean
+}): boolean {
+  return event.key === 'Enter' && !event.shiftKey && !event.altKey
+    && !event.ctrlKey && !event.metaKey && !event.isComposing
+    && event.keyCode !== 229 && !event.repeat
+}
