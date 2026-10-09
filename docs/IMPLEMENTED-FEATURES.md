@@ -6,6 +6,18 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Single-flight retry and manual branching (Draft candidate)
+
+- Retry response and Branch here synchronously reserve the same ref-backed preparation gate before awaiting a network operation. This blocks a rapid second attempt before React's next render.
+- Failure releases the lock and shows an error rather than silently retaining a busy state. Selection epochs suppress stale branch selection after newer navigation.
+- Focused helper tests cover contention, nested acquisition and failure recovery. Real-browser/network, accessible controls, security/privacy, Glaze and platform acceptance remain pending.
+
+## Edit-dialog source integrity and composition safety (Draft candidate)
+
+- Pending historical edits retain the source conversation ID and original message text; changing conversations dismisses the edit dialog, and mismatched source prompts fail closed.
+- Dialog Escape honors CJK input method composition and modified browser keys, with explicit accessible names/descriptions for single- and multiline fields.
+- Focused pure tests cover stale selection, role/index/message mismatches, and composing or modified Escape. Exact-head CI, representative browser/IME/screen reader, privacy/security, Glaze and platform acceptance remain outstanding.
+
 ## Non-destructive edit and regenerate branches (Draft candidate)
 
 - Editing a previous user message or regenerating an AI response creates a new lineage-linked conversation, instead of silently truncating later messages in the source thread.
