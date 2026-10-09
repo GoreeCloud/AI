@@ -6,6 +6,11 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## User-controlled transcript clipboard (Draft Development source)
+
+- A toolbar button copies the selected Markdown, plain-text or JSON transcript format to the local OS clipboard only after a user click, with accessible success or failure feedback.
+- The implementation reuses existing export data rather than creating server-side sharing; it does not grant authorization or qualify an Everkeep backup. Clipboard privacy, browser support and independent review remain open.
+
 ## Local conversation outline (Draft Development source)
 
 - The Context panel shows browser-local user/assistant turn counts and the latest 24 user prompts, with keyboard-accessible navigation to their original message positions.

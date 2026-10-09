@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 (User-controlled transcript clipboard; Draft Development source)
+
+- Added an explicit Copy transcript toolbar action for the chosen Markdown, TXT, or JSON format without changing server access or local download formats.
+- Reused the existing transcript serializer, deferred clipboard content creation until a user click, and reported unavailable/failed clipboard writes accessibly.
+- Added focused no-write-on-unavailable, empty-content, error, and successful adapter tests. Clipboard and privacy behavior still requires representative browser review.
+
 ## 2026-10-09 (Conversation outline; Development candidate)
 
 - Added a local-only, keyboard-accessible outline of the most recent user prompts in the Context panel with message navigation and current turn counts.
