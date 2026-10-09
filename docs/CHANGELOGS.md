@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Conversation search and TXT/JSON export (Development)
+
+- Added find-in-current-conversation controls and local bounded message matching; no global message index or new backend access.
+- Added Markdown, plain-text and JSON transcript downloads and corresponding tests.
+- Source commit `add1528d23d7670886eea8e9a27e6538807600ec` passed both exact-head GitHub workflows. Representative browser and platform qualification remain open.
+
 ## 2026-10-08 (IME and context selection follow-up; Development candidate)
 
 - Added an IME-aware Enter-to-send guard and corresponding keyboard utility tests; Shift+Enter and modifier shortcuts remain non-submitting.
