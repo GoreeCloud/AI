@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Check history after an uncertain first-chat outcome (Draft candidate)
+
+- A failed first-chat submission now presents a non-destructive notice and attempts a conversation-list refresh while keeping the original prompt available.
+- No automatic duplicate send, content matching or speculative conversation selection is performed. Refresh failure remains visible through the existing history error.
+- UI/browser, connectivity, accessibility and privacy/security acceptance are not established by CI alone.
+
 ## Restore saved responses on first-chat replay (Draft candidate)
 
 - When the server's idempotent create replay already contains assistant or subsequent user turns, accept only an exact first-message prefix and a bounded, valid message sequence.
