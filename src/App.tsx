@@ -20,6 +20,7 @@ import { SessionConversationDrafts, shouldLeaveDeletedConversation } from './lib
 import { editableDialogSourceIsCurrent } from './lib/dialogOwnership'
 import { runExclusivePreparation } from './lib/exclusivePreparation'
 import { prepareFirstConversation } from './lib/prepareFirstConversation'
+import { getFirstCreateToken, clearFirstCreateToken, type FirstCreateToken } from './lib/firstCreateToken'
 import { editedMessageBranch, regenerationBranch } from './lib/responseBranches'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
@@ -80,6 +81,7 @@ export default function App() {
   const generationEpochRef = useRef(new ConversationEpoch())
   const conversationLoadRef = useRef(0)
   const preparingRef = useRef(false)
+  const firstCreateTokenRef = useRef<FirstCreateToken | null>(null)
   const selectionChangeRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
@@ -208,17 +210,27 @@ export default function App() {
     const epoch = generationEpochRef.current.value()
     const firstMessages = stored(nextMessages)
     const firstPrompt = firstMessages.find((message) => message.role === 'user')?.content.trim()
+    const input = {
+      model: selectedModel,
+      workspaceId: selectedWorkspaceId,
+      title: firstPrompt?.slice(0, 72) || 'New conversation',
+      messages: firstMessages,
+    }
+    // The same unsent first prompt and navigation epoch retain their request ID on manual retry.
+    const requestId = getFirstCreateToken(
+      firstCreateTokenRef,
+      JSON.stringify({ epoch, input }),
+      () => crypto.randomUUID(),
+    )
     return prepareFirstConversation({
-      create: () => createConversation({
-        model: selectedModel,
-        workspaceId: selectedWorkspaceId,
-        title: firstPrompt?.slice(0, 72) || 'New conversation',
-        messages: firstMessages,
-      }),
+      create: () => createConversation({ ...input, clientRequestId: requestId }),
       expectedMessages: firstMessages,
       afterCreate: refreshHistory,
       isCurrent: () => generationEpochRef.current.isCurrent(epoch),
-      select: (id) => setConversationId(id),
+      select: (id) => {
+        clearFirstCreateToken(firstCreateTokenRef, requestId)
+        setConversationId(id)
+      },
     })
   }
 
