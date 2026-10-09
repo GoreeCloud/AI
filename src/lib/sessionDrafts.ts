@@ -1,12 +1,12 @@
-/**
- * Unsaved drafts are scoped to the selected conversation in this browser tab.
- * No disk, localStorage, server call, telemetry, or cross-profile persistence.
- */
 /** Avoid clearing a newer conversation when an older deletion resolves. */
 export function shouldLeaveDeletedConversation(deletedId: string, selectedId: string | null, selectionEpochAtStart: number, selectionEpochNow: number): boolean {
   return deletedId === selectedId && selectionEpochAtStart === selectionEpochNow
 }
 
+/**
+ * Unsaved drafts are scoped to the selected conversation in this browser tab.
+ * No disk, localStorage, server call, telemetry, or cross-profile persistence.
+ */
 export class SessionConversationDrafts {
   private readonly items = new Map<string, string>()
   private key(id: string | null): string { return id === null ? 'unsaved:' : 'conversation:' + id }
