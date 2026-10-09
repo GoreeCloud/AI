@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Restore saved responses on first-chat replay (Draft candidate)
+
+- When the server's idempotent create replay already contains assistant or subsequent user turns, accept only an exact first-message prefix and a bounded, valid message sequence.
+- The client restores saved messages and skips another generation request in both Submit and Retry. If only the initial batch exists, it proceeds with normal model generation.
+- Tests cover progress suffixes, malformed server responses, stale selection and uncertain network failures; representative browser/host, accessibility, privacy and nine-system acceptance remain outstanding.
+
 ## Idempotent first-prompt retry (Draft candidate)
 
 - A first-chat POST can include a validated random request ID. The backend retains its SHA-256 payload signature with the record and returns the existing conversation on a matching replay; different content under that ID returns a conflict.
