@@ -76,6 +76,10 @@ Incrementally adopt the governed GoreeCloud Application Foundation where applica
 - Cross-device and local-first intelligence with replaceable model/runtime/index infrastructure.
 - Production database/storage architecture, distributed quotas and lifecycle management.
 
+## Cross-platform availability
+
+GoreeCloud AI must be delivered as web, desktop, and mobile applications, with first-party integrations across approved GoreeCloud applications and services. Web responsiveness does not replace dedicated desktop or mobile experiences. These deliverables remain planned until implemented and verified.
+
 ## Governance obligations migrated from the retired roadmap
 
 The former `FEATURE-ROADMAP.md` and Drive roadmap control contained three ongoing governance obligations. They are preserved here rather than silently discarded:
