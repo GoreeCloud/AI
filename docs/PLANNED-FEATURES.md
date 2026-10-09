@@ -13,6 +13,10 @@ Cross-platform web, desktop (Linux/Windows/macOS), and mobile (Android/iOS) clie
 
 ## In progress
 
+### Search integrity and Glaze V1.7 consumer gates
+
+Validate full-query rejection for more than 120 characters or 16 terms, dialog-owned Ctrl/Command+K behavior, representative CJK composition, browser Find coexistence and screen-reader focus/announcements. Glaze 1.7.0 is an Official Anchor/Stable inherited-runtime contract; retained development features and downstream GoreeCloud AI consumer qualification are **not** automatically accepted. Verify the exact Glaze consumer source, privacy/security and cross-device behavior independently before release.
+
 ### Finder shortcut and history-search consumer acceptance
 
 Verify Ctrl/Command+Shift+F, native browser Ctrl/Command+F, Ctrl/Command+K saved-conversation search, focus and modal isolation, IME/composition behavior, search limits and screen-reader announcements in representative browsers. No cross-conversation message indexing, new server authorization, or production acceptance is implied.

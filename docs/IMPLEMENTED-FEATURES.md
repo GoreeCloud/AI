@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Conversation search integrity and shortcut ownership (Draft PR #23 source)
+
+- Loaded-message search refuses over-limit queries instead of silently truncating them, preventing matches that do not satisfy the complete query.
+- Ctrl/Command+K history-search ownership now guards dialog focus and IME/repeated/modified key events.
+- This is Draft source and unit-test evidence only, with independent accessibility, Glaze, privacy, representative browser/device, security and production acceptance outstanding.
+
 ## Local finder keyboard shortcut and history bounds (Draft Development source)
 
 - Ctrl/Command+Shift+F opens the active-conversation finder without replacing the browser native Find command; IME/modified keys retain their existing guards.

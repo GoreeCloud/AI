@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Query integrity and dialog keyboard isolation (Draft PR #23)
+
+- Active-conversation find now fails closed on queries over 120 characters or 16 terms, rather than silently ignoring excess content and displaying misleading partial matches.
+- Ctrl/Command+K history-search activation respects active dialogs, extra modifiers, repeated keys and IME-owned events.
+- Focused regression tests cover query overflow and key ownership. Glaze 1.7.0 is a bounded inherited Stable runtime; AI consumer/browser/IME, assistive-technology, privacy/security and target-device acceptance remain open.
+
 ## 2026-10-09 — Search keyboard and bounded history (Draft Development)
 
 - Added dedicated Ctrl/Command+Shift+F active-conversation find while preserving native browser Find and composition events.

@@ -30,7 +30,7 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
-**Find shortcuts:** Ctrl/Command+Shift+F opens search within the loaded conversation. Browser Ctrl/Command+F remains native, and Ctrl/Command+K searches saved conversations. The sidebar query is capped at 120 characters and 16 terms. Dialogs and IME composition retain keyboard ownership. No backend search endpoint or cross-conversation message index is created.
+**Find shortcuts:** Ctrl/Command+Shift+F opens search within the loaded conversation. Browser Ctrl/Command+F remains native, and Ctrl/Command+K searches saved conversations. Both the sidebar query and current-conversation message finder reject queries longer than 120 characters or containing more than 16 terms; excess words are never silently ignored. Dialogs and IME composition retain keyboard ownership, including Ctrl/Command+K. No backend search endpoint or cross-conversation message index is created.
 
 **Copy transcript (local clipboard):** Choose Markdown, plain text or JSON in the export format selector, then select Copy transcript to place the selected visible-conversation format on the operating system clipboard. Copying happens only after an explicit button press; clipboard availability varies by browser and secure context. The glyph and screen-reader status report success or failure. Transcripts may contain private messages and may remain available to other applications via the OS clipboard; this is not an authenticated share or backup.
 
