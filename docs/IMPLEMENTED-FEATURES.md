@@ -6,6 +6,15 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Composer and Workspace selection (Development source)
+
+- Enter-to-send ignores active input-method composition, modifier shortcuts, repeated events, and multiline Shift+Enter; the keyboard helper has focused Node tests.
+- Model and Workspace selectors wait for saved conversation updates before presenting a new selection and display failure details without silently committing local UI changes.
+- Updating the Workspace default model role and updating the active conversation model are separate operations, with partial save failure disclosed.
+- An individual failed chat request does not automatically mark the whole local model-discovery service offline.
+
+These Draft-only source capabilities have passed exact-head CI; they do not establish representative browser operation, live runtime availability, or production acceptance.
+
 ## Conversation UX reliability (2026-10-08 candidate)
 
 - Streamed-response interface changes are guarded by a conversation epoch; navigation invalidates stale token callbacks and terminal updates.
