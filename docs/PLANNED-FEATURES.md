@@ -5,6 +5,12 @@
 
 This file contains planned, in-progress, partial, blocked, deferred and otherwise incomplete GoreeCloud AI obligations. Items remain open until implementation and verification are supported by authoritative evidence or an explicit lifecycle disposition replaces them.
 
+## Detailed owner-defined product vision and architecture
+
+The owner-defined 22-section [AI Product Vision and Architecture](./AI-PRODUCT-VISION-AND-ARCHITECTURE.md) is the planning annex for native knowledge/RAG, GoreeCloud Search-backed research, governed agents/automation, image and speech/multimodal workflows, artifacts, collaboration, candidate dependencies and phases. The [Dependency Adoption Gates](./AI-DEPENDENCY-ADOPTION-GATES.md) and [Phase Acceptance Matrix](./AI-PHASE-ACCEPTANCE-MATRIX.md) establish proposed evaluation requirements. No proposed third-party library, external-processing service or model weight is approved or adopted merely by appearing in these documents.
+
+Cross-platform web, desktop (Linux/Windows/macOS), and mobile (Android/iOS) clients plus first-party GoreeCloud ecosystem integrations remain planned until implemented and verified. Independent streams may proceed only behind relevant Identity, Privacy Shield, Wardveil, Policy, recovery, security and Glaze acceptance gates.
+
 ## In progress
 
 ### Conversation search and transcript export acceptance
