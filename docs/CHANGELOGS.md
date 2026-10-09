@@ -1,5 +1,12 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 (Conversation outline; Development candidate)
+
+- Added a local-only, keyboard-accessible outline of the most recent user prompts in the Context panel with message navigation and current turn counts.
+- Added bounded text previews and direct access to the original message location without creating a new backend endpoint or persisted index.
+- Added focused unit tests for bounds, role exclusion, original indices, control-character normalization, and welcome-message handling.
+- Target browser, screen reader, Glaze consumer acceptance, privacy and production validation remain open.
+
 ## 2026-10-09 (Finder keyboard and branch isolation follow-up; Development candidate)
 
 - Reserved Enter/Escape events owned by an input method or browser modifier instead of triggering conversation-find navigation or cancelling active generation.

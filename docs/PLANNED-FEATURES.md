@@ -13,6 +13,10 @@ Cross-platform web, desktop (Linux/Windows/macOS), and mobile (Android/iOS) clie
 
 ## In progress
 
+### Conversation outline consumer acceptance
+
+Validate current-conversation user-prompt navigation and turn counts in a representative browser, including keyboard focus, assistive technology announcements, long-message and responsive behavior. The Draft source is not a server search, saved index, backend authorization, knowledge retrieval or production acceptance.
+
 ### Conversation search and transcript export acceptance
 
 The current Draft PR #15 source adds find-in-current-conversation and Markdown, TXT and JSON downloads. The remaining acceptance work includes browser and screen-reader testing, IME/keyboard handling, downloaded file integrity/privacy, independent review, and Glaze/platform conformance. The exports are not governed Everkeep backups or restore/import capabilities.

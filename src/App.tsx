@@ -12,6 +12,7 @@ import { listFiles, removeFile, uploadFile, type StoredFile } from './lib/files'
 import { ConversationEpoch, buildMarkdownTranscript, exportFileName, historyMatches, shouldSubmitComposerKey } from './lib/conversationUx'
 import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction } from './lib/localMessageFind'
 import { buildPortableTranscript, portableFileName, type PortableFormat } from './lib/portableTranscript'
+import { summarizeLocalConversation } from './lib/localConversationOutline'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -88,6 +89,7 @@ export default function App() {
   const conversationFindMatchSet = useMemo(() => new Set(conversationFindMatches), [conversationFindMatches])
   const activeFindCursor = conversationFindMatches.length && conversationFindCursor >= 0 ? Math.min(conversationFindCursor, conversationFindMatches.length - 1) : -1
   const activeFindMessage = activeFindCursor >= 0 ? conversationFindMatches[activeFindCursor] : -1
+  const localOutline = useMemo(() => summarizeLocalConversation(messages, welcome), [messages])
   const visibleHistory = useMemo(() => {
     if (!historyQuery.trim()) return history
     return history.filter((item) => {
@@ -157,6 +159,11 @@ export default function App() {
       }
       // IME-owned Escape cancels character composition; never cancel generation.
       if (event.key !== 'Escape' || dialog || event.isComposing || event.keyCode === 229) return
+      if (conversationFindOpen) {
+        event.preventDefault()
+        resetConversationFind()
+        return
+      }
       if (isGenerating) {
         event.preventDefault()
         stopGeneration()
@@ -170,7 +177,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [contextOpen, dialog, isGenerating, sidebarOpen])
+  }, [contextOpen, conversationFindOpen, dialog, isGenerating, sidebarOpen])
 
   async function persist(id: string, nextMessages: ChatMessage[], model = selectedModel, explicitTitle?: string, workspaceId = selectedWorkspaceId) {
     const firstUser = nextMessages.find((message) => message.role === 'user')?.content.trim()
@@ -287,6 +294,14 @@ export default function App() {
     setSidebarOpen(true)
     window.setTimeout(() => historySearchRef.current?.focus(), 0)
   }
+  function jumpToOutlineMessage(index: number) {
+    const article = messageArticleRefs.current[index]
+    if (!article) return
+    setFollowOutput(false)
+    article.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    article.focus({ preventScroll: true })
+  }
+
   function jumpToConversationMatch(direction: -1 | 1) {
     if (!conversationFindMatches.length) return
     const next = nextLocalMatchCursor(conversationFindMatches.length, activeFindCursor, direction)
@@ -600,7 +615,7 @@ export default function App() {
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
-        {messages.map((message, index) => <article ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
+        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
         {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
@@ -612,6 +627,7 @@ export default function App() {
       <div className="context-card"><span className="context-card-icon"><Bot size={19}/></span><div><strong>{currentRole?.name || 'Direct model'}</strong><p>{currentRole ? `${currentRole.purpose}. Runtime: ${selectedModel}.` : selectedModel ? `Using installed Ollama model ${selectedModel}.` : 'No model selected.'}</p></div></div>
       <div className="context-card"><span className="context-card-icon"><ShieldCheck size={19}/></span><div><strong>Private processing</strong><p>This conversation is configured for the local Ollama runtime.</p></div></div>
       <div className="context-card"><span className="context-card-icon"><GitBranch size={19}/></span><div><strong>Lineage</strong><p>{currentSummary?.parentConversationId ? `Branched from conversation ${currentSummary.parentConversationId.slice(0, 8)} at message ${Number(currentSummary.parentMessageIndex) + 1}.` : 'This is a root conversation.'}</p></div></div>
+      <div className="context-card context-card-wide conversation-outline"><span className="context-card-icon"><MessageSquarePlus size={19}/></span><div className="outline-content"><strong>Conversation outline</strong><p>{localOutline.userTurns} user turn{localOutline.userTurns === 1 ? '' : 's'} · ${localOutline.assistantTurns} AI response{localOutline.assistantTurns === 1 ? '' : 's'}</p>{localOutline.prompts.length ? <nav aria-label="Jump to a user prompt"><ol className="outline-list">{localOutline.prompts.map((item) => <li key={item.messageIndex}><button type="button" onClick={() => jumpToOutlineMessage(item.messageIndex)} aria-label={`Jump to your message ${item.turnNumber}: ${item.preview}`}><span className="outline-number">{item.turnNumber}</span><span className="outline-preview">{item.preview}</span></button></li>)}</ol>{localOutline.hiddenPrompts > 0 && <p className="outline-note">Showing the latest {localOutline.prompts.length} of {localOutline.userTurns} prompts.</p>}</nav> : <p>No user prompts yet.</p>}</div></div>
       <div className="context-card"><span className="context-card-icon"><Clock size={19}/></span><div><strong>Conversation state</strong><p>{currentSummary ? `${currentSummary.messageCount} saved message${currentSummary.messageCount === 1 ? '' : 's'} · Updated ${formatSavedTime(currentSummary.updatedAt)} · Created ${formatSavedTime(currentSummary.createdAt)}` : stored(messages).length ? 'Conversation save metadata is refreshing.' : 'This new conversation will be saved after the first message.'}</p></div></div>
       <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{workspaceError || (selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.')}</p>{workspaceError && <button type="button" className="context-retry" onClick={() => void refreshWorkspaces()}><RefreshCw size={13}/>Retry Workspaces</button>}<select className="context-select" value={selectedWorkspaceId ?? ''} disabled={isGenerating || isPreparing || isChangingSelection} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{selectedWorkspace && <label className="context-field"><span>Default model role</span><select className="context-select" value={selectedWorkspace.defaultModelRole} disabled={isGenerating || isPreparing || isChangingSelection} onChange={(event) => void changeWorkspaceRole(event.target.value as ModelRoleId)}>{resolvedRoles.filter((role) => role.conversational).map((role) => <option key={role.id} value={role.id}>{role.name}{role.model ? ` · ${role.model.name}` : ' · no installed match'}</option>)}</select></label>}<div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-rename', id: selectedWorkspace.id, value: selectedWorkspace.name })}><Pencil size={15}/>Rename</button>}{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}{selectedWorkspace && <button className="context-action context-action-icon danger-action" disabled={workspaceFiles.length > 0} onClick={() => setDialog({ kind: 'workspace-delete', id: selectedWorkspace.id, name: selectedWorkspace.name })} aria-label={`Delete Workspace ${selectedWorkspace.name}`} title={workspaceFiles.length > 0 ? 'Remove Workspace files before deleting this Workspace' : 'Delete Workspace'}><Trash2 size={15}/></button>}</div></div></div>
       <div className="context-card context-card-wide"><span className="context-card-icon"><Paperclip size={19}/></span><div><strong>{selectedWorkspace ? 'Workspace files' : 'Unassigned files'}</strong><p>{fileError || (workspaceFiles.length ? `${verifiedWorkspaceFiles.length} verified · ${restrictedWorkspaceFiles.length} restricted. Only Wardveil-clean attachments may become available to AI context.` : 'No files stored here yet.')}</p>{fileError && <button type="button" className="context-retry" onClick={() => void refreshFiles()}><RefreshCw size={13}/>Retry files</button>}{workspaceFiles.length > 0 && <div className="file-list">{workspaceFiles.map((file) => <div className={`file-chip ${file.status}`} key={file.id}><span>{file.name}</span><span className="file-chip-actions"><em>{fileTrustLabel[file.status]}</em><button type="button" className="file-delete-button" onClick={() => setDialog({ kind: 'file-delete', id: file.id, name: file.name })} aria-label={`Delete ${file.name}`} title={`Delete ${file.name}`}><Trash2 size={13}/></button></span></div>)}</div>}</div></div>
