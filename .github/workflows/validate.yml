@@ -37,6 +37,9 @@ jobs:
       - name: Test native attachment security boundary
         run: npm run test:server
 
+      - name: Test conversation UI utilities
+        run: npm run test:client-utils
+
       - name: Build application
         run: npm run build
 
