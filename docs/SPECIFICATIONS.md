@@ -4,6 +4,10 @@
 
 GoreeCloud AI is original GoreeCloud-owned AI application and orchestration software. Ollama is the initial replaceable local model runtime; GoreeCloud AI owns conversations, Workspaces, model-role abstraction, files, knowledge/RAG direction, tools/agents boundaries, research orchestration, and the user-facing product.
 
+## Planned product scope and external-resource candidates
+
+The owner-defined full product vision, 22-section capability map, proposed first-party architecture, candidate third-party dependencies and phased roadmap are maintained in [AI Product Vision and Architecture](./AI-PRODUCT-VISION-AND-ARCHITECTURE.md). This planning annex does not constitute a deployed feature, dependency selection, license acceptance, security approval, authenticated integration, runtime evidence or production qualification. The Development source contracts and fail-closed gates documented below continue to govern verified current implementation.
+
 ## Current Forge state
 
 The active Milestone 0 foundation is in the canonical Forge lifecycle under Platform Contract 2.0. It includes a React/TypeScript/Vite client, Node.js backend, Ollama model discovery/streaming chat boundary, conversation persistence, model roles, Workspaces, private attachment storage, Wardveil-gated attachment release, attachment quotas/deletion, passive-text extraction, read-only knowledge eligibility, bounded Identity/application + Privacy Shield authorization-input assessment, an opt-in baseline live runtime validator, and a separately opt-in approved-model runtime validator for one policy-bound exact-model streamed Development request through the existing backend. The Draft pull request remains nonconformant and has not entered Seal or Anchor.

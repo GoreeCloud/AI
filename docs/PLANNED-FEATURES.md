@@ -5,6 +5,16 @@
 
 This file contains planned, in-progress, partial, blocked, deferred and otherwise incomplete GoreeCloud AI obligations. Items remain open until implementation and verification are supported by authoritative evidence or an explicit lifecycle disposition replaces them.
 
+## Detailed owner-defined product vision and architecture
+
+The owner's comprehensive 22-section product planning record is retained at [AI Product Vision and Architecture](./AI-PRODUCT-VISION-AND-ARCHITECTURE.md). It defines intended first-party ownership, proposed capabilities, provider/runtimes and parsers, native RAG, GoreeCloud Search research, governed agents and automation, image generation/editing, voice/multimodal support, artifacts, collaboration, infrastructure, an evaluated third-party dependency register and phased roadmap.
+
+**Disposition:** Planned or proposed except where a separately verified source feature record establishes limited Development implementation. No supplier choice, installation, external processing, authenticated authority, security review, platform integration, production readiness or release acceptance follows from inclusion in that record.
+
+**Required evaluation before adoption:** source/license and model-weight rights; local/self-hosted feasibility; vendor and cost constraints; maintenance and security; privacy/egress; API and hardware performance; portability/backup/recovery; migration/replacement; compatibility with GoreeCloud's current contracts.
+
+**Work sequencing:** foundations and accepted trust boundaries first, then conversation, knowledge, research/image, agents/automation, multimodal/collaboration, and finally evidence-backed replacement/migration of AnythingLLM and Open WebUI. Independent workstreams may advance concurrently where interfaces and safety gates allow.
+
 ## In progress
 
 ### Approved model routing integration
@@ -65,6 +75,10 @@ Incrementally adopt the governed GoreeCloud Application Foundation where applica
 - Custom assistants, optional personal daily brief and permission-bound proactive intelligence.
 - Cross-device and local-first intelligence with replaceable model/runtime/index infrastructure.
 - Production database/storage architecture, distributed quotas and lifecycle management.
+
+## Cross-platform availability
+
+GoreeCloud AI must be delivered as web, desktop, and mobile applications, with first-party integrations across approved GoreeCloud applications and services. Web responsiveness does not replace dedicated desktop or mobile experiences. These deliverables remain planned until implemented and verified.
 
 ## Governance obligations migrated from the retired roadmap
 
