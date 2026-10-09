@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Accessible saved-history review during uncertain first-chat recovery (Draft PR #33)
+
+- Provides a native, keyboard-focusable action after an uncertain new-chat create. Clicking opens and focuses existing conversation history search without a new network POST, automatic conversation selection or unsent prompt deletion.
+- Pure notice-and-selection eligibility helper and focused regression test accompany the UI; no permanent browser storage or new backend API is introduced.
+- Exact-head CI and representative browser/assistive-technology/Glaze acceptance must be independently established; Draft source is not production acceptance.
+
 ## Check history after an uncertain first-chat outcome (Draft candidate)
 
 - A failed first-chat submission now presents a non-destructive notice and attempts a conversation-list refresh while keeping the original prompt available.

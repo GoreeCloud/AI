@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Accessible history-review action on uncertain first-chat save (Draft PR #33)
+
+- A native keyboard-operable, non-submit `Review saved conversations` button uses the existing sidebar search and focus handler when the new-chat save outcome is uncertain; it never selects a conversation, retries a request, or clears the unsent draft.
+- Visibility is bounded to the exact first-create recovery notice with no selected conversation; unrelated notices cannot show this control. A focused utility test exercises the boundary.
+- This is Development source in a stacked Draft PR. Representative screen-reader, keyboard, mobile, CJK IME, lost-response, Glaze, security/privacy and Integral Platform Systems acceptance remain pending.
+
 ## 2026-10-09 — Non-destructive history refresh after uncertain first-create failure (Draft candidate)
 
 - When a new-chat submission fails before selection, preserve the unsent composer text, show an accessible notice that the original request may already be saved, and refresh conversation history without automatically selecting a chat or sending another request.
