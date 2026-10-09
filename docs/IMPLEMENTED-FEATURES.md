@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Draft-deletion privacy and navigation guards (Draft candidate)
+
+- On successful saved-conversation deletion, drop that conversation's in-memory unsent draft without touching another chat's draft. A deletion completing after another navigation epoch does not reset the new selection.
+- While a conversation load is unresolved, disable controls that might send, branch, regenerate, export, attach to or change the old context. Keep the restored-draft status announcement instead of immediately clearing it.
+- Add focused draft-delete and asynchronous selection-epoch regression tests. Browser/IME/race, Glaze accessibility, privacy/security, runtime, and platform acceptance remain outstanding.
+
 ## Browser-tab conversation draft isolation (Draft candidate)
 
 - Unsent composer drafts remain scoped to the selected conversation ID in tab-only memory instead of leaking into a different chat. Switching back restores that conversation's draft; starting a second unsaved new chat cannot silently clear an existing unsent draft.

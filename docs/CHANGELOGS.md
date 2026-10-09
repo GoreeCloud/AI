@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Delete-time privacy and navigation safety (Draft candidate)
+
+- Clear an erased conversation's session-only unsent draft on successful deletion; prevent delayed delete completions from resetting a newer conversation selection.
+- Preserve restored-draft status announcements and disable context-sensitive send/branch/regenerate/export/selection actions while an async conversation load is active.
+- Add focused draft-key deletion and selection-epoch tests. Target-browser and assistive-technology validation remain open.
+
 ## 2026-10-09 — Session-scoped unsent draft protection (Draft candidate)
 
 - Scoped unsent composer drafts to each loaded conversation in browser-tab memory, preventing an old chat draft from becoming a new chat's prompt.
