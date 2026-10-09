@@ -23,6 +23,7 @@ interface CreateConversationInput {
   workspaceId?: string | null
   parentConversationId?: string | null
   parentMessageIndex?: number | null
+  messages?: ChatMessage[]
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

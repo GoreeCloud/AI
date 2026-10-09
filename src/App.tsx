@@ -19,6 +19,7 @@ import { appendPreviousPrompt, composerDraftError, MAX_COMPOSER_CHARS } from './
 import { SessionConversationDrafts, shouldLeaveDeletedConversation } from './lib/sessionDrafts'
 import { editableDialogSourceIsCurrent } from './lib/dialogOwnership'
 import { runExclusivePreparation } from './lib/exclusivePreparation'
+import { prepareFirstConversation } from './lib/prepareFirstConversation'
 import { editedMessageBranch, regenerationBranch } from './lib/responseBranches'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
@@ -205,11 +206,20 @@ export default function App() {
   async function ensureConversation(nextMessages: ChatMessage[]) {
     if (conversationId) return conversationId
     const epoch = generationEpochRef.current.value()
-    const created = await createConversation({ model: selectedModel, workspaceId: selectedWorkspaceId })
-    if (!generationEpochRef.current.isCurrent(epoch)) throw new Error('Conversation selection changed during creation.')
-    setConversationId(created.id)
-    await persist(created.id, nextMessages)
-    return created.id
+    const firstMessages = stored(nextMessages)
+    const firstPrompt = firstMessages.find((message) => message.role === 'user')?.content.trim()
+    return prepareFirstConversation({
+      create: () => createConversation({
+        model: selectedModel,
+        workspaceId: selectedWorkspaceId,
+        title: firstPrompt?.slice(0, 72) || 'New conversation',
+        messages: firstMessages,
+      }),
+      expectedMessages: firstMessages,
+      afterCreate: refreshHistory,
+      isCurrent: () => generationEpochRef.current.isCurrent(epoch),
+      select: (id) => setConversationId(id),
+    })
   }
 
   async function generate(requestMessages: ChatMessage[], id: string) {

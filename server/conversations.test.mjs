@@ -8,6 +8,7 @@ test('accepts bounded conversation create input', () => {
   assert.equal(validateConversationCreateInput({}), true)
   assert.equal(validateConversationCreateInput({ model: 'qwen3:8b', workspaceId: id }), true)
   assert.equal(validateConversationCreateInput({ parentConversationId: id, parentMessageIndex: 3 }), true)
+  assert.equal(validateConversationCreateInput({ messages: [{ role: 'user', content: 'First prompt' }] }), true)
 })
 
 test('rejects malformed conversation create input', () => {
@@ -16,6 +17,10 @@ test('rejects malformed conversation create input', () => {
   assert.equal(validateConversationCreateInput({ workspaceId: 'invalid' }), false)
   assert.equal(validateConversationCreateInput({ parentMessageIndex: 1 }), false)
   assert.equal(validateConversationCreateInput({ model: ' x' }), false)
+  assert.equal(validateConversationCreateInput({ messages: [{ role: 'system', content: 'forbidden' }] }), false)
+  assert.equal(validateConversationCreateInput({ messages: [{ role: 'user', content: 'valid', extra: true }] }), false)
+  assert.equal(validateConversationCreateInput({ messages: new Array(4097).fill({ role: 'user', content: 'x' }) }), false)
+  assert.equal(validateConversationCreateInput({ messages: [{ role: 'user', content: 'x'.repeat(250001) }] }), false)
 })
 
 test('accepts bounded conversation patches', () => {
