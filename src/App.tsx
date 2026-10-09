@@ -323,6 +323,12 @@ export default function App() {
     } catch (error) {
       if (generationEpochRef.current.isCurrent(epoch)) {
         setComposerError(error instanceof Error ? error.message : 'Conversation could not be started. Your draft was preserved.')
+        if (!conversationId) {
+          // A lost create response is not proof that the server did not save the first prompt.
+          // Refresh the list without auto-selecting, clearing the draft or issuing another POST.
+          setComposerNotice('Your draft is preserved. Check conversation history before resending: the first prompt may already be saved.')
+          void refreshHistory()
+        }
       }
     } finally {
       preparingRef.current = false
