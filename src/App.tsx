@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Bot, CheckCircle2, ChevronDown, Clock, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
+import { AlertCircle, Bot, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { CopyMessageButton } from './components/CopyMessageButton'
 import { MarkdownMessage } from './components/MarkdownMessage'
@@ -10,6 +10,8 @@ import { resolveModelRoles, roleForModel, type ModelRoleId } from './lib/modelRo
 import { createWorkspace, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from './lib/workspaces'
 import { listFiles, removeFile, uploadFile, type StoredFile } from './lib/files'
 import { ConversationEpoch, buildMarkdownTranscript, exportFileName, historyMatches, shouldSubmitComposerKey } from './lib/conversationUx'
+import { findLocalMessages, nextLocalMatchCursor } from './lib/localMessageFind'
+import { buildPortableTranscript, portableFileName, type PortableFormat } from './lib/portableTranscript'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -42,6 +44,10 @@ export default function App() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
   const [files, setFiles] = useState<StoredFile[]>([])
   const [historyQuery, setHistoryQuery] = useState('')
+  const [conversationFindOpen, setConversationFindOpen] = useState(false)
+  const [conversationFindQuery, setConversationFindQuery] = useState('')
+  const [conversationFindCursor, setConversationFindCursor] = useState(-1)
+  const [exportFormat, setExportFormat] = useState<'md' | PortableFormat>('md')
   const [prompt, setPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -67,6 +73,8 @@ export default function App() {
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const historySearchRef = useRef<HTMLInputElement | null>(null)
   const conversationRef = useRef<HTMLElement | null>(null)
+  const conversationFindInputRef = useRef<HTMLInputElement | null>(null)
+  const messageArticleRefs = useRef<Array<HTMLElement | null>>([])
   const conversationEndRef = useRef<HTMLDivElement | null>(null)
   const client = useMemo(() => new OllamaClient('/api/ollama'), [])
   const resolvedRoles = useMemo(() => resolveModelRoles(models), [models])
@@ -76,6 +84,10 @@ export default function App() {
   const verifiedWorkspaceFiles = workspaceFiles.filter((file) => file.status === 'available')
   const restrictedWorkspaceFiles = workspaceFiles.filter((file) => file.status !== 'available')
   const lastMessageContentLength = messages.at(-1)?.content.length ?? 0
+  const conversationFindMatches = useMemo(() => findLocalMessages(messages, conversationFindQuery), [messages, conversationFindQuery])
+  const conversationFindMatchSet = useMemo(() => new Set(conversationFindMatches), [conversationFindMatches])
+  const activeFindCursor = conversationFindMatches.length && conversationFindCursor >= 0 ? Math.min(conversationFindCursor, conversationFindMatches.length - 1) : -1
+  const activeFindMessage = activeFindCursor >= 0 ? conversationFindMatches[activeFindCursor] : -1
   const visibleHistory = useMemo(() => {
     if (!historyQuery.trim()) return history
     return history.filter((item) => {
@@ -124,6 +136,10 @@ export default function App() {
   useEffect(() => {
     if (followOutput) conversationEndRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' })
   }, [messages.length, lastMessageContentLength, generationError, followOutput])
+
+  useEffect(() => {
+    if (conversationFindOpen) conversationFindInputRef.current?.focus()
+  }, [conversationFindOpen])
 
   useEffect(() => {
     const node = composerRef.current
@@ -270,30 +286,45 @@ export default function App() {
     setSidebarOpen(true)
     window.setTimeout(() => historySearchRef.current?.focus(), 0)
   }
+  function jumpToConversationMatch(direction: -1 | 1) {
+    if (!conversationFindMatches.length) return
+    const next = nextLocalMatchCursor(conversationFindMatches.length, activeFindCursor, direction)
+    setConversationFindCursor(next)
+    setFollowOutput(false)
+    messageArticleRefs.current[conversationFindMatches[next]]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+  function resetConversationFind() {
+    setConversationFindQuery('')
+    setConversationFindCursor(-1)
+    setConversationFindOpen(false)
+  }
   function exportConversation() {
     const exportMessages = stored(messages)
     if (!exportMessages.length) return
     const firstUser = exportMessages.find((message) => message.role === 'user')?.content.trim()
     const title = currentSummary?.title || firstUser?.slice(0, 72) || 'GoreeCloud AI conversation'
-    const markdown = buildMarkdownTranscript({
+    const transcript = {
       title,
       model: selectedModel,
       workspace: selectedWorkspace?.name ?? null,
       exportedAt: new Date().toISOString(),
       messages: exportMessages,
-    })
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+    }
+    const content = exportFormat === 'md' ? buildMarkdownTranscript(transcript) : buildPortableTranscript(transcript, exportFormat)
+    const mime = exportFormat === 'json' ? 'application/json;charset=utf-8'
+      : exportFormat === 'txt' ? 'text/plain;charset=utf-8' : 'text/markdown;charset=utf-8'
+    const blob = new Blob([content], { type: mime })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = exportFileName(title)
+    anchor.download = exportFormat === 'md' ? exportFileName(title) : portableFileName(title, exportFormat)
     anchor.style.display = 'none'
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
     URL.revokeObjectURL(url)
   }
-  function newConversation() { generationEpochRef.current.invalidate(); conversationLoadRef.current += 1; controllerRef.current?.abort(); controllerRef.current = null; setIsGenerating(false); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setComposerError(null); setRetryMessages(null); setFollowOutput(true); setSidebarOpen(false) }
+  function newConversation() { generationEpochRef.current.invalidate(); conversationLoadRef.current += 1; controllerRef.current?.abort(); controllerRef.current = null; setIsGenerating(false); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setComposerError(null); setRetryMessages(null); setFollowOutput(true); setSidebarOpen(false); resetConversationFind() }
 
   async function openConversation(id: string) {
     generationEpochRef.current.invalidate()
@@ -314,6 +345,7 @@ export default function App() {
       setRetryMessages(null)
       setFollowOutput(true)
       setSidebarOpen(false)
+      resetConversationFind()
     } catch (error) {
       if (load === conversationLoadRef.current) setHistoryError(error instanceof Error ? error.message : 'Conversation could not be opened.')
     }
@@ -561,11 +593,12 @@ export default function App() {
     </aside>
 
     <main className="main-column">
-      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models' || isGenerating || isPreparing || isChangingSelection}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label="Export conversation as Markdown" title="Export conversation as Markdown"><Download size={19}/></button><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
+      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models' || isGenerating || isPreparing || isChangingSelection}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => { if (conversationFindOpen) resetConversationFind(); else setConversationFindOpen(true) }} aria-label="Find in current conversation" title="Find in current conversation"><Search size={19}/></button><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><label className="transcript-format"><span className="visually-hidden">Transcript export format</span><select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'md' | PortableFormat)} disabled={!stored(messages).length} aria-label="Transcript export format"><option value="md">Markdown</option><option value="txt">Text</option><option value="json">JSON</option></select></label><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label={`Export conversation as ${exportFormat === 'md' ? 'Markdown' : exportFormat === 'txt' ? 'plain text' : 'JSON'}`} title="Download selected transcript format"><Download size={19}/></button><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
+      {conversationFindOpen && <div className="conversation-find" role="search" aria-label="Find text within currently loaded conversation"><Search size={17}/><input ref={conversationFindInputRef} value={conversationFindQuery} maxLength={120} onChange={(event) => { setConversationFindQuery(event.target.value); setConversationFindCursor(-1) }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); resetConversationFind() } else if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); jumpToConversationMatch(event.shiftKey ? -1 : 1) } }} placeholder="Find messages in this conversation" aria-label="Find messages in this conversation"/><span className="conversation-find-count" role="status" aria-live="polite">{conversationFindQuery.trim() ? (conversationFindMatches.length ? `${activeFindCursor < 0 ? 0 : activeFindCursor + 1} of ${conversationFindMatches.length} messages` : 'No matching messages') : 'Search visible messages'}</span><button type="button" className="icon-button" onClick={() => jumpToConversationMatch(-1)} disabled={!conversationFindMatches.length} aria-label="Previous matching message"><ChevronUp size={18}/></button><button type="button" className="icon-button" onClick={() => jumpToConversationMatch(1)} disabled={!conversationFindMatches.length} aria-label="Next matching message"><ChevronDown size={18}/></button><button type="button" className="icon-button" onClick={resetConversationFind} aria-label="Close conversation search"><X size={18}/></button></div>}
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
-        {messages.map((message, index) => <article className={`message ${message.role}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
+        {messages.map((message, index) => <article ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
         {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
