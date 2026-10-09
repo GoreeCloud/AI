@@ -206,7 +206,7 @@ export default function App() {
   }
 
   async function ensureConversation(nextMessages: ChatMessage[]) {
-    if (conversationId) return conversationId
+    if (conversationId) return { id: conversationId, recoveredMessages: null }
     const epoch = generationEpochRef.current.value()
     const firstMessages = stored(nextMessages)
     const firstPrompt = firstMessages.find((message) => message.role === 'user')?.content.trim()
@@ -307,12 +307,19 @@ export default function App() {
     setComposerError(null)
     const requestMessages: ChatMessage[] = [...stored(messages), { role: 'user', content: text }]
     try {
-      const id = await ensureConversation(requestMessages)
+      const result = await ensureConversation(requestMessages)
       if (!generationEpochRef.current.isCurrent(epoch)) return
       setPrompt('')
       sessionDraftsRef.current.clear(conversationId)
+      if (result.recoveredMessages) {
+        setMessages(result.recoveredMessages)
+        setRetryMessages(null)
+        setGenerationError(null)
+        setComposerNotice('Recovered saved conversation changes without generating a duplicate response.')
+        return
+      }
       setComposerNotice(null)
-      await generate(requestMessages, id)
+      await generate(requestMessages, result.id)
     } catch (error) {
       if (generationEpochRef.current.isCurrent(epoch)) {
         setComposerError(error instanceof Error ? error.message : 'Conversation could not be started. Your draft was preserved.')
@@ -686,9 +693,16 @@ export default function App() {
     setComposerError(null)
     try {
       await runExclusivePreparation(preparingRef, setIsPreparing, async () => {
-        const id = await ensureConversation(request)
+        const result = await ensureConversation(request)
         if (!generationEpochRef.current.isCurrent(epoch)) return
-        await generate(request, id)
+        if (result.recoveredMessages) {
+          setMessages(result.recoveredMessages)
+          setRetryMessages(null)
+          setGenerationError(null)
+          setComposerNotice('Recovered the saved response without generating it again.')
+          return
+        }
+        await generate(request, result.id)
       })
     } catch (error) {
       if (generationEpochRef.current.isCurrent(epoch))
