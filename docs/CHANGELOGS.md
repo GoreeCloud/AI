@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Progress-aware replay restoration (Draft candidate)
+
+- Recognize saved replies appended after the original first prompt on a matching idempotent replay; validate bounded complete messages and exact original prefix.
+- Restore existing saved dialogue without generating a duplicate assistant answer in Submit or Retry. Nine asynchronous helper regressions cover assistant/user suffixes, mismatch, network error, stale navigation and Unicode.
+- Browser/host runtime, privacy/security, Glaze, accessibility and platform acceptance remain pending.
+
 ## 2026-10-09 — Idempotent first-chat retry (Draft candidate)
 
 - Add a browser-tab-only, random first-create request ID retained on manual retry for an unchanged prompt and navigation epoch. Clear it after successful selection; modified prompts or new navigation get new IDs.
