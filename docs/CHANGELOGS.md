@@ -1,5 +1,14 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-08 (Development candidate)
+
+- Guarded streamed chat UI updates and conversation loads against stale asynchronous completions when conversation selection changes.
+- Preserved a typed prompt if conversation creation fails and surfaced the error beside the composer; disabled duplicate submit preparation.
+- Improved saved-history search with multi-word, cross-field, accent-insensitive matching.
+- Escaped title/model/Workspace metadata in Markdown export to prevent injected transcript structure while preserving message text.
+- Added focused conversation UI utility tests to the exact-head validation workflow.
+
+
 ## 2026-10-05
 
 ### Added — Workspace context and conversation utilities
