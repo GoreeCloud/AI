@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Local finder keyboard shortcut and history bounds (Draft Development source)
+
+- Ctrl/Command+Shift+F opens the active-conversation finder without replacing the browser native Find command; IME/modified keys retain their existing guards.
+- The saved-conversation sidebar search and helper are bounded to 120 characters and 16 query terms. The Context outline AI-response count no longer displays an extraneous glyph.
+- Target-browser, CJK IME, screen-reader, security, Glaze and production acceptance remain outstanding.
+
 ## User-controlled transcript clipboard (Draft Development source)
 
 - A toolbar button copies the selected Markdown, plain-text or JSON transcript format to the local OS clipboard only after a user click, with accessible success or failure feedback.
