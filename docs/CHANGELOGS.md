@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 (Finder keyboard and branch isolation follow-up; Development candidate)
+
+- Reserved Enter/Escape events owned by an input method or browser modifier instead of triggering conversation-find navigation or cancelling active generation.
+- Closed active-conversation find when branching into a new conversation so a previous session's search state does not persist.
+- Added focused keyboard action tests; representative browser and IME acceptance remain outstanding.
+
 ## 2026-10-09 — Conversation search and TXT/JSON export (Development)
 
 - Added find-in-current-conversation controls and local bounded message matching; no global message index or new backend access.
