@@ -30,6 +30,9 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Retry and Branch safeguards (Draft source):** Rapid repeated Retry or Branch here clicks are blocked by an in-memory preparation lock until the first operation completes. Create/save errors are shown without discarding the source draft. A late branch completion cannot switch away from a newer selected conversation. Real-browser, Ollama, accessibility, privacy/security and platform acceptance are still pending.
+
+
 **Historical edit ownership (Draft source):** Each Edit action targets its original conversation and unchanged user message. Changing conversations closes an open edit dialog; if the source no longer matches, branching from the dialog is refused. Escape dismisses an idle dialog only when the IME is not composing text. Dialog fields expose accessible labels. This source-level protection still needs representative browser, CJK IME, screen-reader and privacy/security acceptance.
 
 
