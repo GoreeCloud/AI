@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Role-scoped finder and loaded transcript size (Draft branch candidate)
+
+- The active-conversation finder can limit results to the user or AI author while preserving the query-size bounds and rejecting non-user/assistant records; a scope change resets the active result cursor.
+- Context shows a browser-local Unicode code-point count for currently loaded user and assistant message bodies, excluding the welcome greeting and empty streamed placeholders. This is not token usage or model context-window accounting.
+- Focused pure-helper tests are added. Exact-head CI, independent Glaze/accessibility/IME/security review, browser testing, and platform acceptance remain outstanding.
+
 ## Conversation search integrity and shortcut ownership (Draft PR #23 source)
 
 - Loaded-message search refuses over-limit queries instead of silently truncating them, preventing matches that do not satisfy the complete query.

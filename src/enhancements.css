@@ -69,6 +69,8 @@
 /* Local-only find panel and explicit portable transcript format selection. */
 .conversation-find { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface, rgba(16,20,30,.88)); color: var(--muted); }
 .conversation-find input { flex: 1 1 180px; min-width: 120px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; font: inherit; color: var(--text); background: var(--panel, rgba(0,0,0,.18)); }
+.conversation-find select { max-width: 154px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 8px; color: var(--text); font: inherit; font-size: 12px; background: var(--panel, rgba(0,0,0,.18)); }
+.conversation-find input:focus-visible, .conversation-find select:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
 .conversation-find-count { font-size: 12px; min-width: 100px; color: var(--muted); }
 .conversation-find .icon-button:disabled { opacity: .45; cursor: not-allowed; }
 .message.is-find-match .message-body { box-shadow: inset 3px 0 0 var(--border-strong); padding-left: 10px; }

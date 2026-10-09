@@ -1,5 +1,7 @@
 import type { ChatMessage } from './ollama'
 
+export type LocalMessageRoleFilter = 'all' | 'user' | 'assistant'
+
 const MAX_QUERY_CHARS = 120
 const MAX_TERMS = 16
 
@@ -8,12 +10,15 @@ function fold(text: string): string {
 }
 
 /** Pure, local-only search over the currently displayed conversation. */
-export function findLocalMessages(messages: readonly ChatMessage[], query: string): number[] {
+export function findLocalMessages(messages: readonly ChatMessage[], query: string, role: LocalMessageRoleFilter = 'all'): number[] {
+  if (role !== 'all' && role !== 'user' && role !== 'assistant') return []
   if (query.length > MAX_QUERY_CHARS) return []
   const terms = fold(query).trim().split(/\s+/u).filter(Boolean)
   if (terms.length === 0 || terms.length > MAX_TERMS) return []
   const indices: number[] = []
   messages.forEach((message, index) => {
+    if (message.role !== 'user' && message.role !== 'assistant') return
+    if (role !== 'all' && message.role !== role) return
     const content = fold(message.content)
     if (terms.every(term => content.includes(term))) indices.push(index)
   })

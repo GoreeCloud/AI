@@ -38,6 +38,10 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 **Finder keyboard safety:** Enter and Shift+Enter navigate loaded-message matches, and Escape closes the finder without cancelling an active response. While an input method is composing, Enter/Escape are reserved for the IME. Creating a branch resets the prior conversation's finder state; no cross-conversation search is performed.
 
+**Role-scoped conversation search (Draft source):** In the loaded-message finder, select All messages, Your messages, or AI responses to narrow matching without searching other conversations. Changing the role resets the active match position; navigation uses only matches within that selected role. Finder query bounds, IME key ownership, and local-only processing remain unchanged.
+
+**Loaded transcript size (Draft source):** Context shows Unicode code-point counts for the loaded user and AI message bodies, excluding the welcome greeting and empty streaming placeholders. This summary stays in browser memory; it is **not** a model-token estimate, a context-window budget, a record of server storage, or a cross-conversation index.
+
 **Find in current conversation:** Open the magnifying-glass control in the top bar to search messages already loaded for the selected conversation. The search matches all words without case or accent differences. Use Previous/Next (or Shift+Enter/Enter) to navigate; Escape closes the finder. IME composition is not treated as a navigation shortcut. This is not a server-side or cross-conversation message index.
 
 **Transcript format:** Choose Markdown, plain text, or JSON beside Download. The exported file includes the visible conversation and model/Workspace metadata. JSON preserves the user/assistant message roles and bodies; Markdown/text normalize metadata labels to avoid forged headings. Files remain on the user's device, may contain private data, and do not constitute Everkeep backup, an import/restore guarantee, or new sharing permission.

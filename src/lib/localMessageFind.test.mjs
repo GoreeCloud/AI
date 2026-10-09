@@ -108,3 +108,22 @@ test('history shortcut respects modal, browser and composition key ownership', (
     {key:'f', ctrlKey:true}
   ]) assert.equal(shouldOpenHistorySearchShortcut(event), false)
 })
+
+test('finder can scope matches to the user's prompts or AI responses', () => {
+  assert.deepEqual(findLocalMessages(messages, 'planning', 'all'), [0, 2])
+  assert.deepEqual(findLocalMessages(messages, 'planning', 'user'), [0])
+  assert.deepEqual(findLocalMessages(messages, 'planning', 'assistant'), [2])
+  assert.deepEqual(findLocalMessages(messages, 'local', 'user'), [])
+})
+test('finder never includes system records and rejects unknown role scopes', () => {
+  const rows = [{role: 'system', content: 'private planning'}, {role: 'user', content: 'planning'}]
+  assert.deepEqual(findLocalMessages(rows, 'planning'), [1])
+  assert.deepEqual(findLocalMessages(rows, 'planning', 'unexpected'), [])
+  assert.deepEqual(findLocalMessages(rows, 'planning', 'assistant'), [])
+})
+test('role scope does not relax query bounds or alter message data', () => {
+  const before = JSON.stringify(messages)
+  assert.deepEqual(findLocalMessages(messages, 'planning' + ' '.repeat(113), 'user'), [])
+  assert.deepEqual(findLocalMessages(messages, Array(17).fill('planning').join(' '), 'assistant'), [])
+  assert.equal(JSON.stringify(messages), before)
+})
