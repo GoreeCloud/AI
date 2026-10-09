@@ -46,6 +46,8 @@ Keyboard controls include Ctrl/Command+K to open conversation search. Escape sto
 
 Switching conversations cancels active response rendering and prevents late tokens or stale conversation loads from overwriting the newly selected conversation. If creating the new conversation fails before generation, the typed prompt remains in the composer and an error is shown for retry.
 
+In the composer, Enter sends a message only when an input method is not composing a character; Shift+Enter inserts a newline. Alt/Ctrl/Command-modified, repeated and IME-owned Enter events do not submit. Model and Workspace selectors are disabled during generation, new-conversation preparation or another selector save. A saved conversation's chosen model or Workspace is presented as applied only after its update succeeds. Failures leave the previous selection visible and show an actionable error. Changing a Workspace's default role is a separate saved operation; if an associated conversation model update then fails, the UI reports that partial outcome. A failed individual chat request no longer marks the entire model-discovery runtime unavailable.
+
 Deleting a saved conversation now opens a confirmation dialog before local removal. If conversation history cannot be refreshed, opened, or deleted, the sidebar keeps a visible error message rather than silently discarding the failure.
 
 The Context panel shows the current saved conversation's message count and its created/updated times. When conversation history, Workspace state, or file listings fail to refresh, the affected surface provides a Retry control so transient local failures can be retried without reloading the entire application.
