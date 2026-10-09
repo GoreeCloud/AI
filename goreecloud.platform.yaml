@@ -1,0 +1,163 @@
+schema_version: "2.0"
+
+component:
+  type: application
+  id: goreecloud-ai
+  product_name: GoreeCloud AI
+  repository: GoreeCloud/AI
+
+lifecycle: forge
+lifecycle_metadata:
+  flags:
+    - blocked
+    - migration-required
+  deployment_state: development
+  qualification_state: not-started
+  next_gate: weave
+  candidate_identity: null
+  last_transition: null
+  evidence:
+    - docs/IMPLEMENTED-FEATURES.md
+    - docs/PLANNED-FEATURES.md
+
+version: 0.1.0-dev.0
+
+supported_platforms:
+  - web
+
+api:
+  versions:
+    - v1
+  endpoints:
+    - name: health
+      url: /api/health
+      purpose: Development backend health and bounded dependency-configuration status.
+    - name: ollama-models
+      url: /api/ollama/models
+      purpose: Backend-owned Ollama model discovery.
+    - name: ollama-chat
+      url: /api/ollama/chat
+      purpose: Backend-owned streamed Ollama chat generation.
+    - name: conversations
+      url: /api/conversations
+      purpose: Development conversation persistence interface.
+    - name: workspaces
+      url: /api/workspaces
+      purpose: Development Workspace persistence interface.
+    - name: files
+      url: /api/files
+      purpose: Private staged attachment intake and file-library interface.
+
+platform_systems:
+  manager:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud AI is an operated application/backend, but no accepted GoreeCloud Manager runtime integration or administration contract is established.
+  privacy_shield:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: Source implements bounded Privacy Shield-shaped structural assessment, but authenticated runtime decision authority, durable authorization/evidence, revocation/replay acceptance, and production runtime acceptance are not established.
+  wardveil_security:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: Attachment trust gates and Wardveil reference tests exist, but no accepted authenticated deployed Wardveil transport/runtime evidence is established for the current candidate.
+  everkeep:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: Export, backup, restore, recovery, and portability are required, but Everkeep runtime integration and acceptance are not established.
+  glaze_ui:
+    result: applicable-migration-required
+    version: null
+    evidence: []
+    notes: Official Anchor Glaze 1.7.0 is the current consumer target. GoreeCloud AI still contains historical 2.x-labeled migration input and has not produced exact-revision 1.7.0 application-specific consumer acceptance evidence.
+  mesh:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud Mesh capability coordination and accepted runtime integration are not established.
+    capabilities: []
+    dependencies: []
+    published_events: []
+    consumed_events: []
+  identity:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: Identity/application authorization structures exist, but authenticated GoreeCloud Identity runtime transport and accepted application/resource authorization are not established.
+  policy:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud Policy is applicable to AI authorization, privacy/security/continuity rule evaluation, decision explanation, and enforcement coordination, but no accepted AI-specific policy runtime contract, decision interface, enforcement behavior, or evidence exists.
+  observability:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud Observability is applicable to AI backend health, dependency health, diagnostics, performance, operational events, and evidence, but no accepted AI-specific observability runtime integration, freshness model, or operational-evidence contract exists.
+
+health:
+  health_endpoint: /api/health
+  readiness_endpoint: null
+
+continuity:
+  backup:
+    required: true
+    requirements:
+      - Protect durable conversation, Workspace, authorization-state, configuration, and approved derived knowledge metadata through an Everkeep-governed backup scope.
+      - Keep user source files and derived indexes distinct so backup scope and restore semantics remain explicit.
+  restore:
+    required: true
+    requirements:
+      - Validate clean-environment restoration of durable application state before Anchor readiness.
+      - Re-establish authorization, trust, source integrity, and supported schema state before restored knowledge or credentials are treated as usable.
+  export:
+    required: true
+    requirements:
+      - Provide governed user-controlled export for conversations, Workspaces, retained attachments, and portable knowledge metadata where applicable.
+  portability:
+    required: true
+    requirements:
+      - Preserve provider-neutral GoreeCloud AI contracts so model, storage, search, image, and developer-platform infrastructure can be replaced without redefining product identity.
+
+external_dependencies:
+  - name: Ollama
+    purpose: Primary private local model-inference runtime behind the GoreeCloud AI adapter boundary.
+    required: true
+    version_constraint: null
+
+compatibility:
+  platform_contract: "2.0"
+  glaze_ui_required: "1.7.0"
+  requires:
+    - goreecloud-platform-contract==2.0
+    - glaze-ui==1.7.0
+  provides:
+    - goreecloud-ai-development-api-v1
+
+evidence:
+  acceptance_tests: []
+  release: []
+
+conformance:
+  status: nonconformant
+  validated_at: null
+  evidence: []
+  blockers:
+    - GoreeCloud Manager runtime integration and acceptance remain blocked.
+    - Privacy Shield authenticated runtime integration, durable authorization/evidence, revocation/replay handling, and acceptance remain blocked.
+    - Wardveil authenticated runtime transport and target-runtime acceptance remain blocked.
+    - Everkeep backup, restore, export, portability, and recovery acceptance remain blocked.
+    - Official Anchor Glaze 1.7.0 implementation and GoreeCloud AI-specific consumer acceptance remain migration-required.
+    - GoreeCloud Mesh runtime integration and acceptance remain blocked.
+    - GoreeCloud Identity authenticated runtime integration and application/resource authorization acceptance remain blocked.
+    - GoreeCloud Policy AI-specific runtime decision, enforcement, and evidence acceptance remain blocked.
+    - GoreeCloud Observability AI-specific operational-health, telemetry, diagnostics, freshness, and evidence acceptance remain blocked.
+    - Live application-to-Ollama interoperability evidence has not yet been recorded for the current exact candidate.
+    - Production knowledge/RAG stages, supported deployment, representative-runtime acceptance, release evidence, Seal qualification, and Anchor qualification remain incomplete.
+
+# GoreeCloud Sync is separately governed application/service functionality and is
+# intentionally not represented as a tenth Integral Platform System.

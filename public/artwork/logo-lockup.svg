@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 560" role="img" aria-labelledby="title desc">
+  <title id="title">GoreeCloud AI candidate logo lockup</title>
+  <desc id="desc">GoreeCloud AI wordmark beside the intelligence aperture mark.</desc>
+  <defs>
+    <linearGradient id="tile" x1="40" y1="40" x2="500" y2="520" gradientUnits="userSpaceOnUse"><stop stop-color="#9DD8FF"/><stop offset=".4" stop-color="#5B8FFF"/><stop offset=".75" stop-color="#6557E8"/><stop offset="1" stop-color="#B65DEB"/></linearGradient>
+    <linearGradient id="mark" x1="165" y1="135" x2="380" y2="390" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#DDE9FF"/></linearGradient>
+  </defs>
+  <rect x="40" y="40" width="480" height="480" rx="132" fill="url(#tile)"/>
+  <g fill="none" stroke="url(#mark)" stroke-width="24" stroke-linecap="round">
+    <path d="M280 166v65"/><path d="m374 220-56 33"/><path d="m374 340-56-33"/><path d="M280 394v-65"/><path d="m186 340 56-33"/><path d="m186 220 56 33"/>
+  </g>
+  <g fill="#fff"><circle cx="280" cy="150" r="27"/><circle cx="390" cy="214" r="27"/><circle cx="390" cy="346" r="27"/><circle cx="280" cy="410" r="27"/><circle cx="170" cy="346" r="27"/><circle cx="170" cy="214" r="27"/></g>
+  <circle cx="280" cy="280" r="70" fill="#fff" fill-opacity=".14" stroke="#fff" stroke-width="14"/><circle cx="280" cy="280" r="37" fill="#fff"/>
+  <text x="610" y="305" fill="#111827" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="156" font-weight="760" letter-spacing="-7">GoreeCloud</text>
+  <text x="611" y="414" fill="#5B69A8" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="94" font-weight="680" letter-spacing="2">AI</text>
+</svg>

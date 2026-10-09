@@ -1,0 +1,41 @@
+/* Glaze UI 2.0 adoption foundation.
+   This adds baseline consumer behavior only and does not establish conformance. */
+
+:where(button, [role='button'], a.action, .icon-button, .composer-action, .conversation-item, .workspace-item, .file-chip) {
+  min-height: 48px;
+}
+
+:where(button, [role='button'], a, input, textarea, select):focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :where(.sidebar, .topbar, .composer-shell, .context-panel, .dialog-panel, .surface, .card) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.sidebar, .topbar, .composer-shell, .context-panel, .dialog-panel, .surface, .card, .file-chip) {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  :where(.status-dot, .model-dot, .trust-dot) {
+    border: 1px solid ButtonText;
+  }
+}
