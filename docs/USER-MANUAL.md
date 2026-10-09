@@ -30,6 +30,8 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Recovering a saved answer (Draft source):** When a first-chat retry discovers that the server already saved an assistant response or subsequent dialogue, GoreeCloud AI restores the existing messages instead of asking the model to answer again. Saved initial messages must match the original request exactly. This behavior requires real browser/network acceptance before production use.
+
 **Retrying after a lost first-chat response (Draft source):** For an unchanged first prompt in the same browser tab and navigation state, retry uses the same random create request ID. The server reuses the saved conversation instead of creating a duplicate; changed content under that ID is rejected. This protection does not persist across a tab reload. Review history before manually resending after a reload or unexpected failure.
 
 **Saving the first prompt (Draft source):** When sending a prompt in a new conversation, GoreeCloud AI creates the conversation with its first messages in a single validated server operation. It checks the returned content before selecting the new chat. If a network response is lost, the server may still have saved that conversation; check your history before retrying to avoid creating duplicates. If initial save fails, the unsent draft and existing context remain available for another attempt. Switching conversations during an in-flight first save cannot let the older operation reclaim the selection. This protection still awaits real-browser/network failure and platform acceptance.
