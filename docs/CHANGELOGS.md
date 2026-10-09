@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Search keyboard and bounded history (Draft Development)
+
+- Added dedicated Ctrl/Command+Shift+F active-conversation find while preserving native browser Find and composition events.
+- Bounded sidebar search to 120 characters and 16 terms; corrected the Conversation Outline AI-turn count.
+- Added targeted boundary and shortcut tests. Representative browser/IME, screen-reader, Glaze, privacy and platform acceptance remain open.
+
 ## 2026-10-09 (User-controlled transcript clipboard; Draft Development source)
 
 - Added an explicit Copy transcript toolbar action for the chosen Markdown, TXT, or JSON format without changing server access or local download formats.
