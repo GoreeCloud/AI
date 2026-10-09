@@ -1,5 +1,17 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Session-scoped unsent draft protection (Draft candidate)
+
+- Scoped unsent composer drafts to each loaded conversation in browser-tab memory, preventing an old chat draft from becoming a new chat's prompt.
+- Retained a new-chat draft when New chat is pressed again; restored saved-chat drafts when reopening, and cleared a draft cache only when its own message is successfully submitted.
+- Disabled composer editing while another conversation loads. Added focused scope/clearance tests; no disk persistence or backup is implied. Browser/race/IME acceptance remains open.
+
+## 2026-10-09 — Non-destructive prompt reuse and bounded composer (Draft candidate)
+
+- Added a local action to reuse a previous user prompt in an unsent composer without overwriting existing draft text or invoking a model.
+- Added frontend 250,000-character preflight and a near-limit indicator to match the existing backend per-message ceiling; no silent truncation.
+- Added focused helper tests and user manual updates. Exact-head CI, independent accessibility, browser/IME, Glaze, privacy, and runtime acceptance must be evaluated for this Draft branch.
+
 ## 2026-10-09 — Query integrity and dialog keyboard isolation (Draft PR #23)
 
 - Active-conversation find now fails closed on queries over 120 characters or 16 terms, rather than silently ignoring excess content and displaying misleading partial matches.
