@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ConversationEpoch, historyMatches, buildMarkdownTranscript, exportFileName } from './conversationUx.ts'
+import { ConversationEpoch, historyMatches, buildMarkdownTranscript, exportFileName, shouldSubmitComposerKey } from './conversationUx.ts'
 
 test('conversation changes invalidate stale asynchronous callbacks', () => {
   const epoch = new ConversationEpoch()
@@ -38,4 +38,19 @@ test('metadata is escaped but message bodies are unchanged in Markdown export', 
 test('export filenames do not contain a leading dot or traversal path', () => {
   assert.equal(exportFileName('../../hi world'), 'hi-world.md')
   assert.equal(exportFileName('***'), 'goreecloud-ai-conversation.md')
+})
+
+test('IME composition and modifier keys never submit the composer', () => {
+  const plain = { key: 'Enter', shiftKey: false }
+  assert.equal(shouldSubmitComposerKey(plain), true)
+  for (const candidate of [
+    { ...plain, isComposing: true },
+    { ...plain, keyCode: 229 },
+    { ...plain, shiftKey: true },
+    { ...plain, altKey: true },
+    { ...plain, ctrlKey: true },
+    { ...plain, metaKey: true },
+    { ...plain, repeat: true },
+    { ...plain, key: 'a' },
+  ]) assert.equal(shouldSubmitComposerKey(candidate), false)
 })
