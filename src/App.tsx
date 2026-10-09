@@ -9,6 +9,7 @@ import { createConversation, getConversation, listConversations, removeConversat
 import { resolveModelRoles, roleForModel, type ModelRoleId } from './lib/modelRoles'
 import { createWorkspace, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from './lib/workspaces'
 import { listFiles, removeFile, uploadFile, type StoredFile } from './lib/files'
+import { ConversationEpoch, buildMarkdownTranscript, exportFileName, historyMatches } from './lib/conversationUx'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -50,11 +51,16 @@ export default function App() {
   const [runtimeState, setRuntimeState] = useState<'checking' | 'ready' | 'no-models' | 'offline'>('checking')
   const [dialog, setDialog] = useState<DialogState>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const [composerError, setComposerError] = useState<string | null>(null)
+  const [isPreparing, setIsPreparing] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [workspaceError, setWorkspaceError] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [retryMessages, setRetryMessages] = useState<ChatMessage[] | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
+  const generationEpochRef = useRef(new ConversationEpoch())
+  const conversationLoadRef = useRef(0)
+  const preparingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const historySearchRef = useRef<HTMLInputElement | null>(null)
@@ -69,11 +75,10 @@ export default function App() {
   const restrictedWorkspaceFiles = workspaceFiles.filter((file) => file.status !== 'available')
   const lastMessageContentLength = messages.at(-1)?.content.length ?? 0
   const visibleHistory = useMemo(() => {
-    const query = historyQuery.trim().toLocaleLowerCase()
-    if (!query) return history
+    if (!historyQuery.trim()) return history
     return history.filter((item) => {
       const workspaceName = workspaces.find((workspace) => workspace.id === item.workspaceId)?.name ?? ''
-      return [item.title, item.model, workspaceName].some((value) => value.toLocaleLowerCase().includes(query))
+      return historyMatches(historyQuery, [item.title, item.model, workspaceName])
     })
   }, [history, historyQuery, workspaces])
 
@@ -156,14 +161,18 @@ export default function App() {
 
   async function ensureConversation(nextMessages: ChatMessage[]) {
     if (conversationId) return conversationId
+    const epoch = generationEpochRef.current.value()
     const created = await createConversation({ model: selectedModel, workspaceId: selectedWorkspaceId })
+    if (!generationEpochRef.current.isCurrent(epoch)) throw new Error('Conversation selection changed during creation.')
     setConversationId(created.id)
     await persist(created.id, nextMessages)
     return created.id
   }
 
   async function generate(requestMessages: ChatMessage[], id: string) {
+    const run = generationEpochRef.current.begin()
     setGenerationError(null)
+    setComposerError(null)
     setRetryMessages(null)
     setFollowOutput(true)
     setMessages([...requestMessages, { role: 'assistant', content: '' }])
@@ -178,6 +187,7 @@ export default function App() {
         workspaceId: selectedWorkspaceId,
         signal: controller.signal,
         onToken(token) {
+          if (!generationEpochRef.current.isCurrent(run)) return
           assistantContent += token
           setMessages((current) => {
             const copy = [...current]
@@ -187,12 +197,14 @@ export default function App() {
           })
         },
       })
+      if (!generationEpochRef.current.isCurrent(run)) return
       const completedMessages: ChatMessage[] = [...requestMessages, { role: 'assistant', content: assistantContent }]
       setRuntimeState('ready')
       setMessages(completedMessages)
       try { await persist(id, completedMessages) }
       catch { setGenerationError('Response completed, but the conversation could not be saved. The response remains visible in this session.') }
     } catch (error) {
+      if (!generationEpochRef.current.isCurrent(run)) return
       if (error instanceof DOMException && error.name === 'AbortError') {
         const interruptedMessages: ChatMessage[] = assistantContent
           ? [...requestMessages, { role: 'assistant', content: assistantContent }]
@@ -210,19 +222,35 @@ export default function App() {
         catch { setGenerationError(`${failureMessage} The conversation state also could not be saved.`) }
       }
     } finally {
-      setIsGenerating(false)
-      controllerRef.current = null
+      if (generationEpochRef.current.isCurrent(run)) {
+        setIsGenerating(false)
+        controllerRef.current = null
+      }
     }
   }
 
   async function submitPrompt(event: FormEvent) {
     event.preventDefault()
     const text = prompt.trim()
-    if (!text || !selectedModel || isGenerating) return
+    if (!text || !selectedModel || isGenerating || preparingRef.current) return
+    const epoch = generationEpochRef.current.value()
+    preparingRef.current = true
+    setIsPreparing(true)
+    setComposerError(null)
     const requestMessages: ChatMessage[] = [...stored(messages), { role: 'user', content: text }]
-    setPrompt('')
-    const id = await ensureConversation(requestMessages)
-    await generate(requestMessages, id)
+    try {
+      const id = await ensureConversation(requestMessages)
+      if (!generationEpochRef.current.isCurrent(epoch)) return
+      setPrompt('')
+      await generate(requestMessages, id)
+    } catch (error) {
+      if (generationEpochRef.current.isCurrent(epoch)) {
+        setComposerError(error instanceof Error ? error.message : 'Conversation could not be started. Your draft was preserved.')
+      }
+    } finally {
+      preparingRef.current = false
+      setIsPreparing(false)
+    }
   }
 
   function stopGeneration() { controllerRef.current?.abort() }
@@ -244,39 +272,37 @@ export default function App() {
     if (!exportMessages.length) return
     const firstUser = exportMessages.find((message) => message.role === 'user')?.content.trim()
     const title = currentSummary?.title || firstUser?.slice(0, 72) || 'GoreeCloud AI conversation'
-    const header = [
-      `# ${title}`,
-      '',
-      `- Exported: ${new Date().toISOString()}`,
-      `- Model: ${selectedModel || 'Not selected'}`,
-      `- Workspace: ${selectedWorkspace?.name || 'None'}`,
-      '',
-    ]
-    const sections = exportMessages.flatMap((message) => [
-      `## ${message.role === 'assistant' ? 'GoreeCloud AI' : message.role === 'user' ? 'You' : 'System'}`,
-      '',
-      message.content,
-      '',
-    ])
-    const blob = new Blob([[...header, ...sections].join('\n')], { type: 'text/markdown;charset=utf-8' })
+    const markdown = buildMarkdownTranscript({
+      title,
+      model: selectedModel,
+      workspace: selectedWorkspace?.name ?? null,
+      exportedAt: new Date().toISOString(),
+      messages: exportMessages,
+    })
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
-    const safeName = title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'goreecloud-ai-conversation'
     anchor.href = url
-    anchor.download = `${safeName}.md`
+    anchor.download = exportFileName(title)
     anchor.style.display = 'none'
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
     URL.revokeObjectURL(url)
   }
-  function newConversation() { controllerRef.current?.abort(); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setRetryMessages(null); setFollowOutput(true); setSidebarOpen(false) }
+  function newConversation() { generationEpochRef.current.invalidate(); conversationLoadRef.current += 1; controllerRef.current?.abort(); controllerRef.current = null; setIsGenerating(false); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setComposerError(null); setRetryMessages(null); setFollowOutput(true); setSidebarOpen(false) }
 
   async function openConversation(id: string) {
+    generationEpochRef.current.invalidate()
+    const load = ++conversationLoadRef.current
     controllerRef.current?.abort()
+    controllerRef.current = null
+    setIsGenerating(false)
     setHistoryError(null)
+    setComposerError(null)
     try {
       const conversation = await getConversation(id)
+      if (load !== conversationLoadRef.current) return
       setConversationId(id)
       setMessages(conversation.messages.length ? conversation.messages : [welcome])
       if (conversation.model) setSelectedModel(conversation.model)
@@ -286,7 +312,7 @@ export default function App() {
       setFollowOutput(true)
       setSidebarOpen(false)
     } catch (error) {
-      setHistoryError(error instanceof Error ? error.message : 'Conversation could not be opened.')
+      if (load === conversationLoadRef.current) setHistoryError(error instanceof Error ? error.message : 'Conversation could not be opened.')
     }
   }
   async function changeModel(model: string) { setSelectedModel(model); if (conversationId) { const item = history.find((entry) => entry.id === conversationId); await persist(conversationId, messages, model, item?.title) } }
@@ -463,7 +489,7 @@ export default function App() {
       <div className="brand-row"><img className="brand-icon" src="/artwork/icon.svg" alt=""/><div><strong>GoreeCloud AI</strong><span>Local intelligence</span></div><button className="icon-button mobile-only" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19}/></button></div>
       <button className="new-chat" onClick={newConversation}><MessageSquarePlus size={18}/>New chat</button>
       <nav className="nav-stack"><button className="nav-item active" aria-current="page"><Sparkles size={18}/>Chat</button><button className="nav-item" onClick={focusHistorySearch} title="Search conversations (Ctrl/⌘ K)"><Search size={18}/>Search conversations</button><button className="nav-item" onClick={() => setContextOpen(true)}><FileText size={18}/>Workspaces</button><button className="nav-item" disabled title="The governed knowledge Library is not enabled in this Development build"><Globe2 size={18}/>Library</button></nav>
-      <div className="history-search"><Search size={14}/><input ref={historySearchRef} value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Search conversations" aria-label="Search saved conversations"/>{historyQuery && <button type="button" onClick={() => setHistoryQuery('')} aria-label="Clear conversation search"><X size={14}/></button>}</div>
+      <div className="history-search"><Search size={14}/><input ref={historySearchRef} value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Search conversations" aria-label="Search saved conversations by title, model or Workspace"/>{historyQuery && <button type="button" onClick={() => setHistoryQuery('')} aria-label="Clear conversation search"><X size={14}/></button>}</div>
       <div className="sidebar-section"><span className="section-label">{historyQuery ? 'Matches' : 'Recent'}</span>{historyError && <div className="history-recovery"><span className="history-empty history-error">{historyError}</span><button type="button" onClick={() => void refreshHistory()}><RefreshCw size={13}/>Retry</button></div>}{history.length === 0 ? <span className="history-empty">No saved conversations</span> : visibleHistory.length === 0 ? <span className="history-empty">No matching conversations</span> : visibleHistory.map((item) => <div key={item.id} className="history-row"><button className={`history-item ${item.id === conversationId ? 'active' : ''}`} onClick={() => void openConversation(item.id)}>{item.parentConversationId ? '↳ ' : ''}{item.title}</button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'rename', id: item.id, value: item.title })} aria-label={`Rename ${item.title}`}><Pencil size={14}/></button><button className="icon-button history-action" onClick={() => setDialog({ kind: 'conversation-delete', id: item.id, name: item.title })} aria-label={`Delete ${item.title}`}><Trash2 size={14}/></button></div>)}</div>
       <div className="sidebar-footer"><div className={`runtime-pill ${runtimeState}`}>{runtimeState === 'ready' ? <CheckCircle2 size={15}/> : runtimeState === 'no-models' ? <Bot size={15}/> : <ShieldCheck size={15}/>} {runtimeState === 'checking' ? 'Checking local runtime' : runtimeState === 'ready' ? 'Local runtime ready' : runtimeState === 'no-models' ? 'No local models' : 'Runtime unavailable'}</div><span>Privacy Shield · Wardveil Security</span></div>
     </aside>
@@ -478,7 +504,7 @@ export default function App() {
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
 
-      <div className="composer-wrap"><form className="composer" onSubmit={submitPrompt}><textarea ref={composerRef} value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit() } }} placeholder={runtimeState === 'offline' ? 'Retry the local runtime or continue when it reconnects…' : runtimeState === 'no-models' ? 'Install a local model to start chatting…' : 'Message GoreeCloud AI'} rows={1}/><div className="composer-toolbar"><div className="composer-tools"><input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={(event) => void attachFiles(event.target.files)}/><button type="button" className="tool-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} aria-label="Attach file"><Paperclip size={18}/></button><button type="button" className="tool-chip" disabled title="External research is not connected in this Development build"><Globe2 size={16}/>Research</button></div>{isGenerating ? <button type="button" className="send-button" onClick={stopGeneration} aria-label="Stop generation"><Square size={17} fill="currentColor"/></button> : <button type="submit" className="send-button" disabled={!prompt.trim() || !selectedModel} aria-label="Send message"><Send size={17}/></button>}</div></form><p className="composer-note">{isUploading ? 'Staging attachment for Wardveil verification…' : runtimeState === 'no-models' ? 'No local Ollama models were discovered. Install an approved model, then refresh the model list.' : 'Local by default. External research is disclosed through Privacy Shield.'}</p></div>
+      <div className="composer-wrap"><form className="composer" onSubmit={submitPrompt}><textarea ref={composerRef} value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit() } }} placeholder={runtimeState === 'offline' ? 'Retry the local runtime or continue when it reconnects…' : runtimeState === 'no-models' ? 'Install a local model to start chatting…' : 'Message GoreeCloud AI'} rows={1}/><div className="composer-toolbar"><div className="composer-tools"><input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={(event) => void attachFiles(event.target.files)}/><button type="button" className="tool-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} aria-label="Attach file"><Paperclip size={18}/></button><button type="button" className="tool-chip" disabled title="External research is not connected in this Development build"><Globe2 size={16}/>Research</button></div>{isGenerating ? <button type="button" className="send-button" onClick={stopGeneration} aria-label="Stop generation"><Square size={17} fill="currentColor"/></button> : <button type="submit" className="send-button" disabled={!prompt.trim() || !selectedModel || isPreparing} aria-label={isPreparing ? 'Saving conversation before generation' : 'Send message'}><Send size={17}/></button>}</div></form>{composerError && <p className="composer-error" role="alert">{composerError}</p>}<p className="composer-note">{isUploading ? 'Staging attachment for Wardveil verification…' : runtimeState === 'no-models' ? 'No local Ollama models were discovered. Install an approved model, then refresh the model list.' : 'Local by default. External research is disclosed through Privacy Shield.'}</p></div>
     </main>
 
     <aside className={`context-panel ${contextOpen ? 'is-open' : ''}`} aria-label="Conversation context"><div className="context-heading"><div><strong>Context</strong><span>Conversation resources</span></div><button className="icon-button" onClick={() => setContextOpen(false)} aria-label="Close context panel"><X size={19}/></button></div>
