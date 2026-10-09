@@ -1,5 +1,10 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Single-flight retry and manual branch (Draft candidate)
+
+- Added synchronous preparation lock for Retry and Branch here, guarding duplicate clicks, error recovery and stale child selection.
+- Focused Node tests added. Representative browser, privacy, security, Glaze and platform testing pending.
+
 ## 2026-10-09 — Dialog source ownership and IME Escape (Draft candidate)
 
 - Bind historical edits to their originating conversation and exact user message, close edit dialogs during selection changes and reject stale source state.
