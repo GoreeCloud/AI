@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Session-scoped unsent draft protection (Draft candidate)
+
+- Scoped unsent composer drafts to each loaded conversation in browser-tab memory, preventing an old chat draft from becoming a new chat's prompt.
+- Retained a new-chat draft when New chat is pressed again; restored saved-chat drafts when reopening, and cleared a draft cache only when its own message is successfully submitted.
+- Disabled composer editing while another conversation loads. Added focused scope/clearance tests; no disk persistence or backup is implied. Browser/race/IME acceptance remains open.
+
 ## 2026-10-09 — Non-destructive prompt reuse and bounded composer (Draft candidate)
 
 - Added a local action to reuse a previous user prompt in an unsent composer without overwriting existing draft text or invoking a model.

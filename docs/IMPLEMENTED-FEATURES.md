@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Browser-tab conversation draft isolation (Draft candidate)
+
+- Unsent composer drafts remain scoped to the selected conversation ID in tab-only memory instead of leaking into a different chat. Switching back restores that conversation's draft; starting a second unsaved new chat cannot silently clear an existing unsent draft.
+- Branch navigation preserves the originating conversation's unsent text and opens an empty branch draft; successful submission clears only its own cached draft. Conversation loading disables composer edits until the target is resolved.
+- No durable storage or backup is created. A browser refresh/tab close loses unsent drafts. Focused tests cover cross-conversation isolation, unsaved/saved key separation and targeted draft clearing. Representative browser/race/IME/security and recovery testing remain open.
+
 ## Non-destructive prompt reuse and bounded composer preflight (Draft candidate)
 
 - The user can reuse a previously sent user message in the composer without changing persisted messages or automatically sending a model request. Existing draft text is preserved, and reuse is prevented during active generation/selection operations.
