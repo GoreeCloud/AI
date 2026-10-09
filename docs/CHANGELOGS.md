@@ -1,6 +1,13 @@
 # GoreeCloud AI — Changelogs
 
-## 2026-10-09 — First-conversation save-before-select (Draft candidate)
+## 2026-10-09 — Atomic first-prompt creation (Draft candidate)
+
+- Save bounded initial messages in one server-side conversation-create store operation, eliminating the follow-on first-prompt PATCH for the updated new-chat client path.
+- Require exact server acknowledgement of the submitted messages before selecting a newly created conversation; stale navigation and unconfirmed responses fail closed.
+- Preserve empty creation for manual branch workflows. A lost HTTP acknowledgement can still leave a created conversation; retry deduplication and recovery remain pending.
+- Server persistence/validation and client race tests are present. Browser/network faults, accessibility, Glaze and independent privacy/security/platform acceptance remain unverified.
+
+## 2026-10-09 — First-conversation save-before-select (Historical draft; superseded by atomic create)
 
 - Delay selecting a newly created chat until its first message batch has been saved and the original navigation epoch remains current.
 - Save failures preserve the unsent prompt and previously selected context; stale create/save completions cannot adopt an outdated chat.
