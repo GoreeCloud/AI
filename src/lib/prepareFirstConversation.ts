@@ -1,7 +1,7 @@
 import type { ChatMessage } from './ollama'
 
 /** Require the returned conversation to acknowledge the first message batch. */
-export function acknowledgedFirstConversation(
+export function initialConversationAcknowledged(
   value: { id?: unknown; messages?: unknown } | null,
   expected: readonly ChatMessage[],
 ): value is { id: string; messages: ChatMessage[] } {
@@ -24,7 +24,7 @@ export async function prepareFirstConversation(options: {
   if (!options.isCurrent()) throw new Error('Conversation selection changed before creation.')
   const created = await options.create()
   if (!options.isCurrent()) throw new Error('Conversation selection changed during creation.')
-  if (!acknowledgedFirstConversation(created, options.expectedMessages))
+  if (!initialConversationAcknowledged(created, options.expectedMessages))
     throw new Error('The new conversation did not confirm its initial messages. Review conversation history before retrying.')
   if (options.afterCreate) await options.afterCreate()
   if (!options.isCurrent()) throw new Error('Conversation selection changed during preparation.')
