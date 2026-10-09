@@ -44,8 +44,11 @@ test('regeneration declines unrelated/invalid turns and absent final user', () =
   assert.equal(regenerationBranch([{role:'user',content:'Hi'},{role:'assistant',content:'A'},{role:'assistant',content:'B'}], 2), null)
 })
 
-test('both helpers exclude blank startup assistant content', () => {
+test('both helpers exclude welcome cards, including visible nonempty welcome text', () => {
   const withWelcome = [{role:'assistant',content:''}, ...history]
   assert.deepEqual(editedMessageBranch(withWelcome, 1, 'Edited'), [{role:'user',content:'Edited'}])
   assert.deepEqual(regenerationBranch(withWelcome, 2), [history[0]])
+  const visibleWelcome = [{role:'assistant',content:'Welcome to GoreeCloud AI'}, ...history]
+  assert.deepEqual(editedMessageBranch(visibleWelcome, 1, 'Edited'), [{role:'user',content:'Edited'}])
+  assert.deepEqual(regenerationBranch(visibleWelcome, 2), [history[0]])
 })
