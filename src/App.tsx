@@ -17,6 +17,7 @@ import { summarizeLocalConversation } from './lib/localConversationOutline'
 import { summarizeLocalTranscript } from './lib/localTranscriptMetrics'
 import { appendPreviousPrompt, composerDraftError, MAX_COMPOSER_CHARS } from './lib/composerDraft'
 import { SessionConversationDrafts, shouldLeaveDeletedConversation } from './lib/sessionDrafts'
+import { editedMessageBranch, regenerationBranch } from './lib/responseBranches'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -550,14 +551,10 @@ export default function App() {
       return
     }
     if (dialog.kind !== 'edit') return
-    const message = messages[dialog.index]
-    if (message?.role !== 'user' || isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
-    const next = messages.slice(0, dialog.index + 1)
-    next[dialog.index] = { role: 'user', content: value }
-    setDialog(null)
-    const id = await ensureConversation(next)
-    await persist(id, next)
-    await generate(next, id)
+    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
+    const next = editedMessageBranch(messages, dialog.index, value)
+    if (!next) throw new Error('The edited prompt is invalid or exceeds the message limit.')
+    await createResponseBranch(next, dialog.index, 'Edited')
   }
 
   async function confirmDeletion() {
@@ -605,12 +602,52 @@ export default function App() {
     }
   }
 
+  /** Preserve the source thread and its unsent draft when creating a variation. */
+  async function createResponseBranch(next: ChatMessage[], sourceIndex: number, label: 'Edited' | 'Regenerated') {
+    if (isGenerating || preparingRef.current || selectionChangeRef.current || isLoadingConversation || !selectedModel) {
+      throw new Error('Select a model and finish the current operation before branching.')
+    }
+    const epoch = generationEpochRef.current.value()
+    preparingRef.current = true
+    setIsPreparing(true)
+    try {
+      const firstUser = next.find((message) => message.role === 'user')?.content || 'Conversation'
+      const created = await createConversation({
+        model: selectedModel,
+        workspaceId: selectedWorkspaceId,
+        title: `${label} · ${firstUser.slice(0, 55)}`,
+        parentConversationId: conversationId,
+        parentMessageIndex: sourceIndex,
+      })
+      await persist(created.id, next, selectedModel, created.title)
+      if (!generationEpochRef.current.isCurrent(epoch)) return
+      generationEpochRef.current.invalidate()
+      conversationLoadRef.current += 1
+      sessionDraftsRef.current.remember(conversationId, prompt)
+      setConversationId(created.id)
+      setMessages(next)
+      setPrompt('')
+      setComposerNotice(null)
+      setGenerationError(null)
+      setRetryMessages(null)
+      setSidebarOpen(false)
+      resetConversationFind()
+      setDialog(null)
+      await generate(next, created.id)
+    } finally {
+      preparingRef.current = false
+      setIsPreparing(false)
+    }
+  }
+
   async function regenerate(index: number) {
-    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection || messages[index]?.role !== 'assistant') return
-    const request = messages.slice(0, index).filter((message) => message.role !== 'assistant' || message.content)
-    if (!request.some((message) => message.role === 'user')) return
-    const id = await ensureConversation(request)
-    await generate(request, id)
+    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
+    const next = regenerationBranch(messages, index)
+    if (!next) return
+    try { await createResponseBranch(next, index, 'Regenerated') }
+    catch (error) {
+      setComposerError(error instanceof Error ? `Regeneration branch failed: ${error.message}` : 'Regeneration branch could not be created.')
+    }
   }
 
   async function retryGeneration() {
@@ -690,7 +727,7 @@ export default function App() {
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
-        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
+        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Edit in a new branch without changing original"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Regenerate response in a new branch"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
         {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
@@ -710,7 +747,7 @@ export default function App() {
     </aside>
 
     <TextDialog open={dialog?.kind === 'rename'} title="Rename conversation" label="Choose a concise name for this conversation." initialValue={dialog?.kind === 'rename' ? dialog.value : ''} onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
-    <TextDialog open={dialog?.kind === 'edit'} title="Edit message" label="Resubmitting will regenerate the conversation from this point." initialValue={dialog?.kind === 'edit' ? dialog.value : ''} multiline confirmLabel="Save & resubmit" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
+    <TextDialog open={dialog?.kind === 'edit'} title="Edit and branch" label="Creates a new conversation with the edited prompt and a regenerated answer. The original conversation and later messages stay unchanged." initialValue={dialog?.kind === 'edit' ? dialog.value : ''} multiline confirmLabel="Create branch & send" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace'} title="New Workspace" label="Name this persistent AI workspace." initialValue={dialog?.kind === 'workspace' ? dialog.value : ''} confirmLabel="Create Workspace" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-rename'} title="Rename Workspace" label="Choose a concise name for this Workspace." initialValue={dialog?.kind === 'workspace-rename' ? dialog.value : ''} confirmLabel="Save name" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>
     <TextDialog open={dialog?.kind === 'workspace-instructions'} title="Workspace instructions" label="These private instructions are applied as system context to local model requests in this Workspace. They do not grant authorization or enable blocked tools." initialValue={dialog?.kind === 'workspace-instructions' ? dialog.value : ''} multiline confirmLabel="Save instructions" onCancel={() => setDialog(null)} onConfirm={confirmDialog}/>

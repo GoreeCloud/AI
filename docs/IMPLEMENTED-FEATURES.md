@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Non-destructive edit and regenerate branches (Draft candidate)
+
+- Editing a previous user message or regenerating an AI response creates a new lineage-linked conversation, instead of silently truncating later messages in the source thread.
+- The new candidate retains only the preceding bounded role-valid dialogue and an ending user turn; its first request is dispatched after the child conversation was created and the initial context saved. The original unsent draft remains scoped to its parent in browser-tab memory.
+- Focused regression tests cover invalid roles/indices, blank/oversized edits, unchanged source history, later-message preservation, regeneration context, and empty welcome-message exclusion. Target-browser, model runtime, asynchronous failure/recovery, Glaze and applicable platform/security acceptance remain open.
+
 ## Draft-deletion privacy and navigation guards (Draft candidate)
 
 - On successful saved-conversation deletion, drop that conversation's in-memory unsent draft without touching another chat's draft. A deletion completing after another navigation epoch does not reset the new selection.
