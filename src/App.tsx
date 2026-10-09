@@ -157,6 +157,11 @@ export default function App() {
       }
       // IME-owned Escape cancels character composition; never cancel generation.
       if (event.key !== 'Escape' || dialog || event.isComposing || event.keyCode === 229) return
+      if (conversationFindOpen) {
+        event.preventDefault()
+        resetConversationFind()
+        return
+      }
       if (isGenerating) {
         event.preventDefault()
         stopGeneration()
@@ -170,7 +175,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [contextOpen, dialog, isGenerating, sidebarOpen])
+  }, [contextOpen, conversationFindOpen, dialog, isGenerating, sidebarOpen])
 
   async function persist(id: string, nextMessages: ChatMessage[], model = selectedModel, explicitTitle?: string, workspaceId = selectedWorkspaceId) {
     const firstUser = nextMessages.find((message) => message.role === 'user')?.content.trim()
