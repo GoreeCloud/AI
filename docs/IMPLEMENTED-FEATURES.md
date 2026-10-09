@@ -12,6 +12,11 @@ This file records capabilities that exist in the current repository source. An e
 - No automatic duplicate send, content matching or speculative conversation selection is performed. Refresh failure remains visible through the existing history error.
 - UI/browser, connectivity, accessibility and privacy/security acceptance are not established by CI alone.
 
+## Non-destructive recovery notice after failed first-chat creation (Draft candidate)
+
+- When new-chat creation fails before selection, retain the unsent draft, show an accessible warning of the uncertain outcome, and refresh conversation history without duplicate POST or automatic selection.
+- If the history refresh itself fails, its existing error surface reports this separately. Browser, offline behavior and independent accessibility/security acceptance remain pending.
+
 ## Restore saved responses on first-chat replay (Draft candidate)
 
 - When the server's idempotent create replay already contains assistant or subsequent user turns, accept only an exact first-message prefix and a bounded, valid message sequence.
