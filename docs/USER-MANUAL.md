@@ -32,6 +32,8 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 **Recovering a saved answer (Draft source):** When a first-chat retry discovers that the server already saved an assistant response or subsequent dialogue, GoreeCloud AI restores the existing messages instead of asking the model to answer again. Saved initial messages must match the original request exactly. This behavior requires real browser/network acceptance before production use.
 
+**Review saved conversations (Draft source, PR #33):** When the first chat may already have been saved, select **Review saved conversations** to open the history sidebar and focus its search field. The action does not send the draft or choose a conversation. Check history before deciding whether to resend. This UI still requires representative keyboard, screen-reader, mobile and network-fault testing.
+
 **After a first-chat request error (Draft source):** The composer preserves your unsent prompt and attempts to refresh conversation history. Check whether the first prompt was saved before retrying. The app does not automatically resend, delete or select an unconfirmed conversation. If history cannot be refreshed, the existing history error appears. Browser/network and accessibility acceptance remain pending.
 
 **Retrying after a lost first-chat response (Draft source):** For an unchanged first prompt in the same browser tab and navigation state, retry uses the same random create request ID. The server reuses the saved conversation instead of creating a duplicate; changed content under that ID is rejected. This protection does not persist across a tab reload. Review history before manually resending after a reload or unexpected failure.
