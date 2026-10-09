@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Active-conversation find and portable transcript formats (Development source)
+
+- The browser searches only messages already loaded in the active conversation. It uses bounded case/accent-insensitive word matching with next/previous wraparound, match indicators and IME-aware keyboard navigation; no additional backend search or permission is created.
+- Local transcript export supports Markdown, plain-text and JSON outputs, normalized filenames and verbatim user/assistant message bodies. These downloads are not authenticated sharing, Everkeep backups or import/restore evidence.
+- Focused search/export tests and exact-head GitHub CI passed on source commit `add1528d23d7670886eea8e9a27e6538807600ec`; representative browser, keyboard/IME, accessibility, privacy and platform acceptance remain pending.
+
 ## Composer and Workspace selection (Development source)
 
 - Enter-to-send ignores active input-method composition, modifier shortcuts, repeated events, and multiline Shift+Enter; the keyboard helper has focused Node tests.
