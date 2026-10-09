@@ -86,5 +86,4 @@
 .outline-number { color: var(--muted); font-size: 11px; flex: 0 0 20px; }
 .outline-preview { font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
 .conversation-outline .outline-note { font-size: 11px; color: var(--muted); }
-.message:focus { outline: none; }
-.message:focus-visible .message-body { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.message:focus .message-body { outline: 2px solid var(--accent-strong); outline-offset: 2px; }

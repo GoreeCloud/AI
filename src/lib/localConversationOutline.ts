@@ -41,12 +41,12 @@ export function summarizeLocalConversation(
         ? graphemes.slice(0, MAX_PREVIEW_CHARS - 1).join('') + '…'
         : normalized,
     })
+    if (prompts.length > MAX_PROMPTS) prompts.shift()
   })
-  const visible = prompts.slice(-MAX_PROMPTS)
   return {
     userTurns,
     assistantTurns,
-    hiddenPrompts: prompts.length - visible.length,
-    prompts: visible,
+    hiddenPrompts: userTurns - prompts.length,
+    prompts,
   }
 }
