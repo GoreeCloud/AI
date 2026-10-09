@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goreecloud.com/contracts/ai/code.repository-context.schema.json",
+  "title": "GoreeCloud Code repository context for GoreeCloud AI",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "recordType",
+    "producer",
+    "scope",
+    "generatedAt",
+    "source",
+    "repository",
+    "branches",
+    "commits",
+    "issues",
+    "pullRequests",
+    "limits",
+    "evidence"
+  ],
+  "properties": {
+    "contractVersion": { "const": "0.1.0" },
+    "recordType": { "const": "repository_context" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service", "authoritative", "role"],
+      "properties": {
+        "service": { "const": "goreecloud-code-api" },
+        "authoritative": { "const": false },
+        "role": { "const": "provider-neutral-evidence-broker" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "repositoryId"],
+      "properties": {
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "name"],
+          "properties": {
+            "owner": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "name": { "type": "string", "minLength": 1, "maxLength": 256 }
+          }
+        },
+        "repositoryId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 255 }
+      }
+    },
+    "generatedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "providerHealthy", "capabilities"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "providerHealthy": { "const": true },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "repository": {
+      "allOf": [
+        { "$ref": "#/$defs/repositoryId" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "owner", "name", "defaultBranch", "private", "webUrl"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "owner": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "description": { "type": "string", "maxLength": 1000 },
+            "defaultBranch": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "private": { "type": "boolean" },
+            "webUrl": { "$ref": "#/$defs/webUrl" },
+            "updatedAt": { "type": "string", "maxLength": 64 }
+          }
+        }
+      ]
+    },
+    "branches": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/branch" }
+    },
+    "commits": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/commit" }
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/issue" }
+    },
+    "pullRequests": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/pullRequest" }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branches", "commits", "issues", "pullRequests"],
+      "properties": {
+        "branches": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "commits": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "issues": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "pullRequests": { "type": "integer", "minimum": 0, "maximum": 20 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["webUrls"],
+      "properties": {
+        "webUrls": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/webUrl" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repositoryId": {
+      "type": "object",
+      "required": ["owner", "name"],
+      "properties": {
+        "owner": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "webUrl": {
+      "type": "string",
+      "pattern": "^https?://",
+      "maxLength": 4096
+    },
+    "branch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha", "protected"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "sha": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "protected": { "type": "boolean" }
+      }
+    },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha", "message", "authoredAt", "webUrl"],
+      "properties": {
+        "sha": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "message": { "type": "string", "maxLength": 4000 },
+        "authoredAt": { "type": "string", "maxLength": 64 },
+        "authorName": { "type": "string", "maxLength": 256 },
+        "webUrl": { "$ref": "#/$defs/webUrl" }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "title", "state", "webUrl"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "maxLength": 1000 },
+        "state": { "enum": ["open", "closed"] },
+        "author": { "type": "string", "maxLength": 256 },
+        "updatedAt": { "type": "string", "maxLength": 64 },
+        "webUrl": { "$ref": "#/$defs/webUrl" }
+      }
+    },
+    "pullRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "title", "state", "base", "head", "webUrl"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "maxLength": 1000 },
+        "state": { "enum": ["open", "closed", "merged"] },
+        "base": { "type": "string", "maxLength": 255 },
+        "head": { "type": "string", "maxLength": 255 },
+        "author": { "type": "string", "maxLength": 256 },
+        "updatedAt": { "type": "string", "maxLength": 64 },
+        "webUrl": { "$ref": "#/$defs/webUrl" }
+      }
+    }
+  }
+}

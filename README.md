@@ -6,6 +6,8 @@ Native GoreeCloud-owned AI application for private conversations, Workspaces, kn
 
 ## Project records
 
+- [Model provider architecture — approved, optional external providers](docs/MODEL_PROVIDER_ARCHITECTURE.md)
+- [GoreeCloud Code repository context — bounded provider-neutral consumer](docs/CODE_REPOSITORY_CONTEXT.md)
 - [Specifications](docs/SPECIFICATIONS.md)
 - [Implemented features — canonical current capability state](docs/IMPLEMENTED-FEATURES.md)
 - [Planned/open features — canonical incomplete capability state](docs/PLANNED-FEATURES.md)
@@ -23,6 +25,10 @@ Native GoreeCloud-owned AI application for private conversations, Workspaces, kn
 - [Opt-in local model-resource diagnostic](docs/MODEL_RESOURCE_DIAGNOSTIC.md)
 - [Approved local model runtime validation](docs/APPROVED_MODEL_RUNTIME_VALIDATION.md)
 - [Branding authority](docs/BRANDING.md)
+
+## Main integration preservation (reconciliation candidate)
+
+This isolated reconciliation branch preserves the first-party GoreeCloud Code repository-context consumer, its schema and tests, and the optional, provider-independent model architecture documented on `main`. Accepted repository context is untrusted data and never grants tool execution, repository writes, or credentials. The model-provider gateway remains a planned boundary; no third-party adapter is automatically enabled by documentation. Preserve local-only processing and the security/Identity/Privacy Shield/Policy gates.
 
 ## Product boundary
 
