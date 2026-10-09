@@ -149,6 +149,17 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   .composer-wrap { padding: 14px 10px 10px; }
   .composer { border-radius: 20px; padding: 10px; }
 }
+/* Keep header actions in the mobile viewport without shrinking Glaze touch targets. */
+@media (max-width: 600px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar > .model-picker { flex: 1 1 0; }
+  .topbar-actions {
+    flex: 1 1 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media (prefers-color-scheme: light) {
   :root { color: #151922; background: #f6f8fb; --surface-0: #f6f8fb; --surface-1: rgba(247,249,252,.9); --surface-2: rgba(255,255,255,.88); --surface-3: rgba(240,244,249,.86); --border: rgba(26,34,48,.09); --border-strong: rgba(26,34,48,.14); --text: #151922; --muted: #687386; --soft: #394456; --accent: #306fdb; --accent-strong: #245fc2; --accent-surface: rgba(48,111,219,.09); --shadow: 0 24px 70px rgba(41,56,82,.16); }
