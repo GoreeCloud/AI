@@ -28,7 +28,7 @@ test('metadata is escaped but message bodies are unchanged in Markdown export', 
     exportedAt: '2026-10-08T00:00:00.000Z',
     messages: [{ role: 'user', content: body }, { role: 'assistant', content: 'Response' }],
   })
-  assert.ok(markdown.startsWith('# Session ## Forged heading\n'))
+  assert.ok(markdown.startsWith('# Session \\#\\# Forged heading\n'))
   assert.ok(!markdown.includes('\n## Forged\n'))
   assert.ok(markdown.includes('a\\*model\\*'))
   assert.ok(markdown.includes(body))

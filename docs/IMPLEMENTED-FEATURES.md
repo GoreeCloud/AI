@@ -6,6 +6,16 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Conversation UX reliability (2026-10-08 candidate)
+
+- Streamed-response interface changes are guarded by a conversation epoch; navigation invalidates stale token callbacks and terminal updates.
+- Conversation opening rejects superseded loads so slower earlier history requests cannot overwrite later selections.
+- Prompt submission waits for conversation creation before clearing the draft, prevents duplicate preparation, and surfaces a retryable composer error on creation failure.
+- Saved-history search supports multiple query words across title, model, and Workspace fields, with accent-insensitive matching and no message-body indexing.
+- Local Markdown export escapes untrusted title/model/Workspace labels while retaining message body text. Focused UI utility tests are included in CI.
+
+These changes are Development candidate source capabilities, not representative-device or production-acceptance evidence.
+
 ## Application foundation
 
 - React/TypeScript/Vite client with a responsive conversation shell, navigation and context surfaces.
