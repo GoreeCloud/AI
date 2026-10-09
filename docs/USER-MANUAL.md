@@ -30,6 +30,8 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Conversation outline (local only):** Open Context to see user/assistant turn counts and links to the latest 24 user prompts loaded for this conversation. Select a prompt to scroll and move keyboard focus to its message. Older prompts remain in the transcript and can be found with Find. No server-side search, message index, telemetry, or additional data sharing is created.
+
 **Finder keyboard safety:** Enter and Shift+Enter navigate loaded-message matches, and Escape closes the finder without cancelling an active response. While an input method is composing, Enter/Escape are reserved for the IME. Creating a branch resets the prior conversation's finder state; no cross-conversation search is performed.
 
 **Find in current conversation:** Open the magnifying-glass control in the top bar to search messages already loaded for the selected conversation. The search matches all words without case or accent differences. Use Previous/Next (or Shift+Enter/Enter) to navigate; Escape closes the finder. IME composition is not treated as a navigation shortcut. This is not a server-side or cross-conversation message index.

@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Local conversation outline (Draft Development source)
+
+- The Context panel shows browser-local user/assistant turn counts and the latest 24 user prompts, with keyboard-accessible navigation to their original message positions.
+- Prompt previews are length-bounded and control-normalized; the capability adds no server endpoint, cross-conversation indexing, persistent storage, or execution authority.
+- Source CI and target-browser accessibility acceptance must be verified at the exact candidate revision before treating this Draft source as qualified.
+
 ## Active-conversation find and portable transcript formats (Development source)
 
 - The browser searches only messages already loaded in the active conversation. It uses bounded case/accent-insensitive word matching with next/previous wraparound, match indicators and IME-aware keyboard navigation; no additional backend search or permission is created.
