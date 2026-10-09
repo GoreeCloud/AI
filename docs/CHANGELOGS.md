@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Dialog source ownership and IME Escape (Draft candidate)
+
+- Bind historical edits to their originating conversation and exact user message, close edit dialogs during selection changes and reject stale source state.
+- Preserve active CJK input-method composition when Escape is pressed in a dialog; provide explicit accessible field labels and descriptions.
+- Add focused regression tests. Exact-head CI and representative browser/IME, privacy/security, Glaze and runtime acceptance remain separate gates.
+
 ## 2026-10-09 — Non-destructive historical edits and regeneration (Draft candidate)
 
 - Moved earlier user-message edits and AI-response regeneration to new child conversations rather than overwriting later source messages.

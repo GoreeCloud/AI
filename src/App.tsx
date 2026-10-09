@@ -17,6 +17,7 @@ import { summarizeLocalConversation } from './lib/localConversationOutline'
 import { summarizeLocalTranscript } from './lib/localTranscriptMetrics'
 import { appendPreviousPrompt, composerDraftError, MAX_COMPOSER_CHARS } from './lib/composerDraft'
 import { SessionConversationDrafts, shouldLeaveDeletedConversation } from './lib/sessionDrafts'
+import { editableDialogSourceIsCurrent } from './lib/dialogOwnership'
 import { editedMessageBranch, regenerationBranch } from './lib/responseBranches'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
@@ -31,7 +32,7 @@ const fileTrustLabel: Record<StoredFile['status'], string> = {
 
 type DialogState =
   | { kind: 'rename'; id: string; value: string }
-  | { kind: 'edit'; index: number; value: string }
+  | { kind: 'edit'; index: number; value: string; originConversationId: string | null }
   | { kind: 'workspace'; value: string }
   | { kind: 'workspace-rename'; id: string; value: string }
   | { kind: 'workspace-instructions'; id: string; value: string }
@@ -391,6 +392,7 @@ export default function App() {
     controllerRef.current = null
     setIsGenerating(false)
     setIsLoadingConversation(false)
+    setDialog(null)
     setConversationId(null)
     setMessages([welcome])
     const restored = sessionDraftsRef.current.restore(null)
@@ -412,6 +414,7 @@ export default function App() {
     controllerRef.current = null
     setIsGenerating(false)
     setIsLoadingConversation(true)
+    setDialog(null)
     setHistoryError(null)
     setComposerError(null)
     try {
@@ -552,6 +555,9 @@ export default function App() {
     }
     if (dialog.kind !== 'edit') return
     if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
+    if (!editableDialogSourceIsCurrent({ conversationId: dialog.originConversationId, index: dialog.index, originalContent: dialog.value }, conversationId, messages)) {
+      throw new Error('The original prompt changed or belongs to a different conversation. Reopen that prompt before editing.')
+    }
     const next = editedMessageBranch(messages, dialog.index, value)
     if (!next) throw new Error('The edited prompt is invalid or exceeds the message limit.')
     await createResponseBranch(next, dialog.index, 'Edited')
@@ -727,7 +733,7 @@ export default function App() {
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
-        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Edit in a new branch without changing original"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Regenerate response in a new branch"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
+        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content, originConversationId: conversationId })} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Edit in a new branch without changing original"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Regenerate response in a new branch"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
         {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>

@@ -30,6 +30,9 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Historical edit ownership (Draft source):** Each Edit action targets its original conversation and unchanged user message. Changing conversations closes an open edit dialog; if the source no longer matches, branching from the dialog is refused. Escape dismisses an idle dialog only when the IME is not composing text. Dialog fields expose accessible labels. This source-level protection still needs representative browser, CJK IME, screen-reader and privacy/security acceptance.
+
+
 **Non-destructive historical edits and regeneration (Draft source):** Editing a previously sent user prompt or regenerating an earlier AI answer creates a separate child conversation using messages up to that point. The original conversation and all its later messages remain unchanged, and the original unsent composer draft stays scoped to its parent in browser-tab memory. The new branch automatically requests a response from the selected local model after its initial context is saved. The new conversation retains parent/message lineage. If branch creation or its initial save fails, the original conversation remains available. These Development interactions are not a remote backup, a guarantee against server/storage failures, or evidence of production acceptance. Real-browser, runtime, privacy and accessible-control testing remain pending.
 
 

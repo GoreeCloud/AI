@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import { shouldCloseTextDialog } from '../lib/dialogOwnership'
 
 interface TextDialogProps {
   open: boolean
@@ -47,15 +48,15 @@ export function TextDialog({ open, title, label, initialValue, multiline = false
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (!pendingRef.current && event.target === event.currentTarget) onCancel() }}>
-      <form className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description" aria-busy={pending} onKeyDown={(event) => { if (event.key === 'Escape' && !pendingRef.current) { event.preventDefault(); onCancel() } }} onSubmit={submit}>
+      <form className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description" aria-busy={pending} onKeyDown={(event) => { if (shouldCloseTextDialog(event.nativeEvent, pendingRef.current)) { event.preventDefault(); event.stopPropagation(); onCancel() } }} onSubmit={submit}>
         <div className="dialog-heading">
           <div><strong id="dialog-title">{title}</strong><span id="dialog-description">{label}</span></div>
           <button type="button" className="icon-button" onClick={onCancel} aria-label="Close dialog" disabled={pending}><X size={18}/></button>
         </div>
         {multiline ? (
-          <textarea ref={(node) => { inputRef.current = node }} value={value} onChange={(event) => setValue(event.target.value)} rows={7}/>
+          <textarea ref={(node) => { inputRef.current = node }} aria-label={label} aria-describedby="dialog-description" value={value} onChange={(event) => setValue(event.target.value)} rows={7}/>
         ) : (
-          <input ref={(node) => { inputRef.current = node }} value={value} onChange={(event) => setValue(event.target.value)} />
+          <input ref={(node) => { inputRef.current = node }} aria-label={label} aria-describedby="dialog-description" value={value} onChange={(event) => setValue(event.target.value)} />
         )}
         {error && <p className="dialog-error" role="alert">{error}</p>}
         <div className="dialog-actions">
