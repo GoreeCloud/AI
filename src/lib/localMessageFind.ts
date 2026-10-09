@@ -9,8 +9,9 @@ function fold(text: string): string {
 
 /** Pure, local-only search over the currently displayed conversation. */
 export function findLocalMessages(messages: readonly ChatMessage[], query: string): number[] {
-  const terms = fold(query.slice(0, MAX_QUERY_CHARS)).trim().split(/\s+/u).filter(Boolean).slice(0, MAX_TERMS)
-  if (terms.length === 0) return []
+  if (query.length > MAX_QUERY_CHARS) return []
+  const terms = fold(query).trim().split(/\s+/u).filter(Boolean)
+  if (terms.length === 0 || terms.length > MAX_TERMS) return []
   const indices: number[] = []
   messages.forEach((message, index) => {
     const content = fold(message.content)
@@ -57,5 +58,22 @@ export function shouldOpenConversationFindShortcut(event: {
   return event.key.toLocaleLowerCase() === 'f'
     && Boolean(event.ctrlKey) !== Boolean(event.metaKey)
     && Boolean(event.shiftKey) && !event.altKey && !event.isComposing
+    && event.keyCode !== 229 && !event.repeat
+}
+
+/** Only activate sidebar search for plain Ctrl/Command K, not IME or modified keys. */
+export function shouldOpenHistorySearchShortcut(event: {
+  key: string
+  ctrlKey?: boolean
+  metaKey?: boolean
+  shiftKey?: boolean
+  altKey?: boolean
+  isComposing?: boolean
+  keyCode?: number
+  repeat?: boolean
+}): boolean {
+  return event.key.toLocaleLowerCase() === 'k'
+    && Boolean(event.ctrlKey) !== Boolean(event.metaKey)
+    && !event.shiftKey && !event.altKey && !event.isComposing
     && event.keyCode !== 229 && !event.repeat
 }

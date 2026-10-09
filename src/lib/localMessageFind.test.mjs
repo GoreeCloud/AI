@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction, shouldOpenConversationFindShortcut } from './localMessageFind.ts'
+import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction, shouldOpenConversationFindShortcut, shouldOpenHistorySearchShortcut } from './localMessageFind.ts'
 const messages = [
   {role: 'user', content: 'A résumé about project planning'},
   {role: 'assistant', content: 'The local plan uses Qwen for coding.'},
@@ -83,4 +83,28 @@ test('normal browser Find and composing or modified keys stay native', () => {
     { key: 'f', ctrlKey: true, shiftKey: true, repeat: true },
     { key: 'k', ctrlKey: true, shiftKey: true },
   ]) assert.equal(shouldOpenConversationFindShortcut(event), false)
+})
+
+test('message find rejects overlong queries without truncation', () => {
+  const rows = [{role: 'user', content: 'planning'}]
+  assert.deepEqual(findLocalMessages(rows, 'planning'), [0])
+  assert.deepEqual(findLocalMessages(rows, 'planning' + ' '.repeat(113)), [])
+})
+test('message find rejects seventeenth search term instead of dropping it', () => {
+  const rows = [{role: 'user', content: 'plan'}]
+  assert.deepEqual(findLocalMessages(rows, Array(16).fill('plan').join(' ')), [0])
+  assert.deepEqual(findLocalMessages(rows, Array(17).fill('plan').join(' ')), [])
+})
+test('history shortcut respects modal, browser and composition key ownership', () => {
+  assert.equal(shouldOpenHistorySearchShortcut({ key: 'k', ctrlKey: true }), true)
+  assert.equal(shouldOpenHistorySearchShortcut({ key: 'K', metaKey: true }), true)
+  for (const event of [
+    {key:'k'}, {key:'k', ctrlKey:true, shiftKey:true},
+    {key:'k', ctrlKey:true, altKey:true},
+    {key:'k', ctrlKey:true, metaKey:true},
+    {key:'k', ctrlKey:true, repeat:true},
+    {key:'k', ctrlKey:true, isComposing:true},
+    {key:'k', ctrlKey:true, keyCode:229},
+    {key:'f', ctrlKey:true}
+  ]) assert.equal(shouldOpenHistorySearchShortcut(event), false)
 })
