@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Non-destructive historical edits and regeneration (Draft candidate)
+
+- Moved earlier user-message edits and AI-response regeneration to new child conversations rather than overwriting later source messages.
+- Added original-message lineage, preservation of source draft in tab-only memory, and role/size validation before dispatch, with accessible action labels and explicit dialog warning.
+- Added focused immutable helper tests. Target-browser, real-model, recovery, Glaze and privacy/security acceptance remain pending.
+
 ## 2026-10-09 — Delete-time privacy and navigation safety (Draft candidate)
 
 - Clear an erased conversation's session-only unsent draft on successful deletion; prevent delayed delete completions from resetting a newer conversation selection.
