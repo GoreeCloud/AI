@@ -206,9 +206,17 @@ export default function App() {
   async function ensureConversation(nextMessages: ChatMessage[]) {
     if (conversationId) return conversationId
     const epoch = generationEpochRef.current.value()
+    const firstMessages = stored(nextMessages)
+    const firstPrompt = firstMessages.find((message) => message.role === 'user')?.content.trim()
     return prepareFirstConversation({
-      create: () => createConversation({ model: selectedModel, workspaceId: selectedWorkspaceId }),
-      persist: (id) => persist(id, nextMessages),
+      create: () => createConversation({
+        model: selectedModel,
+        workspaceId: selectedWorkspaceId,
+        title: firstPrompt?.slice(0, 72) || 'New conversation',
+        messages: firstMessages,
+      }),
+      expectedMessages: firstMessages,
+      afterCreate: refreshHistory,
       isCurrent: () => generationEpochRef.current.isCurrent(epoch),
       select: (id) => setConversationId(id),
     })
