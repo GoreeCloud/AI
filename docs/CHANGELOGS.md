@@ -1,5 +1,12 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Idempotent first-chat retry (Draft candidate)
+
+- Add a browser-tab-only, random first-create request ID retained on manual retry for an unchanged prompt and navigation epoch. Clear it after successful selection; modified prompts or new navigation get new IDs.
+- Validate and persist that ID with the canonical create-input SHA-256 signature; replaying the same request returns the existing conversation, while key reuse for different content fails with HTTP 409.
+- Keep internal create request IDs/signatures out of list, get, create and update API payloads; old unkeyed conversation creation remains supported.
+- Added server persisted-store, replay/conflict, key validation and client lifecycle regression tests. Tab reload, real network/host, independent privacy/security, Glaze and nine-system acceptance remain open.
+
 ## 2026-10-09 — Atomic first-prompt creation (Draft candidate)
 
 - Save bounded initial messages in one server-side conversation-create store operation, eliminating the follow-on first-prompt PATCH for the updated new-chat client path.

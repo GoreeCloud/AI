@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Idempotent first-prompt retry (Draft candidate)
+
+- A first-chat POST can include a validated random request ID. The backend retains its SHA-256 payload signature with the record and returns the existing conversation on a matching replay; different content under that ID returns a conflict.
+- This handles a lost response within one browser tab when the same unchanged draft is retried; the tab does not persist the token to disk and does not issue a speculative delete. Updated conversations can replay but acknowledgement may require opening history.
+- Tests cover durable duplicate prevention, mismatch rejection, legacy behavior, response metadata minimization, and temporary token lifetime. Real-browser timeout/fault and cross-restart consumer acceptance remain pending.
+
 ## Atomic first-message persistence and acknowledgement (Draft candidate)
 
 - Initial messages are validated and saved in the same serialized backend create mutation as the new conversation, replacing the separate create-then-PATCH sequence for the new-chat prompt.

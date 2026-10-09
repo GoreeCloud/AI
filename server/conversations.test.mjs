@@ -63,3 +63,19 @@ test('rejects malformed or duplicate persisted conversation state', () => {
   assert.equal(validateConversationStore({ version: 2, conversations: [storedConversation] }), false)
   assert.equal(validateConversationStore({ version: 1, conversations: [storedConversation, { ...storedConversation }] }), false)
 })
+
+
+test('opt-in create key requires a bounded first user message', () => {
+  assert.equal(validateConversationCreateInput({ messages:[{role:'user',content:'Hello'}], clientRequestId:id }),true)
+  assert.equal(validateConversationCreateInput({clientRequestId:id}),false)
+  assert.equal(validateConversationCreateInput({clientRequestId:id,messages:[]}),false)
+  assert.equal(validateConversationCreateInput({clientRequestId:id,messages:[{role:'assistant',content:'hello'}]}),false)
+  assert.equal(validateConversationCreateInput({clientRequestId:'invalid',messages:[{role:'user',content:'hello'}]}),false)
+  assert.equal(validateStoredConversation({...storedConversation,clientRequestId:id}),false)
+  const keyed={...storedConversation,clientRequestId:id,clientRequestSignature:'a'.repeat(64)}
+  assert.equal(validateStoredConversation(keyed),true)
+  assert.equal(validateStoredConversation({...keyed,clientRequestSignature:'bad'}),false)
+  assert.equal(validateConversationStore({version:1,conversations:[
+    keyed,{...keyed,id:'223e4567-e89b-12d3-a456-426614174000'},
+  ]}),false)
+})

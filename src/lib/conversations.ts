@@ -24,6 +24,7 @@ interface CreateConversationInput {
   parentConversationId?: string | null
   parentMessageIndex?: number | null
   messages?: ChatMessage[]
+  clientRequestId?: string
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
