@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — First-conversation save-before-select (Draft candidate)
+
+- Delay selecting a newly created chat until its first message batch has been saved and the original navigation epoch remains current.
+- Save failures preserve the unsent prompt and previously selected context; stale create/save completions cannot adopt an outdated chat.
+- Add focused asynchronous tests for success, creation failure, save failure, and two navigation races. Browser/network-fault, runtime, Glaze and privacy/security acceptance remain pending.
+
 ## 2026-10-09 — Single-flight retry and manual branch (Draft candidate)
 
 - Added synchronous preparation lock for Retry and Branch here, guarding duplicate clicks, error recovery and stale child selection.

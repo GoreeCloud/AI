@@ -30,6 +30,9 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Saving the first prompt (Draft source):** When sending a prompt in a new conversation, GoreeCloud AI creates its conversation record and saves the first message before switching the selected chat. If initial save fails, the unsent draft and existing context remain available for another attempt. Switching conversations during an in-flight first save cannot let the older operation reclaim the selection. This protection still awaits real-browser/network failure and platform acceptance.
+
+
 **Retry and Branch safeguards (Draft source):** Rapid repeated Retry or Branch here clicks are blocked by an in-memory preparation lock until the first operation completes. Create/save errors are shown without discarding the source draft. A late branch completion cannot switch away from a newer selected conversation. Real-browser, Ollama, accessibility, privacy/security and platform acceptance are still pending.
 
 

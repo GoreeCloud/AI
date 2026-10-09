@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Safe first-conversation selection after persistence (Draft candidate)
+
+- For a new chat, initial messages are saved before the new conversation is selected; creation or persistence failure cannot prematurely replace the selected UI conversation.
+- The original navigation epoch is checked after creation and again after persistence, suppressing stale late selection. The unsent composer draft remains available for retry if first persistence fails.
+- Five focused asynchronous helper tests cover successful operation, failed creation/save and navigation during each stage. Representative browser/network, target-host model, privacy/security and Glaze/platform review remain outstanding.
+
 ## Single-flight retry and manual branching (Draft candidate)
 
 - Retry response and Branch here synchronously reserve the same ref-backed preparation gate before awaiting a network operation. This blocks a rapid second attempt before React's next render.
