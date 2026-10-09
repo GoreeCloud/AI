@@ -15,7 +15,9 @@ function normalizeSearch(value: string): string {
 
 /** All query words must match visible summary fields; no message-body indexing. */
 export function historyMatches(query: string, fields: readonly string[]): boolean {
+  if (query.length > 120) return false
   const terms = normalizeSearch(query).trim().split(/\s+/u).filter(Boolean)
+  if (terms.length > 16) return false
   if (!terms.length) return true
   const text = fields.map(normalizeSearch).join(' ')
   return terms.every((term) => text.includes(term))
