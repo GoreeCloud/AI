@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Bot, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
+import { AlertCircle, Bot, CheckCircle2, ChevronDown, ChevronUp, Clock, CornerDownLeft, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { CopyMessageButton } from './components/CopyMessageButton'
 import { CopyTranscriptButton } from './components/CopyTranscriptButton'
@@ -15,6 +15,7 @@ import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction, shouldOpen
 import { buildPortableTranscript, portableFileName, type PortableFormat } from './lib/portableTranscript'
 import { summarizeLocalConversation } from './lib/localConversationOutline'
 import { summarizeLocalTranscript } from './lib/localTranscriptMetrics'
+import { appendPreviousPrompt, composerDraftError, MAX_COMPOSER_CHARS } from './lib/composerDraft'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -62,6 +63,7 @@ export default function App() {
   const [dialog, setDialog] = useState<DialogState>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [composerError, setComposerError] = useState<string | null>(null)
+  const [composerNotice, setComposerNotice] = useState<string | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
   const [isChangingSelection, setIsChangingSelection] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
@@ -269,6 +271,8 @@ export default function App() {
     event.preventDefault()
     const text = prompt.trim()
     if (!text || !selectedModel || isGenerating || preparingRef.current || selectionChangeRef.current) return
+    const validationError = composerDraftError(text)
+    if (validationError) { setComposerError(validationError); return }
     const epoch = generationEpochRef.current.value()
     preparingRef.current = true
     setIsPreparing(true)
@@ -287,6 +291,16 @@ export default function App() {
       preparingRef.current = false
       setIsPreparing(false)
     }
+  }
+
+  function reusePrompt(previous: string) {
+    if (isGenerating || isPreparing || isChangingSelection) return
+    const result = appendPreviousPrompt(prompt, previous)
+    if (result.error) { setComposerError(result.error); return }
+    setPrompt(result.draft)
+    setComposerError(null)
+    setComposerNotice('Previous prompt added to your unsent draft. Review and send when ready.')
+    composerRef.current?.focus()
   }
 
   function stopGeneration() { controllerRef.current?.abort() }
@@ -356,7 +370,7 @@ export default function App() {
     anchor.remove()
     URL.revokeObjectURL(url)
   }
-  function newConversation() { generationEpochRef.current.invalidate(); conversationLoadRef.current += 1; controllerRef.current?.abort(); controllerRef.current = null; setIsGenerating(false); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setComposerError(null); setRetryMessages(null); setFollowOutput(true); setSidebarOpen(false); resetConversationFind() }
+  function newConversation() { generationEpochRef.current.invalidate(); conversationLoadRef.current += 1; controllerRef.current?.abort(); controllerRef.current = null; setIsGenerating(false); setConversationId(null); setMessages([welcome]); setPrompt(''); setGenerationError(null); setComposerError(null); setComposerNotice(null); setRetryMessages(null); setFollowOutput(true); setSidebarOpen(false); resetConversationFind() }
 
   async function openConversation(id: string) {
     generationEpochRef.current.invalidate()
@@ -375,6 +389,7 @@ export default function App() {
       setSelectedWorkspaceId(conversation.workspaceId ?? null)
       setGenerationError(null)
       setRetryMessages(null)
+      setComposerNotice(null)
       setFollowOutput(true)
       setSidebarOpen(false)
       resetConversationFind()
@@ -631,12 +646,12 @@ export default function App() {
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
-        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
+        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
         {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
 
-      <div className="composer-wrap"><form className="composer" onSubmit={submitPrompt}><textarea ref={composerRef} value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (shouldSubmitComposerKey(event.nativeEvent)) { event.preventDefault(); if (!isChangingSelection) event.currentTarget.form?.requestSubmit() } }} placeholder={runtimeState === 'offline' ? 'Retry the local runtime or continue when it reconnects…' : runtimeState === 'no-models' ? 'Install a local model to start chatting…' : 'Message GoreeCloud AI'} rows={1}/><div className="composer-toolbar"><div className="composer-tools"><input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={(event) => void attachFiles(event.target.files)}/><button type="button" className="tool-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} aria-label="Attach file"><Paperclip size={18}/></button><button type="button" className="tool-chip" disabled title="External research is not connected in this Development build"><Globe2 size={16}/>Research</button></div>{isGenerating ? <button type="button" className="send-button" onClick={stopGeneration} aria-label="Stop generation"><Square size={17} fill="currentColor"/></button> : <button type="submit" className="send-button" disabled={!prompt.trim() || !selectedModel || isPreparing || isChangingSelection} aria-label={isPreparing ? 'Saving conversation before generation' : 'Send message'}><Send size={17}/></button>}</div></form>{composerError && <p className="composer-error" role="alert">{composerError}</p>}<p className="composer-note">{isUploading ? 'Staging attachment for Wardveil verification…' : runtimeState === 'no-models' ? 'No local Ollama models were discovered. Install an approved model, then refresh the model list.' : 'Local by default. External research is disclosed through Privacy Shield.'}</p></div>
+      <div className="composer-wrap"><form className="composer" onSubmit={submitPrompt}><textarea ref={composerRef} value={prompt} onChange={(event) => { setPrompt(event.target.value); setComposerNotice(null) }} onKeyDown={(event) => { if (shouldSubmitComposerKey(event.nativeEvent)) { event.preventDefault(); if (!isChangingSelection) event.currentTarget.form?.requestSubmit() } }} placeholder={runtimeState === 'offline' ? 'Retry the local runtime or continue when it reconnects…' : runtimeState === 'no-models' ? 'Install a local model to start chatting…' : 'Message GoreeCloud AI'} rows={1}/><div className="composer-toolbar"><div className="composer-tools"><input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={(event) => void attachFiles(event.target.files)}/><button type="button" className="tool-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} aria-label="Attach file"><Paperclip size={18}/></button><button type="button" className="tool-chip" disabled title="External research is not connected in this Development build"><Globe2 size={16}/>Research</button></div>{isGenerating ? <button type="button" className="send-button" onClick={stopGeneration} aria-label="Stop generation"><Square size={17} fill="currentColor"/></button> : <button type="submit" className="send-button" disabled={!prompt.trim() || prompt.trim().length > MAX_COMPOSER_CHARS || !selectedModel || isPreparing || isChangingSelection} aria-label={isPreparing ? 'Saving conversation before generation' : 'Send message'}><Send size={17}/></button>}</div></form>{composerError && <p className="composer-error" role="alert">{composerError}</p>}{composerNotice && <p className="composer-reuse-note" role="status">{composerNotice}</p>}{prompt.length >= 240_000 && <p className={`composer-count${prompt.trim().length > MAX_COMPOSER_CHARS ? ' is-over-limit' : ''}`} role="status" aria-live="polite">Draft size: {prompt.trim().length.toLocaleString()} / {MAX_COMPOSER_CHARS.toLocaleString()} characters (not tokens). {prompt.trim().length > MAX_COMPOSER_CHARS ? 'Shorten the message to enable Send.' : ''}</p>}<p className="composer-note">{isUploading ? 'Staging attachment for Wardveil verification…' : runtimeState === 'no-models' ? 'No local Ollama models were discovered. Install an approved model, then refresh the model list.' : 'Local by default. External research is disclosed through Privacy Shield.'}</p></div>
     </main>
 
     <aside className={`context-panel ${contextOpen ? 'is-open' : ''}`} aria-label="Conversation context"><div className="context-heading"><div><strong>Context</strong><span>Conversation resources</span></div><button className="icon-button" onClick={() => setContextOpen(false)} aria-label="Close context panel"><X size={19}/></button></div>

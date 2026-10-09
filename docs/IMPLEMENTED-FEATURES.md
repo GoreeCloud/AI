@@ -6,6 +6,12 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
+## Non-destructive prompt reuse and bounded composer preflight (Draft candidate)
+
+- The user can reuse a previously sent user message in the composer without changing persisted messages or automatically sending a model request. Existing draft text is preserved, and reuse is prevented during active generation/selection operations.
+- The UI checks the 250,000-character backend message-size ceiling before submission, provides a near-limit counter, and rejects overlong prompt reuse without truncation.
+- Focused pure-function tests cover draft preservation, exact limits, empty content, multiline content, Unicode code-unit semantics, and rejection. Browser, accessibility, Glaze, IME, security/privacy, and production acceptance remain open.
+
 ## Role-scoped finder and loaded transcript size (Draft branch candidate)
 
 - The active-conversation finder can limit results to the user or AI author while preserving the query-size bounds and rejecting non-user/assistant records; a scope change resets the active result cursor.

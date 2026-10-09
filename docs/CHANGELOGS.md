@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Non-destructive prompt reuse and bounded composer (Draft candidate)
+
+- Added a local action to reuse a previous user prompt in an unsent composer without overwriting existing draft text or invoking a model.
+- Added frontend 250,000-character preflight and a near-limit indicator to match the existing backend per-message ceiling; no silent truncation.
+- Added focused helper tests and user manual updates. Exact-head CI, independent accessibility, browser/IME, Glaze, privacy, and runtime acceptance must be evaluated for this Draft branch.
+
 ## 2026-10-09 — Query integrity and dialog keyboard isolation (Draft PR #23)
 
 - Active-conversation find now fails closed on queries over 120 characters or 16 terms, rather than silently ignoring excess content and displaying misleading partial matches.

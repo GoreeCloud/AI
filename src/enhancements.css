@@ -78,6 +78,12 @@
 .transcript-format select { max-width: 105px; border: 1px solid var(--border); color: var(--text); background: var(--panel, rgba(0,0,0,.18)); border-radius: 9px; padding: 7px 4px; font: inherit; font-size: 12px; }
 @media (max-width: 700px) { .conversation-find { padding: 8px 12px; } .transcript-format select { max-width: 75px; } }
 
+/* Reused user prompts remain drafts. Oversized messages are never sent. */
+.composer-reuse-note, .composer-count { width: min(860px, 100%); margin: 6px auto 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.composer-reuse-note { color: var(--text); }
+.composer-count.is-over-limit { color: var(--danger); }
+.message-actions button:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+
 /* Local-only conversation outline: keyboard-accessible direct navigation, bounded to recent prompts. */
 .conversation-outline .outline-content { min-width: 0; width: 100%; }
 .outline-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; max-height: 280px; overflow-y: auto; }

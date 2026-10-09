@@ -38,6 +38,10 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 **Finder keyboard safety:** Enter and Shift+Enter navigate loaded-message matches, and Escape closes the finder without cancelling an active response. While an input method is composing, Enter/Escape are reserved for the IME. Creating a branch resets the prior conversation's finder state; no cross-conversation search is performed.
 
+**Reuse previous prompts (Draft source):** From a user message, choose the Reuse prompt action to add the full previous user text to your unsent composer draft. It does not edit the saved transcript, replace text you have already typed, submit a request, or call a model. Existing drafts are retained and separated from reused text by a blank line. Reuse is disabled while generation/preparation/selection changes are in progress; an over-limit reuse is rejected with a visible error and does not alter the draft.
+
+**Draft message limit (Draft source):** The composer rejects a message above 250,000 UTF-16 characters before sending, consistent with the backend per-message limit. A character counter appears near the limit. This is a data-size guard, not a token estimate, context-window calculation, or a promise that any model can process the maximum message.
+
 **Role-scoped conversation search (Draft source):** In the loaded-message finder, select All messages, Your messages, or AI responses to narrow matching without searching other conversations. Changing the role resets the active match position; navigation uses only matches within that selected role. Finder query bounds, IME key ownership, and local-only processing remain unchanged.
 
 **Loaded transcript size (Draft source):** Context shows Unicode code-point counts for the loaded user and AI message bodies, excluding the welcome greeting and empty streaming placeholders. This summary stays in browser memory; it is **not** a model-token estimate, a context-window budget, a record of server storage, or a cross-conversation index.
