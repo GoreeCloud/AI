@@ -7,6 +7,10 @@ This file contains planned, in-progress, partial, blocked, deferred and otherwis
 
 ## In progress
 
+### Conversation search and transcript export acceptance
+
+The current Draft PR #15 source adds find-in-current-conversation and Markdown, TXT and JSON downloads. The remaining acceptance work includes browser and screen-reader testing, IME/keyboard handling, downloaded file integrity/privacy, independent review, and Glaze/platform conformance. The exports are not governed Everkeep backups or restore/import capabilities.
+
 ### Approved model routing integration
 
 Connect approved model-role routing to the backend only after the required trust and runtime boundaries are ready. Existing Development source includes selector, preflight, protected local policy/discovery adapters and isolated diagnostics; the current manual chat behavior remains separate.
