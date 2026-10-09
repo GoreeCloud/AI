@@ -42,3 +42,20 @@ export function findKeyboardAction(event: {
   if (event.key === 'Enter') return event.shiftKey ? 'previous' : 'next'
   return null
 }
+
+/** App shortcut for loaded-message find; browser Find and composition remain native. */
+export function shouldOpenConversationFindShortcut(event: {
+  key: string
+  ctrlKey?: boolean
+  metaKey?: boolean
+  shiftKey?: boolean
+  altKey?: boolean
+  isComposing?: boolean
+  keyCode?: number
+  repeat?: boolean
+}): boolean {
+  return event.key.toLocaleLowerCase() === 'f'
+    && Boolean(event.ctrlKey) !== Boolean(event.metaKey)
+    && Boolean(event.shiftKey) && !event.altKey && !event.isComposing
+    && event.keyCode !== 229 && !event.repeat
+}

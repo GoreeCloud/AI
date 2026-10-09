@@ -13,6 +13,10 @@ Cross-platform web, desktop (Linux/Windows/macOS), and mobile (Android/iOS) clie
 
 ## In progress
 
+### Finder shortcut and history-search consumer acceptance
+
+Verify Ctrl/Command+Shift+F, native browser Ctrl/Command+F, Ctrl/Command+K saved-conversation search, focus and modal isolation, IME/composition behavior, search limits and screen-reader announcements in representative browsers. No cross-conversation message indexing, new server authorization, or production acceptance is implied.
+
 ### Transcript clipboard privacy and accessibility acceptance
 
 Verify explicit-copy affordance, permission failures, keyboard navigation, format fidelity, private clipboard disclosures and screen-reader feedback on supported browsers and target devices. Clipboard copying is not authenticated sharing, safe transmission, restore or Everkeep backup.

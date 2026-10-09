@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction } from './localMessageFind.ts'
+import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction, shouldOpenConversationFindShortcut } from './localMessageFind.ts'
 const messages = [
   {role: 'user', content: 'A résumé about project planning'},
   {role: 'assistant', content: 'The local plan uses Qwen for coding.'},
@@ -64,4 +64,23 @@ test('finder ignores browser shortcuts, repeated keys, and ordinary text', () =>
     { key: 'Escape', repeat: true },
     { key: 'x' },
   ]) assert.equal(findKeyboardAction(candidate), null)
+})
+
+test('Ctrl or Command Shift F starts active conversation find', () => {
+  assert.equal(shouldOpenConversationFindShortcut({ key: 'f', ctrlKey: true, shiftKey: true }), true)
+  assert.equal(shouldOpenConversationFindShortcut({ key: 'F', metaKey: true, shiftKey: true }), true)
+})
+
+test('normal browser Find and composing or modified keys stay native', () => {
+  for (const event of [
+    { key: 'f', ctrlKey: true },
+    { key: 'f', metaKey: true },
+    { key: 'f', shiftKey: true },
+    { key: 'f', ctrlKey: true, shiftKey: true, altKey: true },
+    { key: 'f', ctrlKey: true, metaKey: true, shiftKey: true },
+    { key: 'f', ctrlKey: true, shiftKey: true, isComposing: true },
+    { key: 'f', ctrlKey: true, shiftKey: true, keyCode: 229 },
+    { key: 'f', ctrlKey: true, shiftKey: true, repeat: true },
+    { key: 'k', ctrlKey: true, shiftKey: true },
+  ]) assert.equal(shouldOpenConversationFindShortcut(event), false)
 })

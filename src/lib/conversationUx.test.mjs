@@ -54,3 +54,9 @@ test('IME composition and modifier keys never submit the composer', () => {
     { ...plain, key: 'a' },
   ]) assert.equal(shouldSubmitComposerKey(candidate), false)
 })
+
+test('history search query limit is fail-closed', () => {
+  assert.equal(historyMatches('q'.repeat(121), ['q']), false)
+  assert.equal(historyMatches(Array(17).fill('a').join(' '), ['a']), false)
+  assert.equal(historyMatches('resume qwen', ['Résumé', 'Qwen']), true)
+})
