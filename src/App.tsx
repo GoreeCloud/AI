@@ -18,6 +18,7 @@ import { summarizeLocalTranscript } from './lib/localTranscriptMetrics'
 import { appendPreviousPrompt, composerDraftError, MAX_COMPOSER_CHARS } from './lib/composerDraft'
 import { SessionConversationDrafts, shouldLeaveDeletedConversation } from './lib/sessionDrafts'
 import { editableDialogSourceIsCurrent } from './lib/dialogOwnership'
+import { runExclusivePreparation } from './lib/exclusivePreparation'
 import { editedMessageBranch, regenerationBranch } from './lib/responseBranches'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
@@ -657,36 +658,55 @@ export default function App() {
   }
 
   async function retryGeneration() {
-    if (!retryMessages || isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
-    const id = await ensureConversation(retryMessages)
-    await generate(retryMessages, id)
+    const request = retryMessages
+    if (!request || isGenerating || isPreparing || isLoadingConversation || isChangingSelection || selectionChangeRef.current || preparingRef.current) return
+    const epoch = generationEpochRef.current.value()
+    setComposerError(null)
+    try {
+      await runExclusivePreparation(preparingRef, setIsPreparing, async () => {
+        const id = await ensureConversation(request)
+        if (!generationEpochRef.current.isCurrent(epoch)) return
+        await generate(request, id)
+      })
+    } catch (error) {
+      if (generationEpochRef.current.isCurrent(epoch))
+        setComposerError(error instanceof Error ? `Retry failed: ${error.message}` : 'Could not retry this response.')
+    }
   }
 
   async function branchFrom(index: number) {
-    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
-    const epoch = generationEpochRef.current.value()
+    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection || selectionChangeRef.current || preparingRef.current) return
     const branchMessages = stored(messages.slice(0, index + 1))
-    if (!branchMessages.length) return
-    const created = await createConversation({
-      model: selectedModel,
-      workspaceId: selectedWorkspaceId,
-      title: `Branch · ${branchMessages.find((message) => message.role === 'user')?.content.slice(0, 55) || 'Conversation'}`,
-      parentConversationId: conversationId,
-      parentMessageIndex: index,
-    })
-    await persist(created.id, branchMessages, selectedModel, created.title)
-    if (!generationEpochRef.current.isCurrent(epoch)) return
-    generationEpochRef.current.invalidate()
-    conversationLoadRef.current += 1
-    sessionDraftsRef.current.remember(conversationId, prompt)
-    setConversationId(created.id)
-    setMessages(branchMessages)
-    setPrompt('')
-    setComposerNotice(null)
-    setGenerationError(null)
-    setRetryMessages(null)
-    setSidebarOpen(false)
-    resetConversationFind()
+    if (!branchMessages.length || !selectedModel) return
+    const epoch = generationEpochRef.current.value()
+    setComposerError(null)
+    try {
+      await runExclusivePreparation(preparingRef, setIsPreparing, async () => {
+        const created = await createConversation({
+          model: selectedModel,
+          workspaceId: selectedWorkspaceId,
+          title: `Branch · ${branchMessages.find((message) => message.role === 'user')?.content.slice(0, 55) || 'Conversation'}`,
+          parentConversationId: conversationId,
+          parentMessageIndex: index,
+        })
+        await persist(created.id, branchMessages, selectedModel, created.title)
+        if (!generationEpochRef.current.isCurrent(epoch)) return
+        generationEpochRef.current.invalidate()
+        conversationLoadRef.current += 1
+        sessionDraftsRef.current.remember(conversationId, prompt)
+        setConversationId(created.id)
+        setMessages(branchMessages)
+        setPrompt('')
+        setComposerNotice(null)
+        setGenerationError(null)
+        setRetryMessages(null)
+        setSidebarOpen(false)
+        resetConversationFind()
+      })
+    } catch (error) {
+      if (generationEpochRef.current.isCurrent(epoch))
+        setComposerError(error instanceof Error ? `Branch could not be saved: ${error.message}` : 'Branch could not be saved.')
+    }
   }
 
   async function attachFiles(fileList: FileList | null) {
