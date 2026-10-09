@@ -1,5 +1,10 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Non-destructive history refresh after uncertain first-create failure (Draft candidate)
+
+- When a new-chat submission fails before selection, preserve the unsent composer text, show an accessible notice that the original request may already be saved, and refresh conversation history without automatically selecting a chat or sending another request.
+- The existing history-error surface reports a failed refresh. Real-browser timeout, missing-response and keyboard/screen-reader acceptance remain pending.
+
 ## 2026-10-09 — Progress-aware replay restoration (Draft candidate)
 
 - Recognize saved replies appended after the original first prompt on a matching idempotent replay; validate bounded complete messages and exact original prefix.
