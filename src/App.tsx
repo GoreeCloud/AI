@@ -11,7 +11,7 @@ import { resolveModelRoles, roleForModel, type ModelRoleId } from './lib/modelRo
 import { createWorkspace, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from './lib/workspaces'
 import { listFiles, removeFile, uploadFile, type StoredFile } from './lib/files'
 import { ConversationEpoch, buildMarkdownTranscript, exportFileName, historyMatches, shouldSubmitComposerKey } from './lib/conversationUx'
-import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction, shouldOpenConversationFindShortcut } from './lib/localMessageFind'
+import { findLocalMessages, nextLocalMatchCursor, findKeyboardAction, shouldOpenConversationFindShortcut, shouldOpenHistorySearchShortcut } from './lib/localMessageFind'
 import { buildPortableTranscript, portableFileName, type PortableFormat } from './lib/portableTranscript'
 import { summarizeLocalConversation } from './lib/localConversationOutline'
 
@@ -158,7 +158,7 @@ export default function App() {
         setConversationFindOpen(true)
         return
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
+      if (!dialog && shouldOpenHistorySearchShortcut(event)) {
         event.preventDefault()
         focusHistorySearch()
         return
