@@ -6,7 +6,14 @@
 
 This file records capabilities that exist in the current repository source. An entry here does not by itself prove deployment, target-environment interoperability, production acceptance, or Anchor qualification. Those states require their own exact-revision evidence.
 
-## Safe first-conversation selection after persistence (Draft candidate)
+## Atomic first-message persistence and acknowledgement (Draft candidate)
+
+- Initial messages are validated and saved in the same serialized backend create mutation as the new conversation, replacing the separate create-then-PATCH sequence for the new-chat prompt.
+- The client checks the returned record ID and exact initial message contents before selecting that conversation, with navigation-epoch guards before/after creation and following history refresh.
+- Empty conversation creation for manual branches is retained. A lost HTTP response is not proof the server failed; no speculative automatic deletion is attempted, and idempotent retry remains a future requirement.
+- Server validation/persistence and client race tests exist in this Draft. Representative browser/model, accessibility, Glaze, independent security/privacy and applicable nine-system acceptance are still outstanding.
+
+## Safe first-conversation selection after persistence (Historical draft; superseded by atomic create)
 
 - For a new chat, initial messages are saved before the new conversation is selected; creation or persistence failure cannot prematurely replace the selected UI conversation.
 - The original navigation epoch is checked after creation and again after persistence, suppressing stale late selection. The unsent composer draft remains available for retry if first persistence fails.
