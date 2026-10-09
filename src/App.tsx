@@ -16,7 +16,7 @@ import { buildPortableTranscript, portableFileName, type PortableFormat } from '
 import { summarizeLocalConversation } from './lib/localConversationOutline'
 import { summarizeLocalTranscript } from './lib/localTranscriptMetrics'
 import { appendPreviousPrompt, composerDraftError, MAX_COMPOSER_CHARS } from './lib/composerDraft'
-import { SessionConversationDrafts } from './lib/sessionDrafts'
+import { SessionConversationDrafts, shouldLeaveDeletedConversation } from './lib/sessionDrafts'
 
 const welcome: ChatMessage = { role: 'assistant', content: 'Welcome to GoreeCloud AI. Start a private conversation with a local model.' }
 const stored = (items: ChatMessage[]) => items.filter((message) => message !== welcome)
@@ -360,6 +360,7 @@ export default function App() {
   }
 
   function exportConversation() {
+    if (isLoadingConversation) return
     const snapshot = createTranscriptSnapshot()
     if (!snapshot) return
     const mime = exportFormat === 'json' ? 'application/json;charset=utf-8'
@@ -424,7 +425,6 @@ export default function App() {
       setSelectedWorkspaceId(conversation.workspaceId ?? null)
       setGenerationError(null)
       setRetryMessages(null)
-      setComposerNotice(null)
       setFollowOutput(true)
       setSidebarOpen(false)
       resetConversationFind()
@@ -435,7 +435,7 @@ export default function App() {
     }
   }
   async function changeModel(model: string) {
-    if (isGenerating || preparingRef.current || selectionChangeRef.current || model === selectedModel) return
+    if (isGenerating || isLoadingConversation || preparingRef.current || selectionChangeRef.current || model === selectedModel) return
     const epoch = generationEpochRef.current.value()
     selectionChangeRef.current = true
     setIsChangingSelection(true)
@@ -456,7 +456,7 @@ export default function App() {
   }
 
   async function changeWorkspace(workspaceId: string) {
-    if (isGenerating || preparingRef.current || selectionChangeRef.current) return
+    if (isGenerating || isLoadingConversation || preparingRef.current || selectionChangeRef.current) return
     const nextId = workspaceId || null
     const workspace = workspaces.find((item) => item.id === nextId)
     if ((nextId && !workspace) || nextId === selectedWorkspaceId) return
@@ -485,7 +485,7 @@ export default function App() {
   }
 
   async function changeWorkspaceRole(roleId: ModelRoleId) {
-    if (!selectedWorkspace || isGenerating || preparingRef.current || selectionChangeRef.current) return
+    if (!selectedWorkspace || isGenerating || isLoadingConversation || preparingRef.current || selectionChangeRef.current) return
     const epoch = generationEpochRef.current.value()
     selectionChangeRef.current = true
     setIsChangingSelection(true)
@@ -551,7 +551,7 @@ export default function App() {
     }
     if (dialog.kind !== 'edit') return
     const message = messages[dialog.index]
-    if (message?.role !== 'user' || isGenerating) return
+    if (message?.role !== 'user' || isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
     const next = messages.slice(0, dialog.index + 1)
     next[dialog.index] = { role: 'user', content: value }
     setDialog(null)
@@ -561,12 +561,16 @@ export default function App() {
   }
 
   async function confirmDeletion() {
-    if (!dialog) return
+    if (!dialog || isLoadingConversation) return
     if (dialog.kind === 'conversation-delete') {
+      const deletedId = dialog.id
+      const selectionAtStart = conversationLoadRef.current
       setHistoryError(null)
       try {
-        await removeConversation(dialog.id)
-        if (dialog.id === conversationId) newConversation()
+        await removeConversation(deletedId)
+        if (shouldLeaveDeletedConversation(deletedId, conversationId, selectionAtStart, conversationLoadRef.current)) newConversation()
+        // An erased conversation must not retain its unsent browser-tab draft.
+        sessionDraftsRef.current.clear(deletedId)
         await refreshHistory()
         setDialog(null)
       } catch (error) {
@@ -602,7 +606,7 @@ export default function App() {
   }
 
   async function regenerate(index: number) {
-    if (isGenerating || messages[index]?.role !== 'assistant') return
+    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection || messages[index]?.role !== 'assistant') return
     const request = messages.slice(0, index).filter((message) => message.role !== 'assistant' || message.content)
     if (!request.some((message) => message.role === 'user')) return
     const id = await ensureConversation(request)
@@ -610,13 +614,13 @@ export default function App() {
   }
 
   async function retryGeneration() {
-    if (!retryMessages || isGenerating) return
+    if (!retryMessages || isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
     const id = await ensureConversation(retryMessages)
     await generate(retryMessages, id)
   }
 
   async function branchFrom(index: number) {
-    if (isGenerating || isPreparing) return
+    if (isGenerating || isPreparing || isLoadingConversation || isChangingSelection) return
     const epoch = generationEpochRef.current.value()
     const branchMessages = stored(messages.slice(0, index + 1))
     if (!branchMessages.length) return
@@ -643,7 +647,7 @@ export default function App() {
   }
 
   async function attachFiles(fileList: FileList | null) {
-    if (!fileList?.length) return
+    if (!fileList?.length || isLoadingConversation) return
     setFileError(null)
     setIsUploading(true)
     try {
@@ -681,13 +685,13 @@ export default function App() {
     </aside>
 
     <main className="main-column">
-      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models' || isGenerating || isPreparing || isChangingSelection}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => { if (conversationFindOpen) resetConversationFind(); else setConversationFindOpen(true) }} aria-label="Find in current conversation" aria-keyshortcuts="Control+Shift+F Meta+Shift+F" title="Find in current conversation (Ctrl/⌘ Shift F)"><Search size={19}/></button><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><label className="transcript-format"><span className="visually-hidden">Transcript export format</span><select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'md' | PortableFormat)} disabled={!stored(messages).length} aria-label="Transcript export format"><option value="md">Markdown</option><option value="txt">Text</option><option value="json">JSON</option></select></label><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label={`Export conversation as ${exportFormat === 'md' ? 'Markdown' : exportFormat === 'txt' ? 'plain text' : 'JSON'}`} title="Download selected transcript format"><Download size={19}/></button><CopyTranscriptButton key={conversationId ?? 'unsaved'} format={exportFormat} getText={() => createTranscriptSnapshot()?.content ?? ''} disabled={!stored(messages).length}/><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
+      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models' || isGenerating || isPreparing || isChangingSelection || isLoadingConversation}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => { if (conversationFindOpen) resetConversationFind(); else setConversationFindOpen(true) }} aria-label="Find in current conversation" aria-keyshortcuts="Control+Shift+F Meta+Shift+F" title="Find in current conversation (Ctrl/⌘ Shift F)"><Search size={19}/></button><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><label className="transcript-format"><span className="visually-hidden">Transcript export format</span><select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'md' | PortableFormat)} disabled={!stored(messages).length || isLoadingConversation} aria-label="Transcript export format"><option value="md">Markdown</option><option value="txt">Text</option><option value="json">JSON</option></select></label><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length || isLoadingConversation} aria-label={`Export conversation as ${exportFormat === 'md' ? 'Markdown' : exportFormat === 'txt' ? 'plain text' : 'JSON'}`} title="Download selected transcript format"><Download size={19}/></button><CopyTranscriptButton key={conversationId ?? 'unsaved'} format={exportFormat} getText={() => isLoadingConversation ? '' : createTranscriptSnapshot()?.content ?? ''} disabled={!stored(messages).length || isLoadingConversation}/><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
       {conversationFindOpen && <div className="conversation-find" role="search" aria-label="Find text within currently loaded conversation"><Search size={17}/><input ref={conversationFindInputRef} value={conversationFindQuery} maxLength={120} onChange={(event) => { setConversationFindQuery(event.target.value); setConversationFindCursor(-1) }} onKeyDown={(event) => { const action = findKeyboardAction(event.nativeEvent); if (action) { event.preventDefault(); event.stopPropagation(); if (action === 'close') resetConversationFind(); else jumpToConversationMatch(action === 'previous' ? -1 : 1) } }} placeholder="Find messages in this conversation" aria-label="Find messages in this conversation"/><select value={conversationFindRole} onChange={(event) => { setConversationFindRole(event.target.value as LocalMessageRoleFilter); setConversationFindCursor(-1) }} aria-label="Filter search by message author"><option value="all">All messages</option><option value="user">Your messages</option><option value="assistant">AI responses</option></select><span className="conversation-find-count" role="status" aria-live="polite">{conversationFindQuery.trim() ? (conversationFindMatches.length ? `${activeFindCursor < 0 ? 0 : activeFindCursor + 1} of ${conversationFindMatches.length} messages` : 'No matching messages') : 'Search visible messages'}</span><button type="button" className="icon-button" onClick={() => jumpToConversationMatch(-1)} disabled={!conversationFindMatches.length} aria-label="Previous matching message"><ChevronUp size={18}/></button><button type="button" className="icon-button" onClick={() => jumpToConversationMatch(1)} disabled={!conversationFindMatches.length} aria-label="Next matching message"><ChevronDown size={18}/></button><button type="button" className="icon-button" onClick={resetConversationFind} aria-label="Close conversation search"><X size={18}/></button></div>}
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
       <section ref={conversationRef} className="conversation" aria-busy={isGenerating} onScroll={handleConversationScroll}><div className="conversation-inner">
-        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
-        {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating}><RefreshCw size={14}/>Retry</button>}</div>}
+        {messages.map((message, index) => <article tabIndex={-1} ref={(node) => { messageArticleRefs.current[index] = node }} className={`message ${message.role}${conversationFindMatchSet.has(index) ? ' is-find-match' : ''}${activeFindMessage === index ? ' is-find-current' : ''}`} key={`${message.role}-${index}`}><div className="message-avatar" aria-hidden="true">{message.role === 'assistant' ? <img src="/artwork/icon.svg" alt=""/> : <span>Y</span>}</div><div className="message-body"><div className="message-label">{message.role === 'assistant' ? 'GoreeCloud AI' : 'You'}</div><div className="message-content">{message.content ? (message.role === 'assistant' ? <MarkdownMessage content={message.content}/> : message.content) : (isGenerating && index === messages.length - 1 ? <span className="thinking">Thinking locally…</span> : null)}</div>{message.content && message !== welcome && <div className="message-actions"><CopyMessageButton content={message.content}/>{message.role === 'user' && <button type="button" onClick={() => reusePrompt(message.content)} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} title="Add this previous prompt to the unsent draft" aria-label="Reuse this prompt in composer without sending"><CornerDownLeft size={14}/></button>}{message.role === 'user' && <button onClick={() => setDialog({ kind: 'edit', index, value: message.content })} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Edit and resubmit"><Pencil size={14}/></button>}{message.role === 'assistant' && <button onClick={() => void regenerate(index)} disabled={isLoadingConversation || isGenerating || isPreparing || isChangingSelection} aria-label="Regenerate response"><RefreshCw size={14}/></button>}<button onClick={() => void branchFrom(index)} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection} aria-label="Branch conversation here"><GitBranch size={14}/></button></div>}</div></article>)}
+        {generationError && <div className="generation-error"><AlertCircle size={18}/><div><strong>{retryMessages ? 'Generation interrupted' : 'Conversation save warning'}</strong><span>{generationError}</span></div>{retryMessages && <button onClick={() => void retryGeneration()} disabled={isGenerating || isPreparing || isLoadingConversation || isChangingSelection}><RefreshCw size={14}/>Retry</button>}</div>}
         <div ref={conversationEndRef} aria-hidden="true"/>
       </div>{!followOutput && <button type="button" className="jump-latest" onClick={scrollToLatest} aria-label="Jump to latest message" title="Jump to latest message"><ChevronDown size={18}/></button>}</section>
 
@@ -701,7 +705,7 @@ export default function App() {
       <div className="context-card context-card-wide conversation-outline"><span className="context-card-icon"><MessageSquarePlus size={19}/></span><div className="outline-content"><strong>Conversation outline</strong><p>{localOutline.userTurns} user turn{localOutline.userTurns === 1 ? '' : 's'} · {localOutline.assistantTurns} AI response{localOutline.assistantTurns === 1 ? '' : 's'}</p>{localOutline.prompts.length ? <nav aria-label="Jump to a user prompt"><ol className="outline-list">{localOutline.prompts.map((item) => <li key={item.messageIndex}><button type="button" onClick={() => jumpToOutlineMessage(item.messageIndex)} aria-label={`Jump to your message ${item.turnNumber}: ${item.preview}`}><span className="outline-number">{item.turnNumber}</span><span className="outline-preview">{item.preview}</span></button></li>)}</ol>{localOutline.hiddenPrompts > 0 && <p className="outline-note">Showing the latest {localOutline.prompts.length} of {localOutline.userTurns} prompts.</p>}</nav> : <p>No user prompts yet.</p>}</div></div>
       <div className="context-card"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Loaded transcript size</strong><p>{localTranscriptMetrics.totalCharacters.toLocaleString()} text characters · {localTranscriptMetrics.userCharacters.toLocaleString()} yours · {localTranscriptMetrics.assistantCharacters.toLocaleString()} AI. Local Unicode code-point count, not model tokens or maximum context capacity.</p></div></div>
       <div className="context-card"><span className="context-card-icon"><Clock size={19}/></span><div><strong>Conversation state</strong><p>{currentSummary ? `${currentSummary.messageCount} saved message${currentSummary.messageCount === 1 ? '' : 's'} · Updated ${formatSavedTime(currentSummary.updatedAt)} · Created ${formatSavedTime(currentSummary.createdAt)}` : stored(messages).length ? 'Conversation save metadata is refreshing.' : 'This new conversation will be saved after the first message.'}</p></div></div>
-      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{workspaceError || (selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.')}</p>{workspaceError && <button type="button" className="context-retry" onClick={() => void refreshWorkspaces()}><RefreshCw size={13}/>Retry Workspaces</button>}<select className="context-select" value={selectedWorkspaceId ?? ''} disabled={isGenerating || isPreparing || isChangingSelection} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{selectedWorkspace && <label className="context-field"><span>Default model role</span><select className="context-select" value={selectedWorkspace.defaultModelRole} disabled={isGenerating || isPreparing || isChangingSelection} onChange={(event) => void changeWorkspaceRole(event.target.value as ModelRoleId)}>{resolvedRoles.filter((role) => role.conversational).map((role) => <option key={role.id} value={role.id}>{role.name}{role.model ? ` · ${role.model.name}` : ' · no installed match'}</option>)}</select></label>}<div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-rename', id: selectedWorkspace.id, value: selectedWorkspace.name })}><Pencil size={15}/>Rename</button>}{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}{selectedWorkspace && <button className="context-action context-action-icon danger-action" disabled={workspaceFiles.length > 0} onClick={() => setDialog({ kind: 'workspace-delete', id: selectedWorkspace.id, name: selectedWorkspace.name })} aria-label={`Delete Workspace ${selectedWorkspace.name}`} title={workspaceFiles.length > 0 ? 'Remove Workspace files before deleting this Workspace' : 'Delete Workspace'}><Trash2 size={15}/></button>}</div></div></div>
+      <div className="context-card context-card-wide"><span className="context-card-icon"><FileText size={19}/></span><div><strong>Workspace</strong><p>{workspaceError || (selectedWorkspace ? selectedWorkspace.instructions.trim() ? 'Workspace instructions are applied as private system context to each local model request.' : 'This Workspace has no custom instructions yet.' : 'Persistent instructions, files, knowledge, model role, tools, and research preferences.')}</p>{workspaceError && <button type="button" className="context-retry" onClick={() => void refreshWorkspaces()}><RefreshCw size={13}/>Retry Workspaces</button>}<select className="context-select" value={selectedWorkspaceId ?? ''} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} onChange={(event) => void changeWorkspace(event.target.value)}><option value="">No Workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{selectedWorkspace && <label className="context-field"><span>Default model role</span><select className="context-select" value={selectedWorkspace.defaultModelRole} disabled={isGenerating || isPreparing || isChangingSelection || isLoadingConversation} onChange={(event) => void changeWorkspaceRole(event.target.value as ModelRoleId)}>{resolvedRoles.filter((role) => role.conversational).map((role) => <option key={role.id} value={role.id}>{role.name}{role.model ? ` · ${role.model.name}` : ' · no installed match'}</option>)}</select></label>}<div className="context-actions"><button className="context-action" onClick={() => setDialog({ kind: 'workspace', value: '' })}><FolderPlus size={15}/>New Workspace</button>{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-rename', id: selectedWorkspace.id, value: selectedWorkspace.name })}><Pencil size={15}/>Rename</button>}{selectedWorkspace && <button className="context-action" onClick={() => setDialog({ kind: 'workspace-instructions', id: selectedWorkspace.id, value: selectedWorkspace.instructions })}><Pencil size={15}/>{selectedWorkspace.instructions.trim() ? 'Edit instructions' : 'Add instructions'}</button>}{selectedWorkspace && <button className="context-action context-action-icon danger-action" disabled={workspaceFiles.length > 0} onClick={() => setDialog({ kind: 'workspace-delete', id: selectedWorkspace.id, name: selectedWorkspace.name })} aria-label={`Delete Workspace ${selectedWorkspace.name}`} title={workspaceFiles.length > 0 ? 'Remove Workspace files before deleting this Workspace' : 'Delete Workspace'}><Trash2 size={15}/></button>}</div></div></div>
       <div className="context-card context-card-wide"><span className="context-card-icon"><Paperclip size={19}/></span><div><strong>{selectedWorkspace ? 'Workspace files' : 'Unassigned files'}</strong><p>{fileError || (workspaceFiles.length ? `${verifiedWorkspaceFiles.length} verified · ${restrictedWorkspaceFiles.length} restricted. Only Wardveil-clean attachments may become available to AI context.` : 'No files stored here yet.')}</p>{fileError && <button type="button" className="context-retry" onClick={() => void refreshFiles()}><RefreshCw size={13}/>Retry files</button>}{workspaceFiles.length > 0 && <div className="file-list">{workspaceFiles.map((file) => <div className={`file-chip ${file.status}`} key={file.id}><span>{file.name}</span><span className="file-chip-actions"><em>{fileTrustLabel[file.status]}</em><button type="button" className="file-delete-button" onClick={() => setDialog({ kind: 'file-delete', id: file.id, name: file.name })} aria-label={`Delete ${file.name}`} title={`Delete ${file.name}`}><Trash2 size={13}/></button></span></div>)}</div>}</div></div>
     </aside>
 
