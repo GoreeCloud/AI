@@ -6,7 +6,7 @@ import { createMutationQueue } from './mutation-queue.mjs'
 const DATA_DIR = process.env.GOREECLOUD_AI_DATA_DIR ?? path.resolve('data')
 const STORE_PATH = path.join(DATA_DIR, 'conversations.json')
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const CREATE_FIELDS = new Set(['title', 'model', 'workspaceId', 'parentConversationId', 'parentMessageIndex'])
+const CREATE_FIELDS = new Set(['title', 'model', 'workspaceId', 'parentConversationId', 'parentMessageIndex', 'messages'])
 const PATCH_FIELDS = new Set(['title', 'model', 'workspaceId', 'messages'])
 const MESSAGE_ROLES = new Set(['user', 'assistant'])
 const withMutation = createMutationQueue()
@@ -65,6 +65,7 @@ export function validateConversationStore(value) {
 export function validateConversationCreateInput(input) {
   if (!record(input) || Object.keys(input).some((key) => !CREATE_FIELDS.has(key))) return false
   if (input.title !== undefined && !validTitle(input.title)) return false
+  if (input.messages !== undefined && !validMessages(input.messages)) return false
   if (input.model !== undefined && !validModel(input.model)) return false
   if (input.workspaceId !== undefined && !validOptionalUuid(input.workspaceId)) return false
   if (input.parentConversationId !== undefined && !validOptionalUuid(input.parentConversationId)) return false
@@ -125,7 +126,7 @@ export async function createConversation(input = {}) {
     title: typeof input.title === 'string' && input.title.trim() ? input.title.trim().slice(0, 120) : 'New conversation',
     model: typeof input.model === 'string' ? input.model : '',
     workspaceId: typeof input.workspaceId === 'string' ? input.workspaceId : null,
-    messages: [],
+    messages: Array.isArray(input.messages) ? input.messages : [],
     parentConversationId: typeof input.parentConversationId === 'string' ? input.parentConversationId : null,
     parentMessageIndex: Number.isInteger(input.parentMessageIndex) && input.parentMessageIndex >= 0 ? input.parentMessageIndex : null,
     createdAt: timestamp,
