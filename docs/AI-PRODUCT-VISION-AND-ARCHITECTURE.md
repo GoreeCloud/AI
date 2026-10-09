@@ -32,6 +32,10 @@ GoreeCloud AI must be delivered as a full **web application**, **desktop applica
 
 **Tracking:** [Specifications](./SPECIFICATIONS.md) owns the repository-coupled requirement contract; [Planned Features](./PLANNED-FEATURES.md) owns outstanding work and acceptance gates. This annex records the owner's target product design, not implementation evidence.
 
+## Cross-platform delivery and ecosystem integration
+
+GoreeCloud AI must ship as a web app, desktop app and mobile app, and integrate with other first-party GoreeCloud applications and services through approved, permission-scoped interfaces. Desktop targets include Linux, Windows and macOS; mobile targets include Android and iOS. Each client must follow Glaze, security, privacy, local-first and accessibility requirements. Cross-app data and tool access require explicit authorization. This is planned scope, not implementation evidence.
+
 ## 2. Conversational AI
 
 **Planned interaction:** real-time streaming and accessible status indicators; persistent and temporary conversations; independent sessions; creation, rename, full-history search, archive, delete, folders, tags and pins; editable user messages, regenerate/continue, retry, partial results, branching, alternative answers and model comparisons; automatic titles and suggested follow-ups; compatible model changes and configurable instructions; Markdown, tables, mathematics, syntax-highlighted code; copy/export/governed sharing; files, documents, images and approved media attachments; summaries/context budgeting, user-controlled context and retention; multilingual text; explicit generation/retrieval/research/tool states; cancellation, deadlines and retries; accessible keyboard/touch navigation and responsive layouts.
