@@ -13,6 +13,10 @@ Cross-platform web, desktop (Linux/Windows/macOS), and mobile (Android/iOS) clie
 
 ## In progress
 
+### Transcript clipboard privacy and accessibility acceptance
+
+Verify explicit-copy affordance, permission failures, keyboard navigation, format fidelity, private clipboard disclosures and screen-reader feedback on supported browsers and target devices. Clipboard copying is not authenticated sharing, safe transmission, restore or Everkeep backup.
+
 ### Conversation outline consumer acceptance
 
 Validate current-conversation user-prompt navigation and turn counts in a representative browser, including keyboard focus, assistive technology announcements, long-message and responsive behavior. The Draft source is not a server search, saved index, backend authorization, knowledge retrieval or production acceptance.

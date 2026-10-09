@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Bot, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, FileText, FolderPlus, GitBranch, Globe2, Menu, MessageSquarePlus, PanelRight, Paperclip, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Square, Trash2, X } from 'lucide-react'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { CopyMessageButton } from './components/CopyMessageButton'
+import { CopyTranscriptButton } from './components/CopyTranscriptButton'
 import { MarkdownMessage } from './components/MarkdownMessage'
 import { TextDialog } from './components/TextDialog'
 import { OllamaClient, type ChatMessage, type OllamaModel } from './lib/ollama'
@@ -314,9 +315,9 @@ export default function App() {
     setConversationFindCursor(-1)
     setConversationFindOpen(false)
   }
-  function exportConversation() {
+  function createTranscriptSnapshot() {
     const exportMessages = stored(messages)
-    if (!exportMessages.length) return
+    if (!exportMessages.length) return null
     const firstUser = exportMessages.find((message) => message.role === 'user')?.content.trim()
     const title = currentSummary?.title || firstUser?.slice(0, 72) || 'GoreeCloud AI conversation'
     const transcript = {
@@ -327,13 +328,19 @@ export default function App() {
       messages: exportMessages,
     }
     const content = exportFormat === 'md' ? buildMarkdownTranscript(transcript) : buildPortableTranscript(transcript, exportFormat)
+    return { title, content }
+  }
+
+  function exportConversation() {
+    const snapshot = createTranscriptSnapshot()
+    if (!snapshot) return
     const mime = exportFormat === 'json' ? 'application/json;charset=utf-8'
       : exportFormat === 'txt' ? 'text/plain;charset=utf-8' : 'text/markdown;charset=utf-8'
-    const blob = new Blob([content], { type: mime })
+    const blob = new Blob([snapshot.content], { type: mime })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = exportFormat === 'md' ? exportFileName(title) : portableFileName(title, exportFormat)
+    anchor.download = exportFormat === 'md' ? exportFileName(snapshot.title) : portableFileName(snapshot.title, exportFormat)
     anchor.style.display = 'none'
     document.body.appendChild(anchor)
     anchor.click()
@@ -610,7 +617,7 @@ export default function App() {
     </aside>
 
     <main className="main-column">
-      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models' || isGenerating || isPreparing || isChangingSelection}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => { if (conversationFindOpen) resetConversationFind(); else setConversationFindOpen(true) }} aria-label="Find in current conversation" title="Find in current conversation"><Search size={19}/></button><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><label className="transcript-format"><span className="visually-hidden">Transcript export format</span><select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'md' | PortableFormat)} disabled={!stored(messages).length} aria-label="Transcript export format"><option value="md">Markdown</option><option value="txt">Text</option><option value="json">JSON</option></select></label><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label={`Export conversation as ${exportFormat === 'md' ? 'Markdown' : exportFormat === 'txt' ? 'plain text' : 'JSON'}`} title="Download selected transcript format"><Download size={19}/></button><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
+      <header className="topbar"><button className="icon-button desktop-hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={20}/></button><label className="model-picker"><Bot size={17}/><select value={selectedModel} onChange={(event) => void changeModel(event.target.value)} aria-label="Selected model" disabled={runtimeState === 'no-models' || isGenerating || isPreparing || isChangingSelection}><option value="">{runtimeState === 'no-models' ? 'No local models installed' : 'Select model'}</option><optgroup label="GoreeCloud roles">{resolvedRoles.filter((role) => role.conversational && role.model).map((role) => <option key={role.id} value={role.model!.name}>{role.name} · {role.model!.name}</option>)}</optgroup>{models.some((model) => !assignedModelNames.has(model.name)) && <optgroup label="Installed models">{models.filter((model) => !assignedModelNames.has(model.name)).map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</optgroup>}</select><ChevronDown size={16}/></label><div className="topbar-actions"><button className="icon-button" onClick={() => { if (conversationFindOpen) resetConversationFind(); else setConversationFindOpen(true) }} aria-label="Find in current conversation" title="Find in current conversation"><Search size={19}/></button><button className="icon-button" onClick={() => void refreshModels()} aria-label="Refresh local models" title="Refresh local models"><RefreshCw size={19}/></button><label className="transcript-format"><span className="visually-hidden">Transcript export format</span><select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'md' | PortableFormat)} disabled={!stored(messages).length} aria-label="Transcript export format"><option value="md">Markdown</option><option value="txt">Text</option><option value="json">JSON</option></select></label><button className="icon-button" onClick={exportConversation} disabled={!stored(messages).length} aria-label={`Export conversation as ${exportFormat === 'md' ? 'Markdown' : exportFormat === 'txt' ? 'plain text' : 'JSON'}`} title="Download selected transcript format"><Download size={19}/></button><CopyTranscriptButton key={conversationId ?? 'unsaved'} format={exportFormat} getText={() => createTranscriptSnapshot()?.content ?? ''} disabled={!stored(messages).length}/><button className="icon-button" onClick={newConversation} aria-label="New conversation"><Plus size={20}/></button><button className="icon-button" onClick={() => setContextOpen((value) => !value)} aria-label="Toggle context panel"><PanelRight size={20}/></button></div></header>
       {conversationFindOpen && <div className="conversation-find" role="search" aria-label="Find text within currently loaded conversation"><Search size={17}/><input ref={conversationFindInputRef} value={conversationFindQuery} maxLength={120} onChange={(event) => { setConversationFindQuery(event.target.value); setConversationFindCursor(-1) }} onKeyDown={(event) => { const action = findKeyboardAction(event.nativeEvent); if (action) { event.preventDefault(); event.stopPropagation(); if (action === 'close') resetConversationFind(); else jumpToConversationMatch(action === 'previous' ? -1 : 1) } }} placeholder="Find messages in this conversation" aria-label="Find messages in this conversation"/><span className="conversation-find-count" role="status" aria-live="polite">{conversationFindQuery.trim() ? (conversationFindMatches.length ? `${activeFindCursor < 0 ? 0 : activeFindCursor + 1} of ${conversationFindMatches.length} messages` : 'No matching messages') : 'Search visible messages'}</span><button type="button" className="icon-button" onClick={() => jumpToConversationMatch(-1)} disabled={!conversationFindMatches.length} aria-label="Previous matching message"><ChevronUp size={18}/></button><button type="button" className="icon-button" onClick={() => jumpToConversationMatch(1)} disabled={!conversationFindMatches.length} aria-label="Next matching message"><ChevronDown size={18}/></button><button type="button" className="icon-button" onClick={resetConversationFind} aria-label="Close conversation search"><X size={18}/></button></div>}
 
       <span className="visually-hidden" role="status" aria-live="polite">{isGenerating ? 'GoreeCloud AI is generating a response.' : generationError ? (retryMessages ? 'Response generation interrupted.' : 'Conversation save warning.') : ''}</span>
