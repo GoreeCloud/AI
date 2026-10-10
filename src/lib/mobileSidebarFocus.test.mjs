@@ -34,3 +34,17 @@ test('choosing a mobile conversation or New chat transfers focus into main conte
   assert.match(app, /closeMobileNavigation\('conversation'\)/)
   assert.match(app, /focusTarget === 'composer' \? composerRef\.current : conversationRef\.current/)
 })
+
+test('Escape dismisses open navigation before stopping generation', () => {
+  const start = app.indexOf('function handleShortcut(event: KeyboardEvent)')
+  const end = app.indexOf("window.addEventListener('keydown', handleShortcut)", start)
+  assert.ok(start >= 0 && end > start)
+  const handler = app.slice(start, end)
+  const find = handler.indexOf('if (conversationFindOpen)')
+  const panel = handler.indexOf('if (sidebarOpen || contextOpen)')
+  const generation = handler.indexOf('if (isGenerating)')
+  assert.ok(find >= 0 && panel > find && generation > panel)
+  assert.match(handler.slice(panel, generation), /setContextOpen\(false\)\s*return/)
+  assert.match(handler.slice(generation), /stopGeneration\(\)\s*return/)
+  assert.match(handler, /event\.isComposing \|\| event\.keyCode === 229/)
+})
