@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Accessible saved history and search feedback (Draft candidate)
+
+- Label the saved-conversations region for assistive technology, report the selected conversation with `aria-current`, and politely announce counts when filtering existing saved conversation titles, models, and Workspaces.
+- Announce history-load/delete errors using alert semantics while preserving the visible retry path. Style the count consistently within the existing Glaze sidebar visual system.
+- Add regression coverage for region, selection, count, and error semantics. No new external calls, persistence, model behavior, or authorization changes. Representative screen reader/browser acceptance, independent review, and release gates remain pending.
+
 ## 2026-10-09 — Keyboard skip navigation for the AI conversation shell (Draft)
 
 - Added native, keyboard-focus-revealed skip links for the conversation message region and message composer, before dense sidebar navigation.
