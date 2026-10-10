@@ -186,15 +186,16 @@ export default function App() {
         resetConversationFind()
         return
       }
-      if (isGenerating) {
-        event.preventDefault()
-        stopGeneration()
-        return
-      }
       if (sidebarOpen || contextOpen) {
         event.preventDefault()
         if (sidebarOpen) closeMobileNavigation()
         setContextOpen(false)
+        return
+      }
+      if (isGenerating) {
+        event.preventDefault()
+        stopGeneration()
+        return
       }
     }
     window.addEventListener('keydown', handleShortcut)
