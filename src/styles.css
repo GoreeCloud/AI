@@ -160,11 +160,21 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
     justify-content: space-between;
   }
 }
+/* Recovery action must be visible and identify itself by keyboard focus. */
+.composer-wrap > .context-action { min-height: 44px; font-weight: 650; }
+.composer-wrap > .context-action:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media (prefers-color-scheme: light) {
   :root { color: #151922; background: #f6f8fb; --surface-0: #f6f8fb; --surface-1: rgba(247,249,252,.9); --surface-2: rgba(255,255,255,.88); --surface-3: rgba(240,244,249,.86); --border: rgba(26,34,48,.09); --border-strong: rgba(26,34,48,.14); --text: #151922; --muted: #687386; --soft: #394456; --accent: #306fdb; --accent-strong: #245fc2; --accent-surface: rgba(48,111,219,.09); --shadow: 0 24px 70px rgba(41,56,82,.16); }
   body { background: radial-gradient(circle at 50% -20%, #e8efff 0%, #f6f8fb 42%); }
   .sidebar, .topbar, .composer-wrap { background-color: rgba(246,248,251,.72); }
+  /* A background-color does not override the dark composer-wrap gradient. */
+  .composer-wrap {
+    background: linear-gradient(180deg, rgba(246,248,251,0), rgba(246,248,251,.96) 30%, #f6f8fb 72%);
+  }
+  .composer-wrap .composer-error { color: #a0243b; background: rgba(255,242,244,.95); border-color: rgba(160,36,59,.4); }
+  .composer-wrap .context-action { background: #fff; border-color: #7c8aa0; color: #253247; }
+  .composer-wrap .context-action:hover { background: #eff4fc; color: #172235; }
   .composer { background: rgba(255,255,255,.94); }
   .message-content { color: #273244; }
   .context-panel { background: rgba(248,250,253,.97); }
