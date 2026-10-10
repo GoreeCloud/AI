@@ -30,6 +30,8 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Mobile navigation keyboard behavior (Draft Development):** At 900px viewport width or narrower, the closed navigation drawer is removed from the visible and keyboard-focusable interface. Activate **Open navigation** to show it; the button exposes expanded/collapsed state to assistive technology. Close it with the drawer's **Close navigation** button, the backdrop, or Escape to return focus to **Open navigation**. Selecting **New chat** moves focus to the message composer; opening a saved chat moves focus to its conversation region. Desktop navigation remains visible. Full browser/assistive-technology, Glaze 1.7.0 consumer, and release acceptance are still pending.
+
 **Keyboard skip navigation (Draft candidate):** At the start of the page's Tab sequence, choose **Skip to conversation messages** to focus the named message region, or **Skip to message composer** to focus the message editor directly. These links appear only when focused, work without a mouse, and do not submit, modify, or expose conversation content. Test with representative keyboard, touch, browser, and screen-reader combinations before production acceptance.
 
 **Recovering a saved answer (Draft source):** When a first-chat retry discovers that the server already saved an assistant response or subsequent dialogue, GoreeCloud AI restores the existing messages instead of asking the model to answer again. Saved initial messages must match the original request exactly. This behavior requires real browser/network acceptance before production use.
