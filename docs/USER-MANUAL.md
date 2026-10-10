@@ -30,6 +30,8 @@ Start the client and backend with the development scripts in `package.json`. Act
 
 ## Conversations and Models
 
+**Keyboard skip navigation (Draft candidate):** At the start of the page's Tab sequence, choose **Skip to conversation messages** to focus the named message region, or **Skip to message composer** to focus the message editor directly. These links appear only when focused, work without a mouse, and do not submit, modify, or expose conversation content. Test with representative keyboard, touch, browser, and screen-reader combinations before production acceptance.
+
 **Recovering a saved answer (Draft source):** When a first-chat retry discovers that the server already saved an assistant response or subsequent dialogue, GoreeCloud AI restores the existing messages instead of asking the model to answer again. Saved initial messages must match the original request exactly. This behavior requires real browser/network acceptance before production use.
 
 **Keyboard and light-theme recovery (Draft PR #36):** The message composer has a stable screen-reader label. Use Tab from the composer to reach the labelled Attach file button, Send message, then the conditional Review saved conversations action; the hidden native picker is not in the normal Tab sequence. Press Enter on Review to focus saved-conversation search without losing the draft. The action appears only during an uncertain initial save and disappears when the draft is edited. Recovery notice contrast and focus indication have been corrected for light mode. Manual Zorin/Orca speech and representative installed-browser acceptance remain pending.
