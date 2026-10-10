@@ -1,5 +1,12 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Light-theme first-chat recovery and keyboard focus (Draft PR #36)
+
+- Corrected the near-black composer footer gradient that persisted in light mode and obscured dark recovery guidance. Legible recovery error/button colors now match the light surface; the dedicated recovery action has a 44px minimum target and a prominent keyboard focus indicator.
+- The composer has a stable accessible label. The visually hidden file input is removed from sequential keyboard Tab order; the existing labelled **Attach file** button still triggers the picker.
+- Local headless Chromium testing verified both light and dark recovery presentations, a single synthetic failed POST, unmodified draft, the Tab sequence Attach file → Send message → Review saved conversations, and Enter focus transfer to the labelled conversation-history search.
+- **This is not Orca speech acceptance.** The owner enabled Orca during manual testing and turned it off afterward; its later absent process does not explain earlier unreliable speech. Manual screen reader/installed browser, Glaze, security/privacy, and platform release checks remain open. Source remains Draft.
+
 ## 2026-10-09 — Accessible history-review action on uncertain first-chat save (Draft PR #33)
 
 - A native keyboard-operable, non-submit `Review saved conversations` button uses the existing sidebar search and focus handler when the new-chat save outcome is uncertain; it never selects a conversation, retries a request, or clears the unsent draft.
