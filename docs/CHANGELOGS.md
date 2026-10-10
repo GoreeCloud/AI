@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-09 — Keyboard skip navigation for the AI conversation shell (Draft)
+
+- Added native, keyboard-focus-revealed skip links for the conversation message region and message composer, before dense sidebar navigation.
+- The message region now has an accessible label and programmatic focus target; the composer retains its native textarea focus behavior. Both targets are local to the existing page; neither link sends a prompt nor creates a backend request.
+- Added source-contract regression tests for link/target uniqueness, document order, region semantics, and focus-visible styling. Representative browser focus behavior, assistive technology, mobile and Glaze consumer acceptance remain pending; this change is not production qualification.
+
 ## 2026-10-09 — Light-theme first-chat recovery and keyboard focus (Draft PR #36)
 
 - Corrected the near-black composer footer gradient that persisted in light mode and obscured dark recovery guidance. Legible recovery error/button colors now match the light surface; the dedicated recovery action has a 44px minimum target and a prominent keyboard focus indicator.
