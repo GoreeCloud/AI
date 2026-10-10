@@ -1,5 +1,11 @@
 # GoreeCloud AI — Changelogs
 
+## 2026-10-10 — Mobile drawer keyboard focus and navigation semantics (Draft Development)
+
+- Hide the closed drawer at widths up to 900px using scoped CSS visibility, rather than offscreen translation alone, while preserving visible desktop navigation.
+- Expose the Open navigation control's `aria-expanded` state and `aria-controls` relationship; return focus to the trigger after explicit Close, Escape, or backdrop dismissal. After New chat or saved-conversation selection, send keyboard focus into the relevant editor or conversation region.
+- Add four source-level regression tests. An isolated laptop checkout at the prior candidate head passed 91/91 client tests, 196/196 server tests, TypeScript check and Vite build; the updated GitHub head requires separate exact-head CI. Real browser and Orca speech, Glaze 1.7.0 consumer acceptance, independent review and production gates remain pending.
+
 ## 2026-10-09 — Accessible saved history and search feedback (Draft candidate)
 
 - Label the saved-conversations region for assistive technology, report the selected conversation with `aria-current`, and politely announce counts when filtering existing saved conversation titles, models, and Workspaces.
