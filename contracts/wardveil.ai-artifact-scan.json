@@ -20,6 +20,9 @@
     "clean_requires_current_unexpired_evidence": true,
     "clean_requires_evidence_refs": true,
     "rehash_staging_after_clean_before_release": true,
+    "atomic_destination_create_no_clobber": true,
+    "staged_symlink_rejected": true,
+    "rehash_released_link_before_retiring_staging": true,
     "unknown_and_unsupported_fail_closed": true,
     "scanner_unavailable_fails_closed": true,
     "malicious_bound_digest_remains_blocking_after_evidence_expiry": true
