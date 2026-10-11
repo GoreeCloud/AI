@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -203,6 +205,71 @@ class ArtifactSecurityTests(unittest.TestCase):
             self.assertIn("staged_artifact_changed_during_verification", result.decision.reason_codes)
             self.assertTrue(staged.exists())
             self.assertFalse(final.exists())
+
+    def test_competing_destination_created_during_scan_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"scanned")
+
+            class RacingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    final.write_bytes(b"another-writer")
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(RacingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("final_destination_already_exists", result.decision.reason_codes)
+            self.assertIsNone(result.released_path)
+            self.assertEqual(final.read_bytes(), b"another-writer")
+            self.assertEqual(staged.read_bytes(), b"scanned")
+
+    def test_staged_symlink_is_not_released(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / "original"
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            original.write_bytes(b"secret")
+            staged.symlink_to(original)
+            result = ArtifactIntakeGate(FakeScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("staged_artifact_symlink_not_allowed", result.decision.reason_codes)
+            self.assertFalse(final.exists())
+            self.assertEqual(original.read_bytes(), b"secret")
+
+    def test_dangling_final_symlink_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"clean")
+            final.symlink_to(Path(tmp) / "absent")
+            result = ArtifactIntakeGate(FakeScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("final_destination_already_exists", result.decision.reason_codes)
+            self.assertTrue(final.is_symlink())
+            self.assertEqual(staged.read_bytes(), b"clean")
+
+    def test_changed_bytes_after_link_are_not_left_published(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"scanned")
+            actual_link = os.link
+
+            def mutate_after_link(source, destination, **kwargs):
+                actual_link(source, destination, **kwargs)
+                staged.write_bytes(b"changed-after-link")
+
+            with patch("reference.ai_artifact_security.os.link", side_effect=mutate_after_link):
+                result = ArtifactIntakeGate(FakeScanner()).finalize(
+                    artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+                )
+            self.assertIn("staged_artifact_changed_during_release", result.decision.reason_codes)
+            self.assertFalse(final.exists())
+            self.assertEqual(staged.read_bytes(), b"changed-after-link")
 
     def test_existing_final_destination_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
