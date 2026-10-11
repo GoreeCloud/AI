@@ -168,6 +168,44 @@ class CodeRepositoryContextTests(unittest.TestCase):
         decision = evaluate_repository_context(payload, TARGET, now=NOW)
         self.assertIn("repository_context_invalid_evidence_url", decision.reason_codes)
 
+    def test_credential_bearing_repository_url_fails_closed(self):
+        payload = valid_payload()
+        payload["repository"]["webUrl"] = "https://reader:secret@git.example.test/GoreeCloud/code"
+        decision = evaluate_repository_context(payload, TARGET, now=NOW)
+        self.assertIn("repository_context_invalid_repository_url", decision.reason_codes)
+
+    def test_credential_bearing_item_and_evidence_links_fail_closed(self):
+        payload = valid_payload()
+        payload["issues"][0]["webUrl"] = "https://reader@git.example.test/issues/1"
+        decision = evaluate_repository_context(payload, TARGET, now=NOW)
+        self.assertIn("repository_context_invalid_issues_item", decision.reason_codes)
+
+        payload = valid_payload()
+        payload["evidence"]["webUrls"] = ["https://reader:secret@git.example.test/evidence"]
+        decision = evaluate_repository_context(payload, TARGET, now=NOW)
+        self.assertIn("repository_context_invalid_evidence_url", decision.reason_codes)
+
+    def test_ambiguous_or_malformed_repository_urls_fail_closed(self):
+        urls = (
+            "https://git.example.test/unsafe\\npath",
+            "https://[broken-ipv6",
+            "https://git.example.test:65536/repository",
+            "https://git.example.test:invalid/repository",
+            "https:///missing-host",
+            "https://git.example.test/has a space",
+        )
+        for url in urls:
+            with self.subTest(url=url):
+                payload = valid_payload()
+                payload["repository"]["webUrl"] = url
+                decision = evaluate_repository_context(payload, TARGET, now=NOW)
+                self.assertIn("repository_context_invalid_repository_url", decision.reason_codes)
+
+    def test_ordinary_web_urls_continue_to_be_accepted(self):
+        payload = valid_payload()
+        payload["repository"]["webUrl"] = "https://git.example.test:443/GoreeCloud/code"
+        self.assertTrue(evaluate_repository_context(payload, TARGET, now=NOW).accepted)
+
     def test_collection_items_require_complete_typed_shapes(self):
         payload = valid_payload()
         del payload["commits"][0]["sha"]
