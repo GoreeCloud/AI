@@ -279,9 +279,11 @@ class ArtifactIntakeGate:
 
         if staged_path == final_path:
             return ArtifactReleaseResult(_blocked("staging_and_final_path_must_differ"), None, staged_path.exists())
+        if staged_path.is_symlink():
+            return ArtifactReleaseResult(_blocked("staged_artifact_symlink_not_allowed"), None, True)
         if not staged_path.is_file():
             return ArtifactReleaseResult(_blocked("staged_artifact_unavailable"), None, False)
-        if final_path.exists():
+        if final_path.exists() or final_path.is_symlink():
             return ArtifactReleaseResult(_blocked("final_destination_already_exists"), None, True)
 
         before_digest = sha256_file(staged_path)
@@ -306,8 +308,31 @@ class ArtifactIntakeGate:
 
         try:
             final_path.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(staged_path, final_path)
+            # Atomic destination creation: unlike os.replace(), hard-link
+            # creation fails if another writer wins the destination race.
+            os.link(staged_path, final_path, follow_symlinks=False)
+        except FileExistsError:
+            return ArtifactReleaseResult(_blocked("final_destination_already_exists"), None, staged_path.exists())
         except OSError:
+            return ArtifactReleaseResult(_blocked("artifact_release_failed"), None, staged_path.exists())
+
+        # The scan is bound to bytes, not a filename. Ensure the newly
+        # published link is still a regular file with those exact bytes.
+        try:
+            if final_path.is_symlink() or sha256_file(final_path) != before_digest:
+                try:
+                    final_path.unlink()
+                except OSError:
+                    pass
+                return ArtifactReleaseResult(
+                    _blocked("staged_artifact_changed_during_release"), None, staged_path.exists()
+                )
+            staged_path.unlink()
+        except OSError:
+            try:
+                final_path.unlink()
+            except OSError:
+                pass
             return ArtifactReleaseResult(_blocked("artifact_release_failed"), None, staged_path.exists())
 
         return ArtifactReleaseResult(decision, final_path, False)
