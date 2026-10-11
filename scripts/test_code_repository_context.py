@@ -187,7 +187,7 @@ class CodeRepositoryContextTests(unittest.TestCase):
 
     def test_ambiguous_or_malformed_repository_urls_fail_closed(self):
         urls = (
-            "https://git.example.test/unsafe\\npath",
+            "https://git.example.test/unsafe\npath",
             "https://[broken-ipv6",
             "https://git.example.test:65536/repository",
             "https://git.example.test:invalid/repository",
