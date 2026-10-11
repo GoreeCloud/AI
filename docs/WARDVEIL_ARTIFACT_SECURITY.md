@@ -21,7 +21,7 @@ All use the normalized Wardveil resource type `ai_artifact` and a GoreeCloud AI 
 
 ## Release behavior
 
-A staged artifact is released only when Wardveil returns a current, unexpired, authoritative `clean` scan finding bound to the exact resource identity and SHA-256 digest and backed by evidence references. The staging file is hashed again after the clean decision and before release. If the bytes changed while verification was in progress, release fails closed.
+A staged artifact is released only when Wardveil returns a current, unexpired, authoritative `clean` scan finding bound to the exact resource identity and SHA-256 digest and backed by evidence references. The staging file is hashed again after the clean decision and before release. If the bytes changed while verification was in progress, release fails closed. In the source-level reference, a regular staged file is atomically linked into a destination that must not already exist; a competing writer or a dangling destination symlink is not overwritten. A source symlink is rejected, and the linked bytes are checked once more before removing the staging name. Failed release attempts retain staging where possible and roll back a newly created destination link.
 
 Suspicious artifacts remain held for review. Malicious artifacts remain blocked and can produce a non-destructive handoff to Wardveil Quarantine. Unknown, unsupported, expired-clean, future-dated, malformed, mismatched, non-authoritative, or scanner-unavailable evidence never becomes clean.
 
