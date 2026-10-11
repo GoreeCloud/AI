@@ -176,9 +176,22 @@ def evaluate_artifact_scan(
     if envelope.resource_digest_sha256.lower() != expected_digest:
         return _blocked("content_digest_mismatch")
 
+    if not isinstance(envelope.scan_record, Mapping):
+        return _blocked("invalid_scan_record")
     record = dict(envelope.scan_record)
     record_id = record.get("record_id") if isinstance(record.get("record_id"), str) else None
-    evidence = tuple(ref for ref in (record.get("evidence_refs") or ()) if isinstance(ref, str) and ref)
+    raw_evidence = record.get("evidence_refs")
+    # A scalar string iterates into single-character pseudo-references. Only a
+    # bounded, entirely valid sequence constitutes evidence for a clean scan.
+    valid_evidence = (
+        isinstance(raw_evidence, (list, tuple))
+        and len(raw_evidence) <= 32
+        and all(
+            isinstance(ref, str) and 0 < len(ref) <= 512 and ref.strip() == ref
+            for ref in raw_evidence
+        )
+    )
+    evidence = tuple(raw_evidence) if valid_evidence else ()
 
     if record.get("contract_version") != WARDVEIL_RUNTIME_CONTRACT_VERSION:
         return _blocked("unsupported_wardveil_runtime_contract", record_id=record_id, evidence=evidence)
@@ -186,7 +199,12 @@ def evaluate_artifact_scan(
         return _blocked("unexpected_wardveil_record_type", record_id=record_id, evidence=evidence)
 
     producer = record.get("producer")
-    if not isinstance(producer, Mapping) or producer.get("authoritative") is not True or not producer.get("id"):
+    if (
+        not isinstance(producer, Mapping)
+        or producer.get("authoritative") is not True
+        or not isinstance(producer.get("id"), str)
+        or not producer["id"].strip()
+    ):
         return _blocked("non_authoritative_scan_record", record_id=record_id, evidence=evidence)
 
     scope = record.get("scope")
@@ -196,7 +214,7 @@ def evaluate_artifact_scan(
         return _blocked("scan_scope_mismatch", record_id=record_id, evidence=evidence)
 
     result = record.get("scan_result")
-    if result not in SCAN_RESULTS:
+    if not isinstance(result, str) or result not in SCAN_RESULTS:
         return _blocked("unsupported_scan_result", record_id=record_id, evidence=evidence)
 
     try:
