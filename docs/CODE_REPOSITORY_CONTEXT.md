@@ -31,7 +31,7 @@ The GoreeCloud AI intake fails closed unless all applicable checks pass:
 - no credential-like or secret-bearing keys anywhere in the envelope;
 - no provider-specific repository fields outside the explicit safe contract;
 - each branch/commit/issue/pull-request collection remains within the declared limit and the hard maximum of 20;
-- evidence links use HTTP or HTTPS; and
+- repository, item, and evidence links use HTTP or HTTPS with a parseable hostname and port, and reject embedded credentials, whitespace, and control characters; and
 - no unexpected top-level or nested contract fields.
 
 Unavailable transport, malformed data, stale data, mismatched scope, or failed evidence returns no usable context.

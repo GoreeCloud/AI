@@ -118,10 +118,27 @@ def _contains_sensitive_key(value: object) -> bool:
 
 
 def _is_web_url(value: object) -> bool:
+    """Reject credential-bearing and ambiguous URLs before context ingestion.
+
+    Provider links are untrusted data, including when the outer envelope is
+    well-formed. A URL with userinfo or control characters must never be
+    forwarded into AI-generated repository navigation.
+    """
     if not isinstance(value, str) or not value:
         return False
-    parsed = urlparse(value)
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    if any(ord(char) < 0x20 or ord(char) == 0x7F or char.isspace() for char in value):
+        return False
+    try:
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return False
+        if parsed.username is not None or parsed.password is not None:
+            return False
+        # Accessing port also rejects malformed or out-of-range port values.
+        parsed.port
+    except ValueError:
+        return False
+    return True
 
 
 def _bounded_string(value: object, maximum: int, *, required: bool = False) -> bool:
