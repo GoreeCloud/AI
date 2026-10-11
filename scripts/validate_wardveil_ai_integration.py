@@ -37,6 +37,9 @@ def main() -> None:
         "clean_requires_current_unexpired_evidence",
         "clean_requires_evidence_refs",
         "rehash_staging_after_clean_before_release",
+        "atomic_destination_create_no_clobber",
+        "staged_symlink_rejected",
+        "rehash_released_link_before_retiring_staging",
         "unknown_and_unsupported_fail_closed",
         "scanner_unavailable_fails_closed",
         "malicious_bound_digest_remains_blocking_after_evidence_expiry",
@@ -61,7 +64,12 @@ def main() -> None:
         '"staged_artifact_changed_during_verification"',
         '"expired_malicious_evidence_remains_blocking_for_bound_digest"',
         '"requires_explicit_executor_authority": True',
-        'os.replace(staged_path, final_path)',
+        'os.link(staged_path, final_path, follow_symlinks=False)',
+        '"staged_artifact_symlink_not_allowed"',
+        '"final_destination_already_exists"',
+        '"staged_artifact_changed_during_release"',
+        'final_path.is_symlink()',
+        'sha256_file(final_path) != before_digest',
     ):
         require(token in source, f"implementation missing invariant: {token}")
 
