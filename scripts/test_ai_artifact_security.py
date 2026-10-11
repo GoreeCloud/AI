@@ -282,5 +282,66 @@ class ArtifactSecurityTests(unittest.TestCase):
             self.assertEqual(final.read_bytes(), b"existing")
 
 
+    def test_malformed_clean_scan_evidence_never_authorizes_release(self):
+        item = artifact()
+        digest = "7" * 64
+        invalid_values = (
+            "evidence:scanner-health",
+            {"source": "evidence:scanner-health"},
+            ["evidence:valid", 123],
+            [""],
+            ["  "],
+            [" padded "],
+            ["reference:" + "x" * 600],
+            ["evidence:valid"] * 33,
+        )
+        for evidence_refs in invalid_values:
+            with self.subTest(value=repr(evidence_refs)[:75]):
+                payload = record(item)
+                payload["evidence_refs"] = evidence_refs
+                finding = WardveilScanEnvelope(item.resource_id, digest, payload)
+                decision = evaluate_artifact_scan(item, digest, finding, now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("clean_scan_missing_evidence_refs", decision.reason_codes)
+
+    def test_malformed_scan_record_result_and_producer_fail_closed(self):
+        item = artifact()
+        digest = "8" * 64
+        invalid_record = WardveilScanEnvelope(item.resource_id, digest, "untrusted")
+        self.assertIn(
+            "invalid_scan_record",
+            evaluate_artifact_scan(item, digest, invalid_record, now=NOW).reason_codes,
+        )
+
+        bad_result = record(item)
+        bad_result["scan_result"] = ["clean"]
+        self.assertIn(
+            "unsupported_scan_result",
+            evaluate_artifact_scan(
+                item, digest, WardveilScanEnvelope(item.resource_id, digest, bad_result), now=NOW
+            ).reason_codes,
+        )
+
+        bad_producer = record(item)
+        bad_producer["producer"] = {"id": 1, "authoritative": True}
+        self.assertIn(
+            "non_authoritative_scan_record",
+            evaluate_artifact_scan(
+                item, digest, WardveilScanEnvelope(item.resource_id, digest, bad_producer), now=NOW
+            ).reason_codes,
+        )
+
+    def test_valid_tuple_scan_evidence_still_authorizes_clean_artifact(self):
+        item = artifact()
+        digest = "9" * 64
+        payload = record(item)
+        payload["evidence_refs"] = ("evidence:scan", "evidence:scanner-health")
+        decision = evaluate_artifact_scan(
+            item, digest, WardveilScanEnvelope(item.resource_id, digest, payload), now=NOW
+        )
+        self.assertTrue(decision.release_allowed)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
