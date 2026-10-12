@@ -196,6 +196,49 @@ class ArtifactSecurityTests(unittest.TestCase):
             self.assertTrue(staged.exists())
             self.assertFalse(final.exists())
 
+    def test_staging_disappears_during_scan_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "released"
+            staged.write_bytes(b"candidate")
+
+            class RemovingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    staged.unlink()
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(RemovingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertFalse(result.decision.release_allowed)
+            self.assertIn("staged_artifact_unavailable_during_verification", result.decision.reason_codes)
+            self.assertIsNone(result.released_path)
+            self.assertFalse(result.staged_path_retained)
+            self.assertFalse(final.exists())
+
+    def test_staging_replaced_by_symlink_during_scan_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            target = Path(tmp) / "other"
+            final = Path(tmp) / "released"
+            staged.write_bytes(b"candidate")
+            target.write_bytes(b"other")
+
+            class SwappingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    staged.unlink()
+                    staged.symlink_to(target)
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(SwappingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertFalse(result.decision.release_allowed)
+            self.assertIn("staged_artifact_symlink_not_allowed", result.decision.reason_codes)
+            self.assertIsNone(result.released_path)
+            self.assertTrue(staged.is_symlink())
+            self.assertFalse(final.exists())
+
     def test_changed_during_verification_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             staged = Path(tmp) / "staged"
