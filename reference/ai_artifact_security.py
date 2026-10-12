@@ -169,6 +169,20 @@ def evaluate_artifact_scan(
     """
     artifact.validate()
     observed_now = _utc(now)
+    # Scanner output is an untrusted boundary. Reject malformed objects and
+    # digest fields before calling string methods or inspecting scan evidence.
+    if not isinstance(digest_sha256, str) or len(digest_sha256) != 64 or any(
+        character not in "0123456789abcdefABCDEF" for character in digest_sha256
+    ):
+        return _blocked("invalid_artifact_digest")
+    if not isinstance(envelope, WardveilScanEnvelope):
+        return _blocked("invalid_scan_envelope")
+    if not isinstance(envelope.resource_id, str):
+        return _blocked("invalid_scan_resource_id")
+    if not isinstance(envelope.resource_digest_sha256, str) or len(envelope.resource_digest_sha256) != 64 or any(
+        character not in "0123456789abcdefABCDEF" for character in envelope.resource_digest_sha256
+    ):
+        return _blocked("invalid_scan_digest")
     expected_digest = digest_sha256.lower()
 
     if envelope.resource_id != artifact.resource_id:
