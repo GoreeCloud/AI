@@ -318,7 +318,10 @@ class ArtifactIntakeGate:
         if final_path.exists() or final_path.is_symlink():
             return ArtifactReleaseResult(_blocked("final_destination_already_exists"), None, True)
 
-        before_digest = sha256_file(staged_path)
+        try:
+            before_digest = sha256_file(staged_path)
+        except OSError:
+            return ArtifactReleaseResult(_blocked("staged_artifact_unavailable"), None, staged_path.exists())
         try:
             envelope = self._scanner.scan_staged_file(
                 artifact=artifact,
@@ -334,7 +337,14 @@ class ArtifactIntakeGate:
 
         # Re-bind immediately before publication so mutated staging cannot inherit
         # a clean finding that belongs to different bytes.
-        after_digest = sha256_file(staged_path)
+        # A scan can remove or replace a staged file. Return a blocked
+        # decision instead of allowing a filesystem error to escape the gate.
+        if staged_path.is_symlink():
+            return ArtifactReleaseResult(_blocked("staged_artifact_symlink_not_allowed"), None, True)
+        try:
+            after_digest = sha256_file(staged_path)
+        except OSError:
+            return ArtifactReleaseResult(_blocked("staged_artifact_unavailable_during_verification"), None, staged_path.exists())
         if after_digest != before_digest:
             return ArtifactReleaseResult(_blocked("staged_artifact_changed_during_verification"), None, True)
 
