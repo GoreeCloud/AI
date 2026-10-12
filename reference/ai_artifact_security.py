@@ -169,6 +169,20 @@ def evaluate_artifact_scan(
     """
     artifact.validate()
     observed_now = _utc(now)
+    # Scanner output is an untrusted boundary. Reject malformed objects and
+    # digest fields before calling string methods or inspecting scan evidence.
+    if not isinstance(digest_sha256, str) or len(digest_sha256) != 64 or any(
+        character not in "0123456789abcdefABCDEF" for character in digest_sha256
+    ):
+        return _blocked("invalid_artifact_digest")
+    if not isinstance(envelope, WardveilScanEnvelope):
+        return _blocked("invalid_scan_envelope")
+    if not isinstance(envelope.resource_id, str):
+        return _blocked("invalid_scan_resource_id")
+    if not isinstance(envelope.resource_digest_sha256, str) or len(envelope.resource_digest_sha256) != 64 or any(
+        character not in "0123456789abcdefABCDEF" for character in envelope.resource_digest_sha256
+    ):
+        return _blocked("invalid_scan_digest")
     expected_digest = digest_sha256.lower()
 
     if envelope.resource_id != artifact.resource_id:
@@ -176,9 +190,22 @@ def evaluate_artifact_scan(
     if envelope.resource_digest_sha256.lower() != expected_digest:
         return _blocked("content_digest_mismatch")
 
+    if not isinstance(envelope.scan_record, Mapping):
+        return _blocked("invalid_scan_record")
     record = dict(envelope.scan_record)
     record_id = record.get("record_id") if isinstance(record.get("record_id"), str) else None
-    evidence = tuple(ref for ref in (record.get("evidence_refs") or ()) if isinstance(ref, str) and ref)
+    raw_evidence = record.get("evidence_refs")
+    # A scalar string iterates into single-character pseudo-references. Only a
+    # bounded, entirely valid sequence constitutes evidence for a clean scan.
+    valid_evidence = (
+        isinstance(raw_evidence, (list, tuple))
+        and len(raw_evidence) <= 32
+        and all(
+            isinstance(ref, str) and 0 < len(ref) <= 512 and ref.strip() == ref
+            for ref in raw_evidence
+        )
+    )
+    evidence = tuple(raw_evidence) if valid_evidence else ()
 
     if record.get("contract_version") != WARDVEIL_RUNTIME_CONTRACT_VERSION:
         return _blocked("unsupported_wardveil_runtime_contract", record_id=record_id, evidence=evidence)
@@ -186,7 +213,12 @@ def evaluate_artifact_scan(
         return _blocked("unexpected_wardveil_record_type", record_id=record_id, evidence=evidence)
 
     producer = record.get("producer")
-    if not isinstance(producer, Mapping) or producer.get("authoritative") is not True or not producer.get("id"):
+    if (
+        not isinstance(producer, Mapping)
+        or producer.get("authoritative") is not True
+        or not isinstance(producer.get("id"), str)
+        or not producer["id"].strip()
+    ):
         return _blocked("non_authoritative_scan_record", record_id=record_id, evidence=evidence)
 
     scope = record.get("scope")
@@ -196,7 +228,7 @@ def evaluate_artifact_scan(
         return _blocked("scan_scope_mismatch", record_id=record_id, evidence=evidence)
 
     result = record.get("scan_result")
-    if result not in SCAN_RESULTS:
+    if not isinstance(result, str) or result not in SCAN_RESULTS:
         return _blocked("unsupported_scan_result", record_id=record_id, evidence=evidence)
 
     try:
@@ -279,12 +311,17 @@ class ArtifactIntakeGate:
 
         if staged_path == final_path:
             return ArtifactReleaseResult(_blocked("staging_and_final_path_must_differ"), None, staged_path.exists())
+        if staged_path.is_symlink():
+            return ArtifactReleaseResult(_blocked("staged_artifact_symlink_not_allowed"), None, True)
         if not staged_path.is_file():
             return ArtifactReleaseResult(_blocked("staged_artifact_unavailable"), None, False)
-        if final_path.exists():
+        if final_path.exists() or final_path.is_symlink():
             return ArtifactReleaseResult(_blocked("final_destination_already_exists"), None, True)
 
-        before_digest = sha256_file(staged_path)
+        try:
+            before_digest = sha256_file(staged_path)
+        except OSError:
+            return ArtifactReleaseResult(_blocked("staged_artifact_unavailable"), None, staged_path.exists())
         try:
             envelope = self._scanner.scan_staged_file(
                 artifact=artifact,
@@ -300,14 +337,44 @@ class ArtifactIntakeGate:
 
         # Re-bind immediately before publication so mutated staging cannot inherit
         # a clean finding that belongs to different bytes.
-        after_digest = sha256_file(staged_path)
+        # A scan can remove or replace a staged file. Return a blocked
+        # decision instead of allowing a filesystem error to escape the gate.
+        if staged_path.is_symlink():
+            return ArtifactReleaseResult(_blocked("staged_artifact_symlink_not_allowed"), None, True)
+        try:
+            after_digest = sha256_file(staged_path)
+        except OSError:
+            return ArtifactReleaseResult(_blocked("staged_artifact_unavailable_during_verification"), None, staged_path.exists())
         if after_digest != before_digest:
             return ArtifactReleaseResult(_blocked("staged_artifact_changed_during_verification"), None, True)
 
         try:
             final_path.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(staged_path, final_path)
+            # Atomic destination creation: unlike os.replace(), hard-link
+            # creation fails if another writer wins the destination race.
+            os.link(staged_path, final_path, follow_symlinks=False)
+        except FileExistsError:
+            return ArtifactReleaseResult(_blocked("final_destination_already_exists"), None, staged_path.exists())
         except OSError:
+            return ArtifactReleaseResult(_blocked("artifact_release_failed"), None, staged_path.exists())
+
+        # The scan is bound to bytes, not a filename. Ensure the newly
+        # published link is still a regular file with those exact bytes.
+        try:
+            if final_path.is_symlink() or sha256_file(final_path) != before_digest:
+                try:
+                    final_path.unlink()
+                except OSError:
+                    pass
+                return ArtifactReleaseResult(
+                    _blocked("staged_artifact_changed_during_release"), None, staged_path.exists()
+                )
+            staged_path.unlink()
+        except OSError:
+            try:
+                final_path.unlink()
+            except OSError:
+                pass
             return ArtifactReleaseResult(_blocked("artifact_release_failed"), None, staged_path.exists())
 
         return ArtifactReleaseResult(decision, final_path, False)

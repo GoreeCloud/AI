@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -194,6 +196,49 @@ class ArtifactSecurityTests(unittest.TestCase):
             self.assertTrue(staged.exists())
             self.assertFalse(final.exists())
 
+    def test_staging_disappears_during_scan_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "released"
+            staged.write_bytes(b"candidate")
+
+            class RemovingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    staged.unlink()
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(RemovingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertFalse(result.decision.release_allowed)
+            self.assertIn("staged_artifact_unavailable_during_verification", result.decision.reason_codes)
+            self.assertIsNone(result.released_path)
+            self.assertFalse(result.staged_path_retained)
+            self.assertFalse(final.exists())
+
+    def test_staging_replaced_by_symlink_during_scan_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            target = Path(tmp) / "other"
+            final = Path(tmp) / "released"
+            staged.write_bytes(b"candidate")
+            target.write_bytes(b"other")
+
+            class SwappingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    staged.unlink()
+                    staged.symlink_to(target)
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(SwappingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertFalse(result.decision.release_allowed)
+            self.assertIn("staged_artifact_symlink_not_allowed", result.decision.reason_codes)
+            self.assertIsNone(result.released_path)
+            self.assertTrue(staged.is_symlink())
+            self.assertFalse(final.exists())
+
     def test_changed_during_verification_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             staged = Path(tmp) / "staged"
@@ -204,6 +249,71 @@ class ArtifactSecurityTests(unittest.TestCase):
             self.assertTrue(staged.exists())
             self.assertFalse(final.exists())
 
+    def test_competing_destination_created_during_scan_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"scanned")
+
+            class RacingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    final.write_bytes(b"another-writer")
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(RacingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("final_destination_already_exists", result.decision.reason_codes)
+            self.assertIsNone(result.released_path)
+            self.assertEqual(final.read_bytes(), b"another-writer")
+            self.assertEqual(staged.read_bytes(), b"scanned")
+
+    def test_staged_symlink_is_not_released(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / "original"
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            original.write_bytes(b"secret")
+            staged.symlink_to(original)
+            result = ArtifactIntakeGate(FakeScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("staged_artifact_symlink_not_allowed", result.decision.reason_codes)
+            self.assertFalse(final.exists())
+            self.assertEqual(original.read_bytes(), b"secret")
+
+    def test_dangling_final_symlink_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"clean")
+            final.symlink_to(Path(tmp) / "absent")
+            result = ArtifactIntakeGate(FakeScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("final_destination_already_exists", result.decision.reason_codes)
+            self.assertTrue(final.is_symlink())
+            self.assertEqual(staged.read_bytes(), b"clean")
+
+    def test_changed_bytes_after_link_are_not_left_published(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"scanned")
+            actual_link = os.link
+
+            def mutate_after_link(source, destination, **kwargs):
+                actual_link(source, destination, **kwargs)
+                staged.write_bytes(b"changed-after-link")
+
+            with patch("reference.ai_artifact_security.os.link", side_effect=mutate_after_link):
+                result = ArtifactIntakeGate(FakeScanner()).finalize(
+                    artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+                )
+            self.assertIn("staged_artifact_changed_during_release", result.decision.reason_codes)
+            self.assertFalse(final.exists())
+            self.assertEqual(staged.read_bytes(), b"changed-after-link")
+
     def test_existing_final_destination_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             staged = Path(tmp) / "staged"
@@ -213,6 +323,101 @@ class ArtifactSecurityTests(unittest.TestCase):
             result = ArtifactIntakeGate(FakeScanner()).finalize(artifact=artifact(), staged_path=staged, final_path=final, now=NOW)
             self.assertIn("final_destination_already_exists", result.decision.reason_codes)
             self.assertEqual(final.read_bytes(), b"existing")
+
+
+    def test_malformed_clean_scan_evidence_never_authorizes_release(self):
+        item = artifact()
+        digest = "7" * 64
+        invalid_values = (
+            "evidence:scanner-health",
+            {"source": "evidence:scanner-health"},
+            ["evidence:valid", 123],
+            [""],
+            ["  "],
+            [" padded "],
+            ["reference:" + "x" * 600],
+            ["evidence:valid"] * 33,
+        )
+        for evidence_refs in invalid_values:
+            with self.subTest(value=repr(evidence_refs)[:75]):
+                payload = record(item)
+                payload["evidence_refs"] = evidence_refs
+                finding = WardveilScanEnvelope(item.resource_id, digest, payload)
+                decision = evaluate_artifact_scan(item, digest, finding, now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("clean_scan_missing_evidence_refs", decision.reason_codes)
+
+    def test_malformed_scan_record_result_and_producer_fail_closed(self):
+        item = artifact()
+        digest = "8" * 64
+        invalid_record = WardveilScanEnvelope(item.resource_id, digest, "untrusted")
+        self.assertIn(
+            "invalid_scan_record",
+            evaluate_artifact_scan(item, digest, invalid_record, now=NOW).reason_codes,
+        )
+
+        bad_result = record(item)
+        bad_result["scan_result"] = ["clean"]
+        self.assertIn(
+            "unsupported_scan_result",
+            evaluate_artifact_scan(
+                item, digest, WardveilScanEnvelope(item.resource_id, digest, bad_result), now=NOW
+            ).reason_codes,
+        )
+
+        bad_producer = record(item)
+        bad_producer["producer"] = {"id": 1, "authoritative": True}
+        self.assertIn(
+            "non_authoritative_scan_record",
+            evaluate_artifact_scan(
+                item, digest, WardveilScanEnvelope(item.resource_id, digest, bad_producer), now=NOW
+            ).reason_codes,
+        )
+
+    def test_valid_tuple_scan_evidence_still_authorizes_clean_artifact(self):
+        item = artifact()
+        digest = "9" * 64
+        payload = record(item)
+        payload["evidence_refs"] = ("evidence:scan", "evidence:scanner-health")
+        decision = evaluate_artifact_scan(
+            item, digest, WardveilScanEnvelope(item.resource_id, digest, payload), now=NOW
+        )
+        self.assertTrue(decision.release_allowed)
+
+
+
+    def test_untrusted_envelope_and_digest_shapes_fail_closed(self):
+        item = artifact()
+        digest = "a" * 64
+        for malformed in (None, {}, "untrusted", 123, ["scan"]):
+            with self.subTest(envelope=repr(malformed)):
+                decision = evaluate_artifact_scan(item, digest, malformed, now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("invalid_scan_envelope", decision.reason_codes)
+
+        for malformed in (None, 123, [], "", "g" * 64, "a" * 63, "a" * 65):
+            with self.subTest(expected_digest=repr(malformed)):
+                decision = evaluate_artifact_scan(item, malformed, envelope(item, digest), now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("invalid_artifact_digest", decision.reason_codes)
+            with self.subTest(scan_digest=repr(malformed)):
+                finding = WardveilScanEnvelope(item.resource_id, malformed, record(item))
+                decision = evaluate_artifact_scan(item, digest, finding, now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("invalid_scan_digest", decision.reason_codes)
+
+        malformed_resource = WardveilScanEnvelope(123, digest, record(item))
+        self.assertIn(
+            "invalid_scan_resource_id",
+            evaluate_artifact_scan(item, digest, malformed_resource, now=NOW).reason_codes,
+        )
+
+    def test_uppercase_hex_digest_remains_compatible(self):
+        item = artifact()
+        lower = "abcdef0123456789" * 4
+        result = evaluate_artifact_scan(item, lower, envelope(item, lower.upper()), now=NOW)
+        self.assertTrue(result.release_allowed)
+
 
 
 if __name__ == "__main__":
