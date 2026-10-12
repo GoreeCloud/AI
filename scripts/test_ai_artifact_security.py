@@ -343,5 +343,39 @@ class ArtifactSecurityTests(unittest.TestCase):
 
 
 
+    def test_untrusted_envelope_and_digest_shapes_fail_closed(self):
+        item = artifact()
+        digest = "a" * 64
+        for malformed in (None, {}, "untrusted", 123, ["scan"]):
+            with self.subTest(envelope=repr(malformed)):
+                decision = evaluate_artifact_scan(item, digest, malformed, now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("invalid_scan_envelope", decision.reason_codes)
+
+        for malformed in (None, 123, [], "", "g" * 64, "a" * 63, "a" * 65):
+            with self.subTest(expected_digest=repr(malformed)):
+                decision = evaluate_artifact_scan(item, malformed, envelope(item, digest), now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("invalid_artifact_digest", decision.reason_codes)
+            with self.subTest(scan_digest=repr(malformed)):
+                finding = WardveilScanEnvelope(item.resource_id, malformed, record(item))
+                decision = evaluate_artifact_scan(item, digest, finding, now=NOW)
+                self.assertFalse(decision.release_allowed)
+                self.assertIn("invalid_scan_digest", decision.reason_codes)
+
+        malformed_resource = WardveilScanEnvelope(123, digest, record(item))
+        self.assertIn(
+            "invalid_scan_resource_id",
+            evaluate_artifact_scan(item, digest, malformed_resource, now=NOW).reason_codes,
+        )
+
+    def test_uppercase_hex_digest_remains_compatible(self):
+        item = artifact()
+        lower = "abcdef0123456789" * 4
+        result = evaluate_artifact_scan(item, lower, envelope(item, lower.upper()), now=NOW)
+        self.assertTrue(result.release_allowed)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
