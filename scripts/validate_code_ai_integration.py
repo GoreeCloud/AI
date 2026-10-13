@@ -11,6 +11,8 @@ SELECTOR = ROOT / "reference" / "repository_context_selection.py"
 BRIEF = ROOT / "reference" / "repository_context_brief.py"
 BRIEF_TESTS = ROOT / "scripts" / "test_repository_context_brief.py"
 BRIEF_DOC = ROOT / "docs" / "READ_ONLY_REPOSITORY_BRIEFS.md"
+EXPORT = ROOT / "reference" / "repository_brief_export.py"
+EXPORT_TESTS = ROOT / "scripts" / "test_repository_brief_export.py"
 TESTS = ROOT / "scripts" / "test_code_repository_context.py"
 DOC = ROOT / "docs" / "CODE_REPOSITORY_CONTEXT.md"
 README = ROOT / "README.md"
@@ -22,13 +24,16 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    for path in (CONTRACT, SOURCE, SELECTOR, BRIEF, TESTS, BRIEF_TESTS, DOC, BRIEF_DOC, README):
+    for path in (CONTRACT, SOURCE, SELECTOR, BRIEF, EXPORT, TESTS, BRIEF_TESTS, EXPORT_TESTS, DOC, BRIEF_DOC, README):
         require(path.is_file(), f"missing required file: {path.relative_to(ROOT)}")
 
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
     source = SOURCE.read_text(encoding="utf-8")
     selector = SELECTOR.read_text(encoding="utf-8")
     brief = BRIEF.read_text(encoding="utf-8")
+    export = EXPORT.read_text(encoding="utf-8")
+    for token in ("MAX_EXPORT_CHARS = 40_000", "untrusted repository data", "invalid_repository_brief_export_url", "_escape_md", "write_authorized"):
+        require(token in export, f"repository export missing invariant: {token}")
     docs = (DOC.read_text(encoding="utf-8") + "\n" + BRIEF_DOC.read_text(encoding="utf-8") + "\n" + README.read_text(encoding="utf-8")).lower()
 
     properties = contract.get("properties") or {}
