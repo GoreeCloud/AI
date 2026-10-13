@@ -44,3 +44,19 @@ At source revision `77fcaeb04f7f22773442c4e33e1140726e163941`, I validated the a
 The first browser attempt identified that `Renderer.onError([])` can be called with no errors; the wrapper incorrectly marked that as failure. The callback now treats only **nonempty** error arrays as errors, and the automated source test covers this regression. The Chromium test used **synthetic static OpenUI Lang**, not actual Ollama output, AI inference, connected credentials, protected data or a live tool action.
 
 This is Developer-environment evidence, not an all-platform accessibility, security, privacy, performance or release-acceptance result. The temporary test consumer was cleaned up after execution. Package-install warnings and optional install scripts still require dependency review before a production consumer is selected.
+
+## Development-only local model bridge — October 13, 2026
+
+The `server/local_gateway_bridge.py` module adds an **in-process bridge** between the OpenUI adapter and GoreeCloud AI's existing Python `reference.local_model_gateway.LocalOllamaGateway`. This gateway currently lives on **separate draft PR #45** (branch `feature/ai-local-ollama-runtime-20261012`); it is not merged into this source branch. If that dependency is unavailable, the bridge fails closed with `local_gateway_not_available`. It never creates an HTTP endpoint, calls a managed OpenUI Gateway, or defines another model transport.
+
+The internal calling contract takes a model identifier, the user's text, and the **trusted** `glazeOpenUILibrary.prompt()` string generated in the application. The system prompt is **not user-supplied**. It sends system/user roles through the existing loopback-only Ollama chat adapter. Output is labeled `validation="not_validated"`: **do not render or act on it** until the existing OpenUI completed-response parser and Glaze allowlist accept it. The bridge verifies provider identity and bounded text, but is not a JSON schema parser, safety policy engine, authorization broker, or public endpoint.
+
+Local, no-network contract test:
+
+```sh
+python3 -m unittest discover -s integrations/openui/server -p 'test_*.py' -v
+```
+
+**Verification:** Four synthetic bridge tests passed at source `bf6a9dc6fa0c260d21aa2bb76766cf46c22d4ae4`. In a temporary checkout, the actual draft PR #45 gateway module was installed alongside this OpenUI branch **only for integration testing**; a synthetic HTTP server bound to loopback returned a fabricated Ollama `/api/chat` completion. The adapter used the real provider class, sent system/user roles and nonstreaming chat format, and returned the exact candidate UI text and `local` processing identity. Test marker: `BRIDGE_WITH_ACTUAL_PR45_GATEWAY_AND_LOOPBACK_FIXTURE_PASSED`. No installed model, streaming transport, live provider inference, application routing, production endpoint, or full privacy/security qualification was established. The temporary checkouts were deleted.
+
+**Next acceptance dependencies:** review and integrate PR #45 (and PR #46 for streaming) under GoreeCloud's protected branch process; connect the first-party UI/backend contract without passing raw model responses around the parser; validate model catalog/selection, cancellation, identities, quotas, origin/authentication, Wardveil/Privacy Shield requirements and multi-viewport/accessibility behavior. Never treat CI or a mock Ollama response as a production-ready AI assistant.
