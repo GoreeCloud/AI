@@ -52,6 +52,7 @@ A new provider-neutral-facing local runtime adapter in
 real loopback-only Ollama model discovery and bounded chat.
 The executable [local CLI](scripts/ai_local.py) accepts prompts via stdin,
 can stream local text deltas with explicit completion/cancellation semantics,
+and offers a private multi-turn in-memory conversation through the repl command,
 normalizes provider/model/location in the result, and fails closed on remote
 endpoints, redirects, malformed responses, oversized payloads, and provider
 unavailability. It neither dispatches tools nor persists conversations.
@@ -66,6 +67,7 @@ python3 scripts/test_ai_artifact_security.py
 python3 scripts/test_code_repository_context.py
 python3 scripts/test_local_model_gateway.py
 python3 scripts/test_local_model_streaming.py
+python3 scripts/test_local_chat_session.py
 python3 scripts/validate_wardveil_ai_integration.py
 python3 scripts/validate_code_ai_integration.py
 ```

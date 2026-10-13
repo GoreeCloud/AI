@@ -43,5 +43,8 @@ jobs:
       - name: Test local-only streamed model responses
         run: python3 scripts/test_local_model_streaming.py
 
+      - name: Test private in-memory local chat sessions
+        run: python3 scripts/test_local_chat_session.py
+
       - name: Compile Python sources
-        run: python3 -m py_compile reference/ai_artifact_security.py reference/code_repository_context.py reference/repository_context_selection.py reference/local_model_gateway.py scripts/ai_local.py scripts/test_local_model_gateway.py scripts/test_local_model_streaming.py scripts/test_ai_artifact_security.py scripts/test_code_repository_context.py scripts/validate_wardveil_ai_integration.py scripts/validate_code_ai_integration.py
+        run: python3 -m py_compile reference/ai_artifact_security.py reference/code_repository_context.py reference/repository_context_selection.py reference/local_model_gateway.py reference/local_chat_session.py scripts/ai_local.py scripts/test_local_model_gateway.py scripts/test_local_model_streaming.py scripts/test_local_chat_session.py scripts/test_ai_artifact_security.py scripts/test_code_repository_context.py scripts/validate_wardveil_ai_integration.py scripts/validate_code_ai_integration.py

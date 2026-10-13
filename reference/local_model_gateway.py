@@ -114,7 +114,11 @@ def _validated_messages(messages: Sequence[ChatMessage]) -> list[dict[str, str]]
             raise LocalModelError("invalid_messages", "System instructions must be first.")
         if not isinstance(item.content, str) or not item.content.strip() or "\x00" in item.content:
             raise LocalModelError("invalid_messages", "Message text must be nonempty plain text.")
-        if len(item.content.encode("utf-8")) > MAX_MESSAGE_BYTES:
+        try:
+            size = len(item.content.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise LocalModelError("invalid_messages", "Messages must use valid UTF-8.") from None
+        if size > MAX_MESSAGE_BYTES:
             raise LocalModelError("request_too_large", "An individual message is too large.")
         prepared.append({"role": item.role, "content": item.content})
     if prepared[-1]["role"] != "user":
@@ -213,7 +217,11 @@ class LocalOllamaGateway:
         ):
             raise LocalModelError("invalid_response", "Local model returned an incomplete response.")
         content = message["content"]
-        if len(content.encode("utf-8")) > MAX_RESPONSE_BYTES:
+        try:
+            size = len(content.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise LocalModelError("invalid_response", "Local model returned invalid text.") from None
+        if size > MAX_RESPONSE_BYTES:
             raise LocalModelError("response_too_large", "Local model response exceeds size limit.")
         return ChatResult(provider="ollama", model=name, processing="local", content=content)
 
@@ -290,7 +298,10 @@ class LocalOllamaGateway:
                     else:
                         delta = message["content"]
 
-                    answer_bytes += len(delta.encode("utf-8"))
+                    try:
+                        answer_bytes += len(delta.encode("utf-8"))
+                    except UnicodeEncodeError:
+                        raise LocalModelError("invalid_response", "Local stream returned invalid text.") from None
                     if answer_bytes > MAX_RESPONSE_BYTES:
                         raise LocalModelError("response_too_large", "Local answer exceeded its size limit.")
                     if delta:

@@ -27,6 +27,74 @@ def _terminal_safe(value: str) -> str:
     )
 
 
+def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
+    from reference.local_chat_session import LocalChatSession
+
+    session = LocalChatSession(runtime, model)
+    print("GoreeCloud AI — local-only in-memory chat. /help for commands.")
+    while True:
+        try:
+            prompt = input("You> ")
+        except EOFError:
+            print()
+            session.reset()
+            return 0
+        except KeyboardInterrupt:
+            print("\nUse /exit to leave or /reset to clear the conversation.")
+            continue
+
+        if prompt.startswith("//"):
+            prompt = prompt[1:]  # Literal user message starting with '/'.
+        elif prompt.startswith("/"):
+            command = prompt.strip()
+            if command in ("/exit", "/quit"):
+                session.reset()
+                return 0
+            if command == "/reset":
+                session.reset()
+                print("Conversation cleared from this process.")
+                continue
+            if command == "/status":
+                print(f"Retained conversation turns: {len(session.turns)} (memory only)")
+                continue
+            if command == "/help":
+                print("/reset clears in-memory context; /status shows retained-turn count; "
+                      "/exit quits; // sends a message starting with /.")
+                continue
+            print("Unknown command. Use /help. Nothing sent to the model.")
+            continue
+
+        if not prompt.strip():
+            continue
+        try:
+            if stream:
+                emitted = False
+                print("AI> ", end="", flush=True)
+                try:
+                    with closing(session.iter_reply(prompt)) as events:
+                        for event in events:
+                            if event.done:
+                                print(flush=True)
+                                break
+                            print(_terminal_safe(event.delta), end="", flush=True)
+                            emitted = True
+                except (LocalModelError, KeyboardInterrupt):
+                    if emitted:
+                        print("\nPartial response discarded from conversation history.", file=sys.stderr)
+                    else:
+                        print()
+                    raise
+            else:
+                answer = session.reply(prompt)
+                print("AI> " + _terminal_safe(answer.content))
+            if not session.last_reply_retained:
+                print("Context reset: answer too large or empty to retain safely.", file=sys.stderr)
+        except KeyboardInterrupt:
+            print("Generation interrupted; the incomplete turn was not retained.", file=sys.stderr)
+        except LocalModelError as exc:
+            print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="GoreeCloud AI Development: local-only Ollama model discovery and chat."
@@ -39,6 +107,9 @@ def main(argv: list[str] | None = None) -> int:
     chat.add_argument("--model", required=True)
     chat.add_argument("--stream", action="store_true",
                       help="Print local model tokens as they arrive; output is provisional until completion.")
+    repl = commands.add_parser("repl", help="Start private multi-turn local chat in memory.")
+    repl.add_argument("--model", required=True)
+    repl.add_argument("--no-stream", action="store_true", help="Wait for complete responses before displaying.")
     args = parser.parse_args(argv)
     try:
         runtime = LocalOllamaGateway(args.endpoint, args.timeout)
@@ -49,6 +120,8 @@ def main(argv: list[str] | None = None) -> int:
             for model in models:
                 print(model.name)
             return 0
+        if args.command == "repl":
+            return _run_repl(runtime, args.model, stream=not args.no_stream)
         if sys.stdin.isatty():
             print("Enter the prompt using standard input, not a command-line argument.", file=sys.stderr)
             return 2
