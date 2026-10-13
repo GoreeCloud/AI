@@ -249,6 +249,51 @@ class ArtifactSecurityTests(unittest.TestCase):
             self.assertTrue(staged.exists())
             self.assertFalse(final.exists())
 
+    def test_identical_bytes_in_replaced_staging_inode_are_not_released(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            retired = Path(tmp) / "retired"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"scanned")
+
+            class SwappingScanner(FakeScanner):
+                def scan_staged_file(self, **kwargs):
+                    staged.rename(retired)
+                    staged.write_bytes(b"scanned")
+                    return super().scan_staged_file(**kwargs)
+
+            result = ArtifactIntakeGate(SwappingScanner()).finalize(
+                artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+            )
+            self.assertIn("staged_artifact_replaced_during_verification", result.decision.reason_codes)
+            self.assertFalse(result.decision.release_allowed)
+            self.assertFalse(final.exists())
+            self.assertEqual(staged.read_bytes(), b"scanned")
+            self.assertEqual(retired.read_bytes(), b"scanned")
+
+    def test_identical_bytes_in_post_link_replacement_are_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staged"
+            retired = Path(tmp) / "original"
+            final = Path(tmp) / "final"
+            staged.write_bytes(b"scanned")
+            actual_link = os.link
+
+            def replace_after_link(source, destination, **kwargs):
+                actual_link(source, destination, **kwargs)
+                staged.rename(retired)
+                staged.write_bytes(b"scanned")
+
+            with patch("reference.ai_artifact_security.os.link", side_effect=replace_after_link):
+                result = ArtifactIntakeGate(FakeScanner()).finalize(
+                    artifact=artifact(), staged_path=staged, final_path=final, now=NOW
+                )
+            self.assertIn("staged_artifact_replaced_during_release", result.decision.reason_codes)
+            self.assertFalse(result.decision.release_allowed)
+            self.assertFalse(final.exists())
+            self.assertEqual(staged.read_bytes(), b"scanned")
+            self.assertEqual(retired.read_bytes(), b"scanned")
+
     def test_competing_destination_created_during_scan_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as tmp:
             staged = Path(tmp) / "staged"

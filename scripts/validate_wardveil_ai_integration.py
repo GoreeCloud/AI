@@ -39,6 +39,7 @@ def main() -> None:
         "rehash_staging_after_clean_before_release",
         "atomic_destination_create_no_clobber",
         "staged_symlink_rejected",
+        "staged_inode_identity_verified_before_release_and_cleanup",
         "rehash_released_link_before_retiring_staging",
         "unknown_and_unsupported_fail_closed",
         "scanner_unavailable_fails_closed",
@@ -68,6 +69,9 @@ def main() -> None:
         '"staged_artifact_symlink_not_allowed"',
         '"final_destination_already_exists"',
         '"staged_artifact_changed_during_release"',
+        '"staged_artifact_replaced_during_verification"',
+        '"staged_artifact_replaced_during_release"',
+        "initial_identity = (initial_stat.st_dev, initial_stat.st_ino)",
         'final_path.is_symlink()',
         'sha256_file(final_path) != before_digest',
     ):
