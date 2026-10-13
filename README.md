@@ -53,6 +53,7 @@ real loopback-only Ollama model discovery and bounded chat.
 The executable [local CLI](scripts/ai_local.py) accepts prompts via stdin,
 can stream local text deltas with explicit completion/cancellation semantics,
 and offers a private multi-turn in-memory conversation through the repl command,
+with installed-model switching, ephemeral system instructions and completed-turn undo,
 normalizes provider/model/location in the result, and fails closed on remote
 endpoints, redirects, malformed responses, oversized payloads, and provider
 unavailability. It neither dispatches tools nor persists conversations.
