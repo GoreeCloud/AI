@@ -40,6 +40,17 @@ The LocalChatSession reference API retains only successfully completed user/assi
 
 This session is designed for **one sequential local console user**, not concurrent clients, accounts or trusted persistent history. No session database, file, network synchronization, external model fallback or plugin/tool execution is implemented. Chat content is sent to the selected local Ollama runtime, not persisted by this adapter. The caller is responsible for authenticating any future service/UI integration and verifying the runtime's retention policy.
 
+## Session controls (Development)
+
+The interactive local console also includes explicit privacy-aware controls:
+
+- `/models` lists installed local model names. `/model NAME` switches only to a verified installed model and clears prior turns and system instruction to avoid cross-model context leaks. Invalid, absent or unavailable models do not change session state.
+- `/system TEXT` installs an in-memory system instruction first in the local request, clearing the previous conversation. `/system off` clears instruction and conversation; `/system` reports only enabled/disabled status, not the instruction itself.
+- `/undo` discards the latest *completed* user/assistant pair in process memory, without another request. It cannot revoke previous inference, output in terminal scrollback or copies held by a runtime.
+- `/status` shows retained-turn count, active model and instruction state without printing confidential prompt or instruction content.
+
+These features still obey existing 32-message and 64 KiB payload limits, do not save a session or invoke tools, and do not make external-provider requests. They do not establish a multi-user service, authenticated application UI, permanent deletion at the model runtime or production readiness.
+
 ## Current capability and limits
 
 - Models: retrieve, normalize and sort at most 200 locally installed Ollama model identifiers.
