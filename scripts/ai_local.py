@@ -62,6 +62,10 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 continue
             if command == "/status":
                 print(f"Retained conversation turns: {len(session.turns)} (memory only)")
+                retention = ("automatic" if session.turn_limit is None else
+                             "stateless" if session.turn_limit == 0 else
+                             f"last {session.turn_limit} completed turn(s)")
+                print(f"Retention mode: {retention} (process memory only)")
                 print(f"Local model: {_terminal_safe(session.model)}; "
                       f"system instruction: {'on' if session.has_system_instruction else 'off'}")
                 continue

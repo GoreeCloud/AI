@@ -187,3 +187,20 @@ class AutomaticRetentionRestoreTests(unittest.TestCase):
             self.assertFalse(any(m["content"] == "secret old message" for m in sent))
         finally:
             harness.tearDown()
+
+
+class RetentionModeStatusTests(unittest.TestCase):
+    def test_status_reports_automatic_capped_and_stateless_modes_without_contents(self):
+        from test_local_chat_controls import ConsoleControlTests
+        harness = ConsoleControlTests("test_missing_model_does_not_discard_context")
+        harness.setUp()
+        try:
+            result = harness.run_console(
+                "/status\n/keep 2\n/status\n/keep 0\n/status\n/keep auto\n/status\n/exit\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.count("Retention mode: automatic"), 2)
+            self.assertIn("Retention mode: last 2 completed turn(s)", result.stdout)
+            self.assertIn("Retention mode: stateless", result.stdout)
+            self.assertEqual(len(harness.server.requests), 0)
+        finally:
+            harness.tearDown()
