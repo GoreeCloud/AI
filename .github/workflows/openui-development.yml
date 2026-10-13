@@ -1,0 +1,34 @@
+name: Validate OpenUI Development Adapter
+on:
+  pull_request:
+    paths:
+      - "integrations/openui/**"
+      - ".github/workflows/openui-development.yml"
+  push:
+    branches: [main]
+    paths:
+      - "integrations/openui/**"
+      - ".github/workflows/openui-development.yml"
+permissions:
+  contents: read
+jobs:
+  openui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact head
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Install open-source SDK for typecheck (no scripts or subscriptions)
+        working-directory: integrations/openui
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Boundary tests
+        working-directory: integrations/openui
+        run: npm test
+      - name: Typecheck OpenUI integration
+        working-directory: integrations/openui
+        run: npm run typecheck
