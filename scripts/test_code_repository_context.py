@@ -281,6 +281,23 @@ class CodeRepositoryContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "valid_repository_query_required"):
             select_repository_context(intake, "!!!")
 
+    def test_selection_filters_to_requested_repository_context_kinds(self):
+        payload = valid_payload()
+        payload["issues"][0]["title"] = "Fix session retry"
+        payload["commits"][0]["message"] = "Improve session retry"
+        intake = RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+        selected = select_repository_context(intake, "session retry", kinds=("issue",))
+        self.assertEqual(tuple(item.kind for item in selected), ("issue",))
+        self.assertEqual(selected[0].key, "issue:1")
+        self.assertEqual(select_repository_context(intake, "session retry", kinds=("branch",)), ())
+        self.assertTrue(any(item.kind == "commit" for item in select_repository_context(intake, "session retry")))
+
+    def test_selection_rejects_unknown_or_malformed_kind_filters(self):
+        intake = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
+        for value in ((), ("issue", "unknown"), "issue", ["issue"], (None,), (1,)):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid_repository_context_kinds"):
+                select_repository_context(intake, "example", kinds=value)
+
     def test_intake_gate_returns_context_only_after_acceptance(self):
         result = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW)
         self.assertTrue(result.decision.accepted)
