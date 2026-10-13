@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Renderer } from "@openuidev/react-lang";
+import { GoreeCloudOpenUI } from "../src/GoreeCloudOpenUI";
 import { glazeOpenUILibrary } from "../src/glaze-library";
 import { validateOpenUIProgram } from "../src/program";
 
@@ -74,8 +75,14 @@ test("local choice interactions update the visible selection without a network a
     const root = createRoot(container);
     const source = 'root = GlzChoice("Mode?", [{label: "Local", description: "Private"}, {label: "Offline", description: "No network"}])';
     await act(async () => {
-      root.render(createElement(Renderer, { response: source, library: glazeOpenUILibrary }));
+      root.render(createElement("main", null,
+        createElement(GoreeCloudOpenUI, { response: source }),
+        createElement(GoreeCloudOpenUI, { response: 'root = Unknown("not-authorized")' }),
+      ));
     });
+    const alerts = [...container.querySelectorAll('[role="alert"]')].map(node => node.textContent ?? "");
+    assert.equal(alerts.length, 1, "No false error message for the valid interface");
+    assert.match(alerts[0], /Interface unavailable/);
     const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
     assert.equal(radios.length, 2);
     assert.equal(radios[0].checked, false);
