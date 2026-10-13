@@ -91,6 +91,18 @@ test("local choice interactions update the visible selection without a network a
     assert.equal(radios[1].checked, true);
     assert.match(container.querySelector("output")?.textContent ?? "", /Selected: Offline. Not submitted or saved/);
     assert.equal(container.querySelector('button[type="submit"]'), null);
+    // Model replaces the question in the same mounted renderer: never apply an old index.
+    const changed = 'root = GlzChoice("New question?", [{label: "Fresh", description: "A new option"}, {label: "Other", description: "Different meaning"}])';
+    await act(async () => {
+      root.render(createElement("main", null,
+        createElement(GoreeCloudOpenUI, { response: changed }),
+        createElement(GoreeCloudOpenUI, { response: 'root = Unknown("not-authorized")' }),
+      ));
+    });
+    const resetRadios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    assert.equal(resetRadios.length, 2);
+    assert.equal(resetRadios.every(radio => !radio.checked), true, "Selection resets on changed AI question");
+    assert.match(container.querySelector("output")?.textContent ?? "", /No selection/);
     await act(async () => root.unmount());
   } finally {
     Object.assign(globalThis, previous);
