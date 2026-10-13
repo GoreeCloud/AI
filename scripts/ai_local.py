@@ -27,10 +27,12 @@ def _terminal_safe(value: str) -> str:
     )
 
 
-def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
+def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: int | None = None) -> int:
     from reference.local_chat_session import LocalChatSession
 
     session = LocalChatSession(runtime, model)
+    if keep is not None:
+        session.set_turn_limit(keep)
     print("GoreeCloud AI — local-only in-memory chat. /help for commands.")
     while True:
         try:
@@ -54,8 +56,16 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 session.reset()
                 print("Conversation cleared from this process.")
                 continue
+            if command == "/clear":
+                removed = session.clear_turns()
+                print(f"Cleared {removed} local turn(s); system instruction and retention cap preserved.")
+                continue
             if command == "/status":
                 print(f"Retained conversation turns: {len(session.turns)} (memory only)")
+                retention = ("automatic" if session.turn_limit is None else
+                             "stateless" if session.turn_limit == 0 else
+                             f"last {session.turn_limit} completed turn(s)")
+                print(f"Retention mode: {retention} (process memory only)")
                 print(f"Local model: {_terminal_safe(session.model)}; "
                       f"system instruction: {'on' if session.has_system_instruction else 'off'}")
                 continue
@@ -63,6 +73,25 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 numbers = ", ".join(str(i) for i in range(1, len(session.turns) + 1))
                 print("Completed local turn numbers: " + (numbers or "(none)"))
                 print("Use /delete N to remove one numbered turn; contents stay private.")
+                continue
+            if command == "/keep":
+                current = session.turn_limit
+                print("Retained completed-turn cap: " + ("automatic" if current is None else str(current)))
+                continue
+            if command == "/keep auto":
+                session.restore_automatic_retention()
+                print("Automatic retention restored; previously deleted turns stay deleted.")
+                continue
+            if command.startswith("/keep "):
+                number = command[6:].strip()
+                if number.isascii() and number.isdecimal() and len(number) <= 2:
+                    try:
+                        session.set_turn_limit(int(number))
+                        print(f"Local turn retention cap set to {session.turn_limit}; excess prior turns cleared.")
+                    except LocalModelError as exc:
+                        print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
+                else:
+                    print("Enter an integer turn limit from 0 to 50; history unchanged.")
                 continue
             if command == "/undo":
                 if session.undo_last_turn():
@@ -115,7 +144,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /delete N removes one; /undo removes the last turn; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
@@ -146,7 +175,10 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 answer = session.reply(prompt)
                 print("AI> " + _terminal_safe(answer.content))
             if not session.last_reply_retained:
-                print("Context reset: answer too large or empty to retain safely.", file=sys.stderr)
+                if session.turn_limit == 0:
+                    print("Private stateless mode: completed turn not retained.")
+                else:
+                    print("Context reset: answer too large or empty to retain safely.", file=sys.stderr)
         except KeyboardInterrupt:
             print("Generation interrupted; the incomplete turn was not retained.", file=sys.stderr)
         except LocalModelError as exc:
@@ -167,6 +199,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="Print local model tokens as they arrive; output is provisional until completion.")
     repl = commands.add_parser("repl", help="Start private multi-turn local chat in memory.")
     repl.add_argument("--model", required=True)
+    repl.add_argument("--keep", type=int, choices=range(51), metavar="0..50",
+                      help="Maximum completed turns held in memory (0: stateless).")
     repl.add_argument("--no-stream", action="store_true", help="Wait for complete responses before displaying.")
     args = parser.parse_args(argv)
     try:
@@ -179,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(model.name)
             return 0
         if args.command == "repl":
-            return _run_repl(runtime, args.model, stream=not args.no_stream)
+            return _run_repl(runtime, args.model, stream=not args.no_stream, keep=args.keep)
         if sys.stdin.isatty():
             print("Enter the prompt using standard input, not a command-line argument.", file=sys.stderr)
             return 2
