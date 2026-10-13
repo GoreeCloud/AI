@@ -24,6 +24,27 @@ def _unsafe_parameter_name(name: str) -> bool:
     return compact in _BLOCKED_NAMES or compact.endswith(_BLOCKED_SUFFIXES)
 
 
+def _has_sensitive_navigation_parameter(section: str) -> bool:
+    """Check raw, semicolon-delimited and decoded parameter interpretations.
+
+    Some URL consumers historically treat semicolons as field separators, while
+    other link renderers decode percent-encoded separators before navigation.
+    Any recognized sensitive name in those interpretations fails closed.
+    """
+    for _ in range(4):
+        if any(_unsafe_parameter_name(name) for name, _ in parse_qsl(
+            section.replace(";", "&"),
+            keep_blank_values=True,
+            max_num_fields=MAX_PARAMETERS_PER_SECTION,
+        )):
+            return True
+        decoded = unquote(section)
+        if decoded == section:
+            break
+        section = decoded
+    return False
+
+
 def is_safe_repository_navigation_url(url: object) -> bool:
     """Validate read-only links without fetching or following the target."""
     if not isinstance(url, str) or not 0 < len(url) <= MAX_URL_LENGTH:
@@ -38,9 +59,7 @@ def is_safe_repository_navigation_url(url: object) -> bool:
             return False
         parsed.port
         for section in (parsed.query, parsed.fragment):
-            if any(_unsafe_parameter_name(name) for name, _ in parse_qsl(
-                section, keep_blank_values=True, max_num_fields=MAX_PARAMETERS_PER_SECTION,
-            )):
+            if _has_sensitive_navigation_parameter(section):
                 return False
     except ValueError:
         return False

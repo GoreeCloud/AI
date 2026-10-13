@@ -248,6 +248,53 @@ class CodeRepositoryContextTests(unittest.TestCase):
         payload["evidence"]["webUrls"] = ["https://git.example.test/GoreeCloud/code?q=test&tab=commits"]
         self.assertTrue(evaluate_repository_context(payload, TARGET, now=NOW).accepted)
 
+    def test_ambiguous_url_field_delimiters_are_rejected_through_intake(self):
+        cases = (
+            ("repository", "webUrl", "?view=files;access_token=synthetic",
+             "repository_context_invalid_repository_url"),
+            ("commits", "webUrl", "?q=notes%26api_key%3Dsynthetic",
+             "repository_context_invalid_commits_item"),
+            ("issues", "webUrl", "#file=readme;session_id=synthetic",
+             "repository_context_invalid_issues_item"),
+            ("pullRequests", "webUrl", "?view=files%3Brefresh_token%3Dsynthetic",
+             "repository_context_invalid_pullRequests_item"),
+        )
+        for section, field, tail, reason in cases:
+            with self.subTest(section=section):
+                payload = valid_payload()
+                record = payload["repository"] if section == "repository" else payload[section][0]
+                record[field] += tail
+                result = RepositoryContextIntakeGate(FakeProvider(payload)).load(
+                    target=TARGET, now=NOW,
+                )
+                self.assertFalse(result.decision.accepted)
+                self.assertIn(reason, result.decision.reason_codes)
+                self.assertIsNone(result.context)
+
+        payload = valid_payload()
+        payload["evidence"]["webUrls"] = [
+            "https://git.example.test/GoreeCloud/code?search=x%2526access_token%253Dsynthetic",
+        ]
+        result = RepositoryContextIntakeGate(FakeProvider(payload)).load(
+            target=TARGET, now=NOW,
+        )
+        self.assertFalse(result.decision.accepted)
+        self.assertIn("repository_context_invalid_evidence_url", result.decision.reason_codes)
+        self.assertIsNone(result.context)
+
+    def test_benign_semicolon_and_encoded_search_links_remain_accepted(self):
+        payload = valid_payload()
+        payload["repository"]["webUrl"] += "?view=files;tab=readme"
+        payload["commits"][0]["webUrl"] += "?q=tests%3Bdocs"
+        payload["evidence"]["webUrls"] = [
+            "https://git.example.test/GoreeCloud/code?search=source%26tests",
+        ]
+        result = RepositoryContextIntakeGate(FakeProvider(payload)).load(
+            target=TARGET, now=NOW,
+        )
+        self.assertTrue(result.decision.accepted)
+        self.assertIsNotNone(result.context)
+
     def test_collection_items_require_complete_typed_shapes(self):
         payload = valid_payload()
         del payload["commits"][0]["sha"]

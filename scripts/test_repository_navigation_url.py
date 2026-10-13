@@ -19,6 +19,9 @@ class RepositoryNavigationUrlTests(unittest.TestCase):
             "https://code.example.test:443/GoreeCloud/AI/pulls/39",
             "https://code.example.test/search?q=code&tab=issues",
             "http://localhost:3000/GoreeCloud/AI#files",
+            "https://code.example.test/search?q=plans%3Btesting&tab=code",
+            "https://code.example.test/search?q=notes%26examples",
+            "https://code.example.test/GoreeCloud/AI?view=diff;tab=commits",
         ):
             with self.subTest(url=url):
                 self.assertTrue(is_safe_repository_navigation_url(url))
@@ -35,6 +38,12 @@ class RepositoryNavigationUrlTests(unittest.TestCase):
             "https://code.example.test/AI?access%5Ftoken=example",
             "https://code.example.test/AI?access%255Ftoken=example",
             "https://code.example.test/AI#path?access_token=example",
+            "https://code.example.test/AI?tab=files;access_token=example",
+            "https://code.example.test/AI#file=readme;session_id=example",
+            "https://code.example.test/AI?q=notes%26access_token%3Dexample",
+            "https://code.example.test/AI?view=files%3Bapi_key%3Dexample",
+            "https://code.example.test/AI#file=readme%26refresh_token%3Dexample",
+            "https://code.example.test/AI?q=notes%2526access_token%253Dexample",
         ):
             with self.subTest(url=url):
                 self.assertFalse(is_safe_repository_navigation_url(url))
