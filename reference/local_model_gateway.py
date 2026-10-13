@@ -14,13 +14,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Iterator, Sequence
 
 MAX_MESSAGES = 32
 MAX_MESSAGE_BYTES = 16 * 1024
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_MODELS = 200
+MAX_STREAM_FRAME_BYTES = 64 * 1024
+MAX_STREAM_FRAMES = 4096
+MAX_STREAM_WIRE_BYTES = 2 * MAX_RESPONSE_BYTES
 _MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/+:@-]{0,159}$")
 
 
@@ -44,6 +47,15 @@ class ChatResult:
     model: str
     processing: str
     content: str
+
+
+@dataclass(frozen=True)
+class ChatStreamEvent:
+    provider: str
+    model: str
+    processing: str
+    delta: str
+    done: bool
 
 
 @dataclass(frozen=True)
@@ -196,9 +208,95 @@ class LocalOllamaGateway:
             or not isinstance(message, dict)
             or message.get("role") != "assistant"
             or not isinstance(message.get("content"), str)
+            or "tool_calls" in message
+            or "images" in message
         ):
             raise LocalModelError("invalid_response", "Local model returned an incomplete response.")
         content = message["content"]
         if len(content.encode("utf-8")) > MAX_RESPONSE_BYTES:
             raise LocalModelError("response_too_large", "Local model response exceeds size limit.")
         return ChatResult(provider="ollama", model=name, processing="local", content=content)
+
+    def iter_chat(self, model: str, messages: Sequence[ChatMessage]) -> Iterator[ChatStreamEvent]:
+        """Yield bounded local text deltas and a final completion acknowledgement.
+
+        No token is a completed answer until the caller observes done=True.
+        Closing this iterator (e.g. contextlib.closing) closes its HTTP response.
+        No automatic retry/fallback may duplicate or externalize a prompt.
+        """
+        name = _model_name(model)
+        normalized = _validated_messages(messages)
+        body = json.dumps(
+            {"model": name, "messages": normalized, "stream": True},
+            ensure_ascii=False, separators=(",", ":"),
+        ).encode("utf-8")
+        if len(body) > MAX_REQUEST_BYTES:
+            raise LocalModelError("request_too_large", "Conversation payload is too large.")
+
+        request = urllib.request.Request(
+            self.endpoint + "/api/chat",
+            data=body,
+            method="POST",
+            headers={"Accept": "application/x-ndjson", "Content-Type": "application/json"},
+        )
+        try:
+            try:
+                response = self._opener.open(request, timeout=self.timeout_seconds)
+            except urllib.error.HTTPError as exc:
+                exc.close()
+                if 300 <= exc.code < 400:
+                    raise LocalModelError("redirect_blocked", "Local runtime redirect refused.") from None
+                raise LocalModelError("runtime_error", "Local model service returned an error.") from None
+
+            with response:
+                if response.status != 200:
+                    raise LocalModelError("runtime_error", "Local model service returned an error.")
+
+                frames = 0
+                wire_bytes = 0
+                answer_bytes = 0
+                while True:
+                    raw = response.readline(MAX_STREAM_FRAME_BYTES + 1)
+                    if not raw:
+                        raise LocalModelError("incomplete_stream", "Local response ended without completion.")
+                    frames += 1
+                    wire_bytes += len(raw)
+                    if (len(raw) > MAX_STREAM_FRAME_BYTES
+                            or frames > MAX_STREAM_FRAMES
+                            or wire_bytes > MAX_STREAM_WIRE_BYTES):
+                        raise LocalModelError("response_too_large", "Local stream exceeded its size limit.")
+
+                    try:
+                        frame = json.loads(raw.decode("utf-8"))
+                    except (UnicodeDecodeError, ValueError):
+                        raise LocalModelError("invalid_response", "Local stream returned invalid JSON.") from None
+                    if not isinstance(frame, dict) or frame.get("model") != name:
+                        raise LocalModelError("invalid_response", "Local stream model identity is invalid.")
+                    if not isinstance(frame.get("done"), bool) or "error" in frame:
+                        raise LocalModelError("invalid_response", "Local stream returned an invalid frame.")
+
+                    done = frame["done"]
+                    message = frame.get("message")
+                    if message is None and not done:
+                        raise LocalModelError("invalid_response", "Local stream returned no message.")
+                    if message is None:
+                        delta = ""
+                    elif (not isinstance(message, dict)
+                          or message.get("role") != "assistant"
+                          or not isinstance(message.get("content"), str)
+                          or "tool_calls" in message
+                          or "images" in message):
+                        raise LocalModelError("invalid_response", "Local stream contained unsupported output.")
+                    else:
+                        delta = message["content"]
+
+                    answer_bytes += len(delta.encode("utf-8"))
+                    if answer_bytes > MAX_RESPONSE_BYTES:
+                        raise LocalModelError("response_too_large", "Local answer exceeded its size limit.")
+                    if delta:
+                        yield ChatStreamEvent("ollama", name, "local", delta, False)
+                    if done:
+                        yield ChatStreamEvent("ollama", name, "local", "", True)
+                        return
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise LocalModelError("runtime_unavailable", "Local model service is unavailable.") from None

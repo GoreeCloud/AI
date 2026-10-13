@@ -49,8 +49,9 @@ See [`docs/CODE_REPOSITORY_CONTEXT.md`](docs/CODE_REPOSITORY_CONTEXT.md) and [`c
 
 A new provider-neutral-facing local runtime adapter in
 [reference/local_model_gateway.py](reference/local_model_gateway.py) implements
-real loopback-only Ollama model discovery and bounded, non-streaming chat.
+real loopback-only Ollama model discovery and bounded chat.
 The executable [local CLI](scripts/ai_local.py) accepts prompts via stdin,
+can stream local text deltas with explicit completion/cancellation semantics,
 normalizes provider/model/location in the result, and fails closed on remote
 endpoints, redirects, malformed responses, oversized payloads, and provider
 unavailability. It neither dispatches tools nor persists conversations.
@@ -64,6 +65,7 @@ Development source, not a deployed product UI or production security claim.
 python3 scripts/test_ai_artifact_security.py
 python3 scripts/test_code_repository_context.py
 python3 scripts/test_local_model_gateway.py
+python3 scripts/test_local_model_streaming.py
 python3 scripts/validate_wardveil_ai_integration.py
 python3 scripts/validate_code_ai_integration.py
 ```
