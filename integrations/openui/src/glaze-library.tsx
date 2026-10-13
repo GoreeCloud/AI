@@ -74,14 +74,18 @@ const GlzChoice = defineComponent({
   }).strict(),
   component: function GlzChoice({ props }) {
     const name = useId();
-    const [selected, setSelected] = useState<number | null>(null);
+    // Associate ephemeral state with the exact question and options, never a prior AI turn.
+    const signature = JSON.stringify([props.question, props.options]);
+    const [selection, setSelection] = useState<{ signature: string; index: number } | null>(null);
+    const selected = selection?.signature === signature ? selection.index : null;
+    const selectedOption = selected === null ? null : props.options[selected] ?? null;
     return <section style={surface} data-glz-openui="choice">
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend style={{ fontWeight: 650 }}>{props.question}</legend>
         {props.options.map((option, index) => (
           <label key={index} style={{ display: "block", padding: "0.65rem 0", cursor: "pointer" }}>
             <input name={name} type="radio" checked={selected === index}
-              onChange={() => setSelected(index)} />
+              onChange={() => setSelection({ signature, index })} />
             <span style={{ marginInlineStart: "0.5rem" }}>
               <strong>{option.label}</strong> — {option.description}
             </span>
@@ -89,9 +93,9 @@ const GlzChoice = defineComponent({
         ))}
       </fieldset>
       <output aria-live="polite">
-        {selected === null
+        {selectedOption === null
           ? "No selection. Choices remain on this device and are not submitted."
-          : `Selected: ${props.options[selected].label}. Not submitted or saved.`}
+          : `Selected: ${selectedOption.label}. Not submitted or saved.`}
       </output>
     </section>;
   },
