@@ -21,6 +21,7 @@ from reference.local_model_gateway import (
     MAX_REQUEST_BYTES,
     MAX_RESPONSE_BYTES,
     _validated_messages,
+    _model_name,
 )
 
 
@@ -32,14 +33,50 @@ class LocalChatSession:
         self.model = model
         self._turns: list[tuple[ChatMessage, ChatMessage]] = []
         self.last_reply_retained = True
+        self._system_instruction: ChatMessage | None = None
 
     @property
     def turns(self) -> tuple[tuple[ChatMessage, ChatMessage], ...]:
         return tuple(self._turns)
 
+    @property
+    def has_system_instruction(self) -> bool:
+        return self._system_instruction is not None
+
+    def undo_last_turn(self) -> bool:
+        """Discard the last completed pair without requesting model inference."""
+        if not self._turns:
+            return False
+        self._turns.pop()
+        self.last_reply_retained = True
+        return True
+
+    def switch_model(self, name: str) -> bool:
+        """Only select installed local models; isolate conversation context by model."""
+        name = _model_name(name)
+        if name == self.model:
+            return False
+        available = self.runtime.list_models()
+        if name not in (model.name for model in available):
+            raise LocalModelError("model_not_installed", "The requested local model is not installed.")
+        self.reset()
+        self.model = name
+        return True
+
+    def set_system_instruction(self, text: str | None) -> None:
+        """Set an in-memory first-message instruction, discarding old conversation."""
+        if text is None:
+            self.reset()
+            return
+        instruction = ChatMessage("system", text)
+        _validated_messages([instruction, ChatMessage("user", "validation")])
+        self.reset()
+        self._system_instruction = instruction
+
     def reset(self) -> None:
-        """Clear references to completed conversation turns; no disk is written."""
+        """Clear turns and system instruction references; never write them to disk."""
         self._turns.clear()
+        self._system_instruction = None
         self.last_reply_retained = True
 
     def _prepare(self, prompt: str, *, stream: bool) -> tuple[list[tuple[ChatMessage, ChatMessage]], list[ChatMessage]]:
@@ -47,7 +84,7 @@ class LocalChatSession:
         _validated_messages([candidate])
         kept = list(self._turns)
         while True:
-            messages = [part for turn in kept for part in turn] + [candidate]
+            messages = ([self._system_instruction] if self._system_instruction is not None else []) + [part for turn in kept for part in turn] + [candidate]
             if len(messages) <= MAX_MESSAGES:
                 _validated_messages(messages)
                 payload = {
