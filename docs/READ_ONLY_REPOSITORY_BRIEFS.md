@@ -21,9 +21,13 @@ Every returned item has a deterministic `citation_id`, item kind/key, excerpt, s
 - Credential-bearing, malformed, and unsafe navigation links are omitted. Query strings and fragments are removed from accepted display links so token-like parameters are not included in output.
 - No access is inferred from snapshot acceptance. An actual AI request must independently pass future authenticated user/resource scopes, consent/policy and provider-authority checks before these previews are exposed.
 
+## Local export adapter
+
+`reference/repository_brief_export.py` adds `export_repository_brief(brief, format="markdown" | "text")` for already structured, read-only, explicitly untrusted evidence. Exports preserve source metadata and item-versus-repository-level attribution, escape Markdown metacharacters and cap final output at 40,000 characters. It is a local presentation function, not a credential, source fetcher, live Chat/Glaze integration or substitute for authenticated provider checks.
+
 ## Verification
 
-Run `python3 scripts/test_repository_context_brief.py` and `python3 scripts/test_code_repository_context.py`. The repository validation workflow runs both suites and compiles the additional adapter/test sources.
+Run `python3 scripts/test_repository_context_brief.py` and `python3 scripts/test_code_repository_context.py`. Run `python3 scripts/test_repository_brief_export.py` as well. The repository validation workflow runs all three suites and compiles both presentation adapters and their tests.
 
 ## Remaining gates
 
