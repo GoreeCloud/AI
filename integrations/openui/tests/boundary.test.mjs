@@ -10,5 +10,5 @@ test("refuse executable/model-driven tool and state instructions", () => {
     assert.equal(validateOpenUIResponse(x).ok, false, x);
 });
 test("accept syntactically valid, bounded inert OpenUI text", () => {
-  assert.deepEqual(validateOpenUIResponse("GlzText({heading: \"Hello\", text: \"World\"})"), {ok:true});
+  assert.deepEqual(validateOpenUIResponse('root = GlzText("Hello", "World")'), { ok: true });
 });
