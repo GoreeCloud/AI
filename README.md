@@ -45,11 +45,25 @@ See [`docs/CODE_REPOSITORY_CONTEXT.md`](docs/CODE_REPOSITORY_CONTEXT.md) and [`c
 
 `reference/repository_context_selection.py` deterministically ranks the accepted repository snapshot against a query. It can focus repository description, branches, commits, issues, and pull requests into a bounded set of matching entries before downstream reasoning uses the context. The default result limit is eight, the hard result limit is twenty, and selected text is capped at 600 characters per item. Query terms match complete words (including words separated by path punctuation), not substrings, and ranking uses only the text actually returned in that 600-character preview. Query matching also supports Unicode words, case folding, and normalized accents for localized titles and commit messages without loosening the accepted-context or result-size limits. This reduces misleading matches and prevents hidden, truncated text from influencing selection. Phrase relevance boosts also require full word boundaries, so partial prefixes do not displace better exact matches. Ranking first favors coverage of distinct query terms, then uses occurrence score and exact-phrase bonuses, preventing one repeated term from overwhelming a candidate that matches more of the query.
 
+## Local-first model runtime (Development)
+
+A new provider-neutral-facing local runtime adapter in
+[reference/local_model_gateway.py](reference/local_model_gateway.py) implements
+real loopback-only Ollama model discovery and bounded, non-streaming chat.
+The executable [local CLI](scripts/ai_local.py) accepts prompts via stdin,
+normalizes provider/model/location in the result, and fails closed on remote
+endpoints, redirects, malformed responses, oversized payloads, and provider
+unavailability. It neither dispatches tools nor persists conversations.
+
+See [Local Model Runtime](docs/LOCAL_MODEL_RUNTIME.md). The capability is
+Development source, not a deployed product UI or production security claim.
+
 ## Validation
 
 ```bash
 python3 scripts/test_ai_artifact_security.py
 python3 scripts/test_code_repository_context.py
+python3 scripts/test_local_model_gateway.py
 python3 scripts/validate_wardveil_ai_integration.py
 python3 scripts/validate_code_ai_integration.py
 ```
