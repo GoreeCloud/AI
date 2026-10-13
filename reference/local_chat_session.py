@@ -44,6 +44,17 @@ class LocalChatSession:
     def has_system_instruction(self) -> bool:
         return self._system_instruction is not None
 
+    def clear_turns(self) -> int:
+        """Forget all completed turns while preserving ephemeral session settings.
+
+        No network requests or disk writes. The system instruction and
+        configured turn cap remain active for the next prompt.
+        """
+        removed = len(self._turns)
+        self._turns.clear()
+        self.last_reply_retained = self.turn_limit != 0
+        return removed
+
     def undo_last_turn(self) -> bool:
         """Discard the last completed pair without requesting model inference."""
         if not self._turns:

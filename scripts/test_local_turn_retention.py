@@ -102,3 +102,51 @@ class RetentionStartupTests(unittest.TestCase):
             self.assertEqual(len(harness.server.requests), 2)
         finally:
             harness.tearDown()
+
+class HistoryClearTests(unittest.TestCase):
+    def test_clear_keeps_ephemeral_instruction_and_retention_limit(self):
+        runtime = CatalogRuntime()
+        session = LocalChatSession(runtime, "tiny:1")
+        session.set_system_instruction("Short responses only")
+        session.set_turn_limit(1)
+        session.reply("secret old prompt")
+        self.assertEqual(session.clear_turns(), 1)
+        self.assertEqual(session.clear_turns(), 0)
+        self.assertEqual(session.turns, ())
+        self.assertTrue(session.has_system_instruction)
+        self.assertEqual(session.turn_limit, 1)
+        session.reply("new prompt")
+        self.assertEqual(
+            runtime.requests[-1][1],
+            (ChatMessage("system", "Short responses only"),
+             ChatMessage("user", "new prompt")),
+        )
+
+    def test_clear_respects_stateless_mode(self):
+        session = LocalChatSession(CatalogRuntime(), "tiny:1")
+        session.set_turn_limit(0)
+        self.assertEqual(session.clear_turns(), 0)
+        self.assertFalse(session.last_reply_retained)
+
+    def test_console_clear_preserves_settings_until_reset(self):
+        from test_local_chat_controls import ConsoleControlTests
+        harness = ConsoleControlTests("test_missing_model_does_not_discard_context")
+        harness.setUp()
+        try:
+            result = harness.run_console(
+                "/system Keep the wording short\n/keep 1\nsecret old prompt\n"
+                "/clear\nnew prompt\n/status\n/reset\nafter reset\n/exit\n"
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Cleared 1 local turn(s); system instruction and retention cap preserved.", result.stdout)
+            self.assertIn("system instruction: on", result.stdout)
+            self.assertEqual(
+                [x["content"] for x in harness.server.requests[1]["messages"]],
+                ["Keep the wording short", "new prompt"],
+            )
+            self.assertEqual(
+                [x["content"] for x in harness.server.requests[2]["messages"]],
+                ["after reset"],
+            )
+        finally:
+            harness.tearDown()

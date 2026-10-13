@@ -56,6 +56,10 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 session.reset()
                 print("Conversation cleared from this process.")
                 continue
+            if command == "/clear":
+                removed = session.clear_turns()
+                print(f"Cleared {removed} local turn(s); system instruction and retention cap preserved.")
+                continue
             if command == "/status":
                 print(f"Retained conversation turns: {len(session.turns)} (memory only)")
                 print(f"Local model: {_terminal_safe(session.model)}; "
@@ -132,7 +136,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /keep N caps retained turns; /delete N removes one; /undo removes the last turn; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /delete N removes one; /undo removes the last turn; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
