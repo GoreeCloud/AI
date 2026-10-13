@@ -1,0 +1,22 @@
+{
+  "name": "@goreecloud/ai-openui-development",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local-first OpenUI Lang rendering integration for GoreeCloud AI (Development only)",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openuidev/react-lang": "1.0.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  }
+}
