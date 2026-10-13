@@ -61,12 +61,10 @@ test("local choice interactions update the visible selection without a network a
   const previous = {
     window: globalThis.window,
     document: globalThis.document,
-    navigator: globalThis.navigator,
   };
   Object.assign(globalThis, {
     window: dom.window,
     document: dom.window.document,
-    navigator: dom.window.navigator,
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   try {
