@@ -12,7 +12,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Mapping, Protocol
-from urllib.parse import urlparse
+from reference.repository_navigation_url import is_safe_repository_navigation_url
 
 CODE_REPOSITORY_CONTEXT_CONTRACT_VERSION = "0.1.0"
 MAX_CONTEXT_ITEMS = 20
@@ -118,27 +118,8 @@ def _contains_sensitive_key(value: object) -> bool:
 
 
 def _is_web_url(value: object) -> bool:
-    """Reject credential-bearing and ambiguous URLs before context ingestion.
-
-    Provider links are untrusted data, including when the outer envelope is
-    well-formed. A URL with userinfo or control characters must never be
-    forwarded into AI-generated repository navigation.
-    """
-    if not isinstance(value, str) or not value:
-        return False
-    if any(ord(char) < 0x20 or ord(char) == 0x7F or char.isspace() for char in value):
-        return False
-    try:
-        parsed = urlparse(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            return False
-        if parsed.username is not None or parsed.password is not None:
-            return False
-        # Accessing port also rejects malformed or out-of-range port values.
-        parsed.port
-    except ValueError:
-        return False
-    return True
+    """Apply the shared fail-closed repository navigation guard at intake."""
+    return is_safe_repository_navigation_url(value)
 
 
 def _bounded_string(value: object, maximum: int, *, required: bool = False) -> bool:
