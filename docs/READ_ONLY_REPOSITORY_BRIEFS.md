@@ -6,7 +6,7 @@ This first-party, source-only adapter extends the accepted GoreeCloud Code repos
 
 ## Interface
 
-`reference/repository_context_brief.py` exposes `build_repository_brief(intake, query, now=None, limit=8)`. It consumes only a sealed, previously accepted `RepositoryContextIntakeResult`, rechecks the original repository/ref scope and snapshot freshness at use time (five-minute default), uses the existing bounded query-aware selector, and returns a structured `RepositoryContextBrief` with an `as_dict()` representation. Tests inject a fixed `now`; actual calls use the current UTC time.
+`reference/repository_context_brief.py` exposes `build_repository_brief(intake, query, now=None, limit=8)`. It consumes only a sealed, previously accepted `RepositoryContextIntakeResult`, rechecks the original repository/ref scope and the preserved caller-specific snapshot freshness window (up to a five-minute maximum) at use time, uses the existing bounded query-aware selector, and returns a structured `RepositoryContextBrief` with an `as_dict()` representation. Tests inject a fixed `now`; actual calls use the current UTC time.
 
 Every returned item has a deterministic `citation_id`, item kind/key, excerpt, sanitized HTTP(S) evidence link, attribution scope, score, and explicit `untrusted_repository_data` classification. Repository and branch results disclose that their link is only a repository-level fallback, not direct item-level evidence.
 
@@ -14,6 +14,7 @@ Every returned item has a deterministic `citation_id`, item kind/key, excerpt, s
 
 - No provider calls, file reads, network operations, model calls, repository mutations, or tool dispatch occur in this module.
 - A rejected context, elevated write/execute flags, missing provenance, or invalid bound fails closed.
+- A positive caller-selected freshness window at most five minutes is required and preserved through brief generation; an invalid or overly broad limit is rejected, not silently replaced with the default.
 - The intake captures a SHA-256 fingerprint of canonical JSON snapshot bytes and retains the original requested repository/ref. Briefing clones the snapshot, checks its fingerprint, and re-runs source/scope/freshness validation against that original target; tampering or expired evidence fails closed.
 - The fingerprint is a process-local mutation-detection mechanism, **not cryptographic authentication of GoreeCloud Code**, an authorization credential, or proof that input content is trustworthy. Authenticated Identity/Code transport remains a separate mandatory gate.
 - Up to eight selected items, each with a 280-character preview; no response is fabricated for an unmatched query.

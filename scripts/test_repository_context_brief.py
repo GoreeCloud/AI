@@ -18,8 +18,10 @@ from reference.repository_context_brief import build_repository_brief
 from scripts.test_code_repository_context import FakeProvider, NOW, TARGET, valid_payload
 
 
-def intake(payload=None):
-    return RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
+def intake(payload=None, *, max_age=timedelta(minutes=5)):
+    return RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(
+        target=TARGET, now=NOW, max_age=max_age,
+    )
 
 
 def make_brief(accepted, query, *, now=NOW, limit=8):
@@ -135,6 +137,19 @@ class RepositoryBriefTests(unittest.TestCase):
         unsigned = replace(accepted, snapshot_sha256=None)
         with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_unsealed"):
             make_brief(unsigned, "example")
+
+    def test_original_shorter_freshness_window_is_respected(self):
+        accepted = intake(max_age=timedelta(minutes=1))
+        self.assertEqual(accepted.max_age, timedelta(minutes=1))
+        self.assertTrue(make_brief(accepted, "example", now=NOW).items)
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_revalidation_failed"):
+            make_brief(accepted, "example", now=NOW + timedelta(seconds=1))
+
+    def test_rejects_broadened_or_invalid_brief_freshness(self):
+        accepted = intake(max_age=timedelta(minutes=1))
+        for age in (None, timedelta(0), timedelta(minutes=6)):
+            with self.assertRaisesRegex(ValueError, "repository_brief_invalid_age_policy"):
+                make_brief(replace(accepted, max_age=age), "example")
 
     def test_does_not_mutate_provider_snapshot(self):
         accepted = intake()
