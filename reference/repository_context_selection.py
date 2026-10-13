@@ -13,6 +13,7 @@ from reference.code_repository_context import RepositoryContextIntakeResult
 MAX_QUERY_CHARS = 512
 MAX_QUERY_TERMS = 32
 MAX_RESULT_TEXT_CHARS = 600
+ALLOWED_CONTEXT_KINDS = frozenset({"repository", "branch", "commit", "issue", "pull_request"})
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ def select_repository_context(
     query: str,
     *,
     limit: int = 8,
+    kinds: tuple[str, ...] | None = None,
 ) -> tuple[RepositoryContextCandidate, ...]:
     if not intake.decision.accepted or intake.context is None:
         raise ValueError("accepted_repository_context_required")
@@ -45,6 +47,16 @@ def select_repository_context(
         raise ValueError("valid_repository_query_required")
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 20:
         raise ValueError("invalid_repository_context_selection_limit")
+    if kinds is not None:
+        if (
+            not isinstance(kinds, tuple)
+            or not kinds
+            or any(not isinstance(kind, str) or kind not in ALLOWED_CONTEXT_KINDS for kind in kinds)
+        ):
+            raise ValueError("invalid_repository_context_kinds")
+        allowed_kinds = frozenset(kinds)
+    else:
+        allowed_kinds = ALLOWED_CONTEXT_KINDS
 
     normalized_query = " ".join(normalize("NFKC", query.casefold()).split())
     # Unicode words permit localized repository titles, paths, and messages;
@@ -91,7 +103,7 @@ def select_repository_context(
             text = f"{title} {refs}".strip()
             candidates.append(_candidate("pull_request", f"pull:{number}", text, _web_url(pull_request, repository_url), normalized_query, terms))
 
-    ranked = [candidate for candidate in candidates if candidate.score > 0]
+    ranked = [candidate for candidate in candidates if candidate.score > 0 and candidate.kind in allowed_kinds]
     # Favor candidates covering more distinct query terms before raw repetition.
     # This keeps one frequently repeated term from outranking broader relevance.
     ranked.sort(
