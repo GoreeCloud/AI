@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from hmac import compare_digest
 from typing import Mapping
 from unicodedata import category
@@ -17,6 +17,7 @@ from urllib.parse import urlsplit, urlunsplit
 from reference.code_repository_context import (
     RepositoryContextIntakeResult,
     RepositoryContextTarget,
+    DEFAULT_MAX_AGE,
     evaluate_repository_context,
     repository_context_fingerprint,
 )
@@ -140,6 +141,8 @@ def build_repository_brief(
         raise ValueError("repository_brief_target_required")
     if not isinstance(intake.snapshot_sha256, str) or len(intake.snapshot_sha256) != 64:
         raise ValueError("repository_brief_snapshot_unsealed")
+    if not isinstance(intake.max_age, timedelta) or not timedelta(0) < intake.max_age <= DEFAULT_MAX_AGE:
+        raise ValueError("repository_brief_invalid_age_policy")
     try:
         snapshot = deepcopy(dict(intake.context))
         fingerprint = repository_context_fingerprint(snapshot)
@@ -147,7 +150,7 @@ def build_repository_brief(
         raise ValueError("repository_brief_snapshot_changed") from None
     if not compare_digest(fingerprint, intake.snapshot_sha256):
         raise ValueError("repository_brief_snapshot_changed")
-    fresh = evaluate_repository_context(snapshot, intake.target, now=now)
+    fresh = evaluate_repository_context(snapshot, intake.target, now=now, max_age=intake.max_age)
     if (
         not fresh.accepted
         or fresh.generated_at != decision.generated_at
@@ -169,6 +172,7 @@ def build_repository_brief(
         context=snapshot,
         target=intake.target,
         snapshot_sha256=intake.snapshot_sha256,
+        max_age=intake.max_age,
     )
     selected = select_repository_context(verified, query, limit=limit)
     items = []

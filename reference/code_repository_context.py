@@ -215,6 +215,7 @@ class RepositoryContextIntakeResult:
     context: Mapping[str, object] | None
     target: RepositoryContextTarget | None = None
     snapshot_sha256: str | None = None
+    max_age: timedelta = DEFAULT_MAX_AGE
 
 
 class GoreeCloudCodeContextProvider(Protocol):
@@ -267,6 +268,8 @@ def evaluate_repository_context(
     Repository-controlled text remains untrusted data.
     """
     target.validate()
+    if not isinstance(max_age, timedelta) or not timedelta(0) < max_age <= DEFAULT_MAX_AGE:
+        return _blocked("repository_context_invalid_max_age")
     observed_now = _utc(now)
 
     if not isinstance(payload, Mapping):
@@ -404,6 +407,12 @@ class RepositoryContextIntakeGate:
         max_age: timedelta = DEFAULT_MAX_AGE,
     ) -> RepositoryContextIntakeResult:
         target.validate()
+        if not isinstance(max_age, timedelta) or not timedelta(0) < max_age <= DEFAULT_MAX_AGE:
+            return RepositoryContextIntakeResult(
+                decision=_blocked("repository_context_invalid_max_age"),
+                context=None,
+                target=target,
+            )
         try:
             payload = self._provider.fetch_repository_context(
                 owner=target.owner,
@@ -433,4 +442,5 @@ class RepositoryContextIntakeGate:
             context=snapshot,
             target=target,
             snapshot_sha256=fingerprint,
+            max_age=max_age,
         )
