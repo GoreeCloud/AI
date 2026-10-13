@@ -5,7 +5,7 @@ on:
       - "integrations/openui/**"
       - ".github/workflows/openui-development.yml"
   push:
-    branches: [main]
+    branches: [main, feature/openui-glaze-local-runtime]
     paths:
       - "integrations/openui/**"
       - ".github/workflows/openui-development.yml"
@@ -26,7 +26,7 @@ jobs:
       - name: Install open-source SDK for typecheck (no scripts or subscriptions)
         working-directory: integrations/openui
         run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Boundary tests
+      - name: Response-boundary and actual OpenUI Lang component tests
         working-directory: integrations/openui
         run: npm test
       - name: Typecheck OpenUI integration
