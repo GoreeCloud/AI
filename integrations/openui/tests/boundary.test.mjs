@@ -9,6 +9,6 @@ test("refuse executable/model-driven tool and state instructions", () => {
   for (const x of ["@Run tool()", "@Set state.value=1", "@Reset", "Query({})", "Mutation({})"])
     assert.equal(validateOpenUIResponse(x).ok, false, x);
 });
-test("accept bounded inert UI text", () => {
+test("accept syntactically valid, bounded inert OpenUI text", () => {
   assert.deepEqual(validateOpenUIResponse("GlzText({heading: \"Hello\", text: \"World\"})"), {ok:true});
 });
