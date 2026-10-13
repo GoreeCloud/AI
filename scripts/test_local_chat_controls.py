@@ -186,6 +186,18 @@ class ConsoleControlTests(unittest.TestCase):
         self.assertEqual([r["model"] for r in self.server.requests], ["tiny:1", "alt:1"])
         self.assertEqual([len(r["messages"]) for r in self.server.requests], [1, 1])
 
+    def test_delete_indexed_local_turn_without_sending_it_again(self):
+        p = self.run_console(
+            "first\nprivate second\nthird\n/delete 0\n/delete 2\nfourth\n/exit\n"
+        )
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("Invalid or missing completed turn number", p.stdout)
+        self.assertIn("Selected completed turn removed", p.stdout)
+        self.assertEqual(
+            [m["content"] for m in self.server.requests[-1]["messages"]],
+            ["first", "OK", "third", "OK", "fourth"],
+        )
+
     def test_missing_model_does_not_discard_context(self):
         p = self.run_console("first\n/model missing:1\nsecond\n/exit\n")
         self.assertEqual(p.returncode, 0, p.stderr)
