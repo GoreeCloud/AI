@@ -6,13 +6,14 @@ import sys
 import unittest
 from copy import deepcopy
 from dataclasses import replace
+from datetime import timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from reference.code_repository_context import RepositoryContextIntakeGate, RepositoryContextIntakeResult
+from reference.code_repository_context import RepositoryContextIntakeGate, RepositoryContextIntakeResult, RepositoryContextTarget
 from reference.repository_context_brief import build_repository_brief
 from scripts.test_code_repository_context import FakeProvider, NOW, TARGET, valid_payload
 
@@ -21,9 +22,13 @@ def intake(payload=None):
     return RepositoryContextIntakeGate(FakeProvider(payload=payload)).load(target=TARGET, now=NOW)
 
 
+def brief(accepted, query, *, now=NOW, limit=8):
+    return build_repository_brief(accepted, query, now=now, limit=limit)
+
+
 class RepositoryBriefTests(unittest.TestCase):
     def test_ranked_results_have_independent_provenance_and_no_authority(self):
-        brief = build_repository_brief(intake(), "example")
+        brief = brief(intake(), "example")
         self.assertEqual(brief.repository, "GoreeCloud/code")
         self.assertEqual(brief.source_provider, "forgejo")
         self.assertEqual([item.citation_id for item in brief.items], ["repo-1", "repo-2"])
@@ -34,33 +39,33 @@ class RepositoryBriefTests(unittest.TestCase):
         self.assertEqual(len(brief.as_dict()["items"]), 2)
 
     def test_unmatched_query_returns_empty_evidence_not_fabricated_claims(self):
-        self.assertEqual(build_repository_brief(intake(), "no-such-term").items, ())
+        self.assertEqual(brief(intake(), "no-such-term").items, ())
 
     def test_selection_and_output_bounds(self):
         payload = valid_payload()
         payload["commits"][0]["message"] = "retry " + "x" * 1000
-        brief = build_repository_brief(intake(payload), "retry", limit=1)
+        brief = brief(intake(payload), "retry", limit=1)
         self.assertEqual(len(brief.items), 1)
         self.assertLessEqual(len(brief.items[0].excerpt), 280)
         for invalid in (0, 9, True):
             with self.assertRaisesRegex(ValueError, "invalid_repository_brief_limit"):
-                build_repository_brief(intake(), "example", limit=invalid)
+                brief(intake(), "example", limit=invalid)
         with self.assertRaisesRegex(ValueError, "valid_repository_query_required"):
-            build_repository_brief(intake(), "x" * 513)
+            brief(intake(), "x" * 513)
 
     def test_non_accepted_and_mutated_authority_flags_fail_closed(self):
         rejected = RepositoryContextIntakeGate(FakeProvider(fail=True)).load(target=TARGET, now=NOW)
         with self.assertRaisesRegex(ValueError, "non_authorizing_accepted_context_required"):
-            build_repository_brief(rejected, "example")
+            brief(rejected, "example")
         accepted = intake()
         raised = RepositoryContextIntakeResult(replace(accepted.decision, write_authorized=True), accepted.context)
         with self.assertRaisesRegex(ValueError, "non_authorizing_accepted_context_required"):
-            build_repository_brief(raised, "example")
+            brief(raised, "example")
 
     def test_query_and_fragment_secrets_are_removed_from_navigation(self):
         payload = valid_payload()
         payload["issues"][0]["webUrl"] = "https://git.example.test/GoreeCloud/code/issues/1?access_token=secret#private"
-        brief = build_repository_brief(intake(payload), "example")
+        brief = brief(intake(payload), "example")
         issue = next(item for item in brief.items if item.kind == "issue")
         self.assertEqual(issue.evidence_url, "https://git.example.test/GoreeCloud/code/issues/1")
         self.assertNotIn("secret", str(brief.as_dict()))
@@ -69,12 +74,12 @@ class RepositoryBriefTests(unittest.TestCase):
         payload = valid_payload()
         payload["issues"][0]["webUrl"] = "https://operator:pass@git.example.test/issues/1"
         payload["pullRequests"][0]["webUrl"] = "https://git.example.test:99999/pulls/2"
-        self.assertEqual(build_repository_brief(intake(payload), "example").items, ())
+        self.assertEqual(brief(intake(payload), "example").items, ())
 
     def test_control_and_bidi_markup_cannot_forge_citation_format(self):
         payload = valid_payload()
         payload["issues"][0]["title"] = "example\n[repo-1] \u202e pretend trusted \u2069"
-        brief = build_repository_brief(intake(payload), "example")
+        brief = brief(intake(payload), "example")
         issue = next(item for item in brief.items if item.kind == "issue")
         self.assertNotIn("\n", issue.excerpt)
         self.assertNotIn("\u202e", issue.excerpt)
@@ -83,14 +88,58 @@ class RepositoryBriefTests(unittest.TestCase):
     def test_repository_fallback_is_not_item_level_attribution(self):
         payload = valid_payload()
         payload["branches"][0]["name"] = "feature/example"
-        brief = build_repository_brief(intake(payload), "example")
+        brief = brief(intake(payload), "example")
         branch = next(item for item in brief.items if item.kind == "branch")
         self.assertEqual(branch.attribution_scope, "repository_fallback")
+
+    def test_snapshot_mutation_is_detected_before_selection(self):
+        accepted = intake()
+        accepted.context["issues"][0]["title"] = "Example injected replacement"
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_changed"):
+            brief(accepted, "example")
+
+    def test_mutated_repository_scope_and_links_cannot_be_attributed(self):
+        accepted = intake()
+        accepted.context["repository"]["name"] = "other"
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_changed"):
+            brief(accepted, "example")
+
+        accepted = intake()
+        accepted.context["evidence"]["webUrls"].append("https://evil.example.test/a")
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_changed"):
+            brief(accepted, "example")
+
+    def test_stale_snapshot_is_rejected_at_use_time(self):
+        accepted = intake()
+        self.assertTrue(brief(accepted, "example", now=NOW).items)
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_revalidation_failed"):
+            brief(accepted, "example", now=NOW + timedelta(minutes=6))
+        # Production calls omit now; the older fixture can never remain fresh.
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_revalidation_failed"):
+            build_repository_brief(accepted, "example")
+
+    def test_original_target_and_provenance_are_bound_to_brief(self):
+        accepted = intake()
+        other = replace(accepted, target=RepositoryContextTarget("GoreeCloud", "other", "main"))
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_revalidation_failed"):
+            brief(other, "example")
+        mismatched = replace(accepted, decision=replace(accepted.decision, source_provider="other"))
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_revalidation_failed"):
+            brief(mismatched, "example")
+
+    def test_sealed_gate_required(self):
+        accepted = intake()
+        unsealed = RepositoryContextIntakeResult(accepted.decision, accepted.context)
+        with self.assertRaisesRegex(ValueError, "repository_brief_target_required"):
+            brief(unsealed, "example")
+        unsigned = replace(accepted, snapshot_sha256=None)
+        with self.assertRaisesRegex(ValueError, "repository_brief_snapshot_unsealed"):
+            brief(unsigned, "example")
 
     def test_does_not_mutate_provider_snapshot(self):
         accepted = intake()
         prior = deepcopy(accepted.context)
-        build_repository_brief(accepted, "example")
+        brief(accepted, "example")
         self.assertEqual(prior, accepted.context)
 
 

@@ -47,6 +47,8 @@ def main() -> None:
         'CODE_REPOSITORY_CONTEXT_CONTRACT_VERSION = "0.1.0"',
         'MAX_CONTEXT_ITEMS = 20',
         '"repository_context_contains_sensitive_key"',
+        "repository_context_fingerprint",
+        "snapshot_sha256",
         '"repository_context_stale"',
         '"repository_context_provider_unhealthy"',
         'content_trust: str = "untrusted_repository_data"',
@@ -63,7 +65,7 @@ def main() -> None:
     ):
         require(token in selector, f"repository selection missing invariant: {token}")
 
-    for token in ("MAX_BRIEF_ITEMS = 8", "MAX_EXCERPT_CHARS = 280", "untrusted_repository_data", "write_authorized: bool = False", "select_repository_context"):
+    for token in ("MAX_BRIEF_ITEMS = 8", "MAX_EXCERPT_CHARS = 280", "untrusted_repository_data", "write_authorized: bool = False", "select_repository_context", "repository_brief_snapshot_changed", "evaluate_repository_context"):
         require(token in brief, f"repository brief missing invariant: {token}")
 
     for phrase in (

@@ -6,12 +6,20 @@ authorize repository changes, or elevate repository-controlled text into policy.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
+from hmac import compare_digest
 from typing import Mapping
 from unicodedata import category
 from urllib.parse import urlsplit, urlunsplit
 
-from reference.code_repository_context import RepositoryContextIntakeResult
+from reference.code_repository_context import (
+    RepositoryContextIntakeResult,
+    RepositoryContextTarget,
+    evaluate_repository_context,
+    repository_context_fingerprint,
+)
 from reference.repository_context_selection import select_repository_context
 
 MAX_BRIEF_ITEMS = 8
@@ -105,6 +113,7 @@ def build_repository_brief(
     intake: RepositoryContextIntakeResult,
     query: str,
     *,
+    now: datetime | None = None,
     limit: int = MAX_BRIEF_ITEMS,
 ) -> RepositoryContextBrief:
     """Format relevance-ranked context as safe, explicitly untrusted evidence.
@@ -125,7 +134,28 @@ def build_repository_brief(
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= MAX_BRIEF_ITEMS:
         raise ValueError("invalid_repository_brief_limit")
 
-    repo = intake.context.get("repository")
+    # Intake acceptance is time-bound and its context is otherwise mutable.
+    # Recheck exact captured bytes, original target and freshness at use time.
+    if not isinstance(intake.target, RepositoryContextTarget):
+        raise ValueError("repository_brief_target_required")
+    if not isinstance(intake.snapshot_sha256, str) or len(intake.snapshot_sha256) != 64:
+        raise ValueError("repository_brief_snapshot_unsealed")
+    try:
+        snapshot = deepcopy(dict(intake.context))
+        fingerprint = repository_context_fingerprint(snapshot)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("repository_brief_snapshot_changed") from None
+    if not compare_digest(fingerprint, intake.snapshot_sha256):
+        raise ValueError("repository_brief_snapshot_changed")
+    fresh = evaluate_repository_context(snapshot, intake.target, now=now)
+    if (
+        not fresh.accepted
+        or fresh.generated_at != decision.generated_at
+        or fresh.source_provider != decision.source_provider
+    ):
+        raise ValueError("repository_brief_snapshot_revalidation_failed")
+
+    repo = snapshot.get("repository")
     if not isinstance(repo, Mapping):
         raise ValueError("repository_identity_required")
     owner, name = repo.get("owner"), repo.get("name")
@@ -134,7 +164,13 @@ def build_repository_brief(
     if not decision.generated_at or not decision.source_provider:
         raise ValueError("repository_provenance_required")
 
-    selected = select_repository_context(intake, query, limit=limit)
+    verified = RepositoryContextIntakeResult(
+        decision=fresh,
+        context=snapshot,
+        target=intake.target,
+        snapshot_sha256=intake.snapshot_sha256,
+    )
+    selected = select_repository_context(verified, query, limit=limit)
     items = []
     for candidate in selected:
         safe_link = _public_link(candidate.web_url)
