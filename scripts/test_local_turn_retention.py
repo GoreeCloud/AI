@@ -67,3 +67,38 @@ class RetentionCliTests(unittest.TestCase):
             self.assertNotIn("private first", result.stdout)
         finally:
             harness.tearDown()
+
+class RetentionStartupTests(unittest.TestCase):
+    def test_stateless_launch_option_applies_before_first_prompt(self):
+        import subprocess
+        import sys
+        from test_local_chat_controls import ConsoleControlTests, ROOT
+        harness = ConsoleControlTests("test_missing_model_does_not_discard_context")
+        harness.setUp()
+        try:
+            invocation = [
+                sys.executable, str(ROOT / "scripts/ai_local.py"), "--endpoint",
+                f"http://127.0.0.1:{harness.server.server_port}", "repl",
+                "--model", "tiny:1", "--no-stream", "--keep", "0",
+            ]
+            result = subprocess.run(
+                invocation, input="private one\nprivate two\n/turns\n/exit\n",
+                text=True, capture_output=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Private stateless mode: completed turn not retained.", result.stdout)
+            self.assertNotIn("Context reset: answer too large", result.stderr)
+            self.assertIn("Completed local turn numbers: (none)", result.stdout)
+            self.assertEqual(len(harness.server.requests), 2)
+            self.assertEqual(
+                [item["content"] for item in harness.server.requests[1]["messages"]],
+                ["private two"],
+            )
+            invocation[-1] = "51"
+            invalid = subprocess.run(
+                invocation, input="", text=True, capture_output=True, timeout=10,
+            )
+            self.assertEqual(invalid.returncode, 2)
+            self.assertEqual(len(harness.server.requests), 2)
+        finally:
+            harness.tearDown()

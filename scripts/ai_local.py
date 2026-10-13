@@ -27,10 +27,12 @@ def _terminal_safe(value: str) -> str:
     )
 
 
-def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
+def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: int | None = None) -> int:
     from reference.local_chat_session import LocalChatSession
 
     session = LocalChatSession(runtime, model)
+    if keep is not None:
+        session.set_turn_limit(keep)
     print("GoreeCloud AI — local-only in-memory chat. /help for commands.")
     while True:
         try:
@@ -161,7 +163,10 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 answer = session.reply(prompt)
                 print("AI> " + _terminal_safe(answer.content))
             if not session.last_reply_retained:
-                print("Context reset: answer too large or empty to retain safely.", file=sys.stderr)
+                if session.turn_limit == 0:
+                    print("Private stateless mode: completed turn not retained.")
+                else:
+                    print("Context reset: answer too large or empty to retain safely.", file=sys.stderr)
         except KeyboardInterrupt:
             print("Generation interrupted; the incomplete turn was not retained.", file=sys.stderr)
         except LocalModelError as exc:
@@ -182,6 +187,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="Print local model tokens as they arrive; output is provisional until completion.")
     repl = commands.add_parser("repl", help="Start private multi-turn local chat in memory.")
     repl.add_argument("--model", required=True)
+    repl.add_argument("--keep", type=int, choices=range(51), metavar="0..50",
+                      help="Maximum completed turns held in memory (0: stateless).")
     repl.add_argument("--no-stream", action="store_true", help="Wait for complete responses before displaying.")
     args = parser.parse_args(argv)
     try:
@@ -194,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(model.name)
             return 0
         if args.command == "repl":
-            return _run_repl(runtime, args.model, stream=not args.no_stream)
+            return _run_repl(runtime, args.model, stream=not args.no_stream, keep=args.keep)
         if sys.stdin.isatty():
             print("Enter the prompt using standard input, not a command-line argument.", file=sys.stderr)
             return 2
