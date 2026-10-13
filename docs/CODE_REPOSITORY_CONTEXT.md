@@ -45,3 +45,7 @@ The Python consumer intentionally depends on a `GoreeCloudCodeContextProvider` p
 ## Future work
 
 Repository file content, diffs, code search, write operations, review actions, pipeline execution, and agentic changes require separate contracts and authorization. They must not be inferred from this read-only context bridge.
+
+## Known Development gap (October 12, 2026)
+
+Repository-context URL checks do not yet reject credential-like fields in query strings or fragments. Keep this integration in Draft pending fail-closed URL validation, regression tests, and independent security review. No release acceptance is established by structural checks alone.
