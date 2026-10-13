@@ -104,6 +104,15 @@ class CodeRepositoryContextTests(unittest.TestCase):
         self.assertFalse(decision.execution_authorized)
         self.assertFalse(decision.write_authorized)
 
+    def test_age_policy_rejects_invalid_or_excessive_duration(self):
+        for age in (None, "five minutes", timedelta(0), timedelta(seconds=-1), timedelta(minutes=6)):
+            decision = evaluate_repository_context(valid_payload(), TARGET, now=NOW, max_age=age)
+            self.assertFalse(decision.accepted)
+            self.assertIn("repository_context_invalid_max_age", decision.reason_codes)
+            denied = RepositoryContextIntakeGate(FakeProvider()).load(target=TARGET, now=NOW, max_age=age)
+            self.assertFalse(denied.decision.accepted)
+            self.assertIsNone(denied.context)
+
     def test_stale_context_fails_closed(self):
         payload = valid_payload()
         payload["generatedAt"] = (NOW - timedelta(minutes=6)).isoformat()

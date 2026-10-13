@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
+from hashlib import sha256
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Mapping, Protocol
 from urllib.parse import urlparse
@@ -211,6 +213,9 @@ class RepositoryContextDecision:
 class RepositoryContextIntakeResult:
     decision: RepositoryContextDecision
     context: Mapping[str, object] | None
+    target: RepositoryContextTarget | None = None
+    snapshot_sha256: str | None = None
+    max_age: timedelta = DEFAULT_MAX_AGE
 
 
 class GoreeCloudCodeContextProvider(Protocol):
@@ -222,6 +227,22 @@ class GoreeCloudCodeContextProvider(Protocol):
         ref: str | None = None,
     ) -> Mapping[str, object]:
         """Return the GoreeCloud Code repository_context envelope."""
+
+
+def repository_context_fingerprint(payload: Mapping[str, object]) -> str:
+    """Detect mutation of an accepted snapshot, not authenticate its producer.
+
+    Accepted envelopes are JSON-shaped. Canonical key ordering keeps the
+    fingerprint deterministic across mapping insertion order.
+    """
+    try:
+        normalized = json.dumps(
+            payload, sort_keys=True, ensure_ascii=True,
+            separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError, OverflowError) as exc:
+        raise ValueError("repository_context_snapshot_not_json") from exc
+    return sha256(normalized).hexdigest()
 
 
 def _blocked(reason: str) -> RepositoryContextDecision:
@@ -247,6 +268,8 @@ def evaluate_repository_context(
     Repository-controlled text remains untrusted data.
     """
     target.validate()
+    if not isinstance(max_age, timedelta) or not timedelta(0) < max_age <= DEFAULT_MAX_AGE:
+        return _blocked("repository_context_invalid_max_age")
     observed_now = _utc(now)
 
     if not isinstance(payload, Mapping):
@@ -384,6 +407,12 @@ class RepositoryContextIntakeGate:
         max_age: timedelta = DEFAULT_MAX_AGE,
     ) -> RepositoryContextIntakeResult:
         target.validate()
+        if not isinstance(max_age, timedelta) or not timedelta(0) < max_age <= DEFAULT_MAX_AGE:
+            return RepositoryContextIntakeResult(
+                decision=_blocked("repository_context_invalid_max_age"),
+                context=None,
+                target=target,
+            )
         try:
             payload = self._provider.fetch_repository_context(
                 owner=target.owner,
@@ -397,7 +426,21 @@ class RepositoryContextIntakeGate:
             )
 
         decision = evaluate_repository_context(payload, target, now=now, max_age=max_age)
+        if not decision.accepted:
+            return RepositoryContextIntakeResult(decision=decision, context=None, target=target)
+        try:
+            snapshot = deepcopy(dict(payload))
+            fingerprint = repository_context_fingerprint(snapshot)
+        except (TypeError, ValueError, OverflowError):
+            return RepositoryContextIntakeResult(
+                decision=_blocked("repository_context_snapshot_invalid"),
+                context=None,
+                target=target,
+            )
         return RepositoryContextIntakeResult(
             decision=decision,
-            context=deepcopy(dict(payload)) if decision.accepted else None,
+            context=snapshot,
+            target=target,
+            snapshot_sha256=fingerprint,
+            max_age=max_age,
         )
