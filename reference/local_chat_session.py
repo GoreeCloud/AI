@@ -33,6 +33,7 @@ class LocalChatSession:
         self.model = model
         self._turns: list[tuple[ChatMessage, ChatMessage]] = []
         self.last_reply_retained = True
+        self.turn_limit: int | None = None
         self._system_instruction: ChatMessage | None = None
 
     @property
@@ -62,6 +63,21 @@ class LocalChatSession:
         del self._turns[index]
         self.last_reply_retained = True
         return True
+
+    def set_turn_limit(self, limit: int) -> None:
+        """Limit retained completed turns, 0-50; remove older context now.
+
+        This setting is session-local, never written to disk. System
+        instructions are separate and remain unchanged.
+        """
+        if type(limit) is not int or not 0 <= limit <= 50:
+            raise LocalModelError("invalid_turn_limit", "Choose a limit from 0 through 50.")
+        self.turn_limit = limit
+        if limit == 0:
+            self._turns.clear()
+            self.last_reply_retained = False
+        elif len(self._turns) > limit:
+            self._turns = self._turns[-limit:]
 
     def switch_model(self, name: str) -> bool:
         """Only select installed local models; isolate conversation context by model."""
@@ -126,7 +142,9 @@ class LocalChatSession:
             self.last_reply_retained = False
             return
         self._turns = kept + [(ChatMessage("user", prompt), ChatMessage("assistant", answer))]
-        self.last_reply_retained = True
+        if self.turn_limit is not None:
+            self._turns = self._turns[-self.turn_limit:] if self.turn_limit else []
+        self.last_reply_retained = bool(self._turns)
 
     def reply(self, prompt: str) -> ChatResult:
         kept, messages = self._prepare(prompt, stream=False)

@@ -64,6 +64,21 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 print("Completed local turn numbers: " + (numbers or "(none)"))
                 print("Use /delete N to remove one numbered turn; contents stay private.")
                 continue
+            if command == "/keep":
+                current = session.turn_limit
+                print("Retained completed-turn cap: " + ("automatic" if current is None else str(current)))
+                continue
+            if command.startswith("/keep "):
+                number = command[6:].strip()
+                if number.isascii() and number.isdecimal() and len(number) <= 2:
+                    try:
+                        session.set_turn_limit(int(number))
+                        print(f"Local turn retention cap set to {session.turn_limit}; excess prior turns cleared.")
+                    except LocalModelError as exc:
+                        print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
+                else:
+                    print("Enter an integer turn limit from 0 to 50; history unchanged.")
+                continue
             if command == "/undo":
                 if session.undo_last_turn():
                     print("Last completed turn removed from in-memory context.")
@@ -115,7 +130,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /delete N removes one; /undo removes the last turn; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /delete N removes one; /undo removes the last turn; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
