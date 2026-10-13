@@ -59,6 +59,11 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 print(f"Local model: {_terminal_safe(session.model)}; "
                       f"system instruction: {'on' if session.has_system_instruction else 'off'}")
                 continue
+            if command == "/turns":
+                numbers = ", ".join(str(i) for i in range(1, len(session.turns) + 1))
+                print("Completed local turn numbers: " + (numbers or "(none)"))
+                print("Use /delete N to remove one numbered turn; contents stay private.")
+                continue
             if command == "/undo":
                 if session.undo_last_turn():
                     print("Last completed turn removed from in-memory context.")
@@ -110,7 +115,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/undo removes the last completed turn; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /delete N removes one; /undo removes the last turn; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
