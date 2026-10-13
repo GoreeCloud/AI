@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "contracts" / "code.repository-context.schema.json"
 SOURCE = ROOT / "reference" / "code_repository_context.py"
 SELECTOR = ROOT / "reference" / "repository_context_selection.py"
+BRIEF = ROOT / "reference" / "repository_context_brief.py"
+BRIEF_TESTS = ROOT / "scripts" / "test_repository_context_brief.py"
+BRIEF_DOC = ROOT / "docs" / "READ_ONLY_REPOSITORY_BRIEFS.md"
 TESTS = ROOT / "scripts" / "test_code_repository_context.py"
 DOC = ROOT / "docs" / "CODE_REPOSITORY_CONTEXT.md"
 README = ROOT / "README.md"
@@ -19,13 +22,14 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    for path in (CONTRACT, SOURCE, SELECTOR, TESTS, DOC, README):
+    for path in (CONTRACT, SOURCE, SELECTOR, BRIEF, TESTS, BRIEF_TESTS, DOC, BRIEF_DOC, README):
         require(path.is_file(), f"missing required file: {path.relative_to(ROOT)}")
 
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
     source = SOURCE.read_text(encoding="utf-8")
     selector = SELECTOR.read_text(encoding="utf-8")
-    docs = (DOC.read_text(encoding="utf-8") + "\n" + README.read_text(encoding="utf-8")).lower()
+    brief = BRIEF.read_text(encoding="utf-8")
+    docs = (DOC.read_text(encoding="utf-8") + "\n" + BRIEF_DOC.read_text(encoding="utf-8") + "\n" + README.read_text(encoding="utf-8")).lower()
 
     properties = contract.get("properties") or {}
     require(properties.get("contractVersion", {}).get("const") == "0.1.0", "unexpected contract version")
@@ -58,6 +62,9 @@ def main() -> None:
         "ranked.sort",
     ):
         require(token in selector, f"repository selection missing invariant: {token}")
+
+    for token in ("MAX_BRIEF_ITEMS = 8", "MAX_EXCERPT_CHARS = 280", "untrusted_repository_data", "write_authorized: bool = False", "select_repository_context"):
+        require(token in brief, f"repository brief missing invariant: {token}")
 
     for phrase in (
         "provider-neutral",
