@@ -29,6 +29,8 @@ jobs:
       - name: Response-boundary and actual OpenUI Lang component tests
         working-directory: integrations/openui
         run: npm test
+      - name: Verify optional local Ollama bridge without network
+        run: python3 -m unittest discover -s integrations/openui/server -p 'test_*.py' -v
       - name: Typecheck OpenUI integration
         working-directory: integrations/openui
         run: npm run typecheck
