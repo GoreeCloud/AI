@@ -46,6 +46,8 @@ The Python consumer intentionally depends on a `GoreeCloudCodeContextProvider` p
 
 Repository file content, diffs, code search, write operations, review actions, pipeline execution, and agentic changes require separate contracts and authorization. They must not be inferred from this read-only context bridge.
 
-## Known Development gap (October 12, 2026)
+## Development hardening: repository navigation URLs (October 12, 2026)
 
-Repository-context URL checks do not yet reject credential-like fields in query strings or fragments. Keep this integration in Draft pending fail-closed URL validation, regression tests, and independent security review. No release acceptance is established by structural checks alone.
+The repository-context consumer now invokes `reference/repository_navigation_url.py` for all repository, commit, issue, pull-request, and evidence URLs. The shared guard rejects username/password information, suspicious credential-like query and fragment parameter names (including encoded forms), invalid host/port data, whitespace and control characters, backslashes, oversized URLs, and overlong parameter collections. Benign read-only navigation parameters remain valid.
+
+The standalone URL-guard tests and intake-level regression tests run in GitHub CI. **Source-level Development candidate only:** an independent security review, integration evidence with the live GoreeCloud Code provider, and relevant release acceptance remain outstanding. Structural validation does not establish transport authenticity, safe handling by every downstream renderer, execution authority, repository write rights, production readiness, or Stable status.

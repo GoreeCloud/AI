@@ -206,6 +206,48 @@ class CodeRepositoryContextTests(unittest.TestCase):
         payload["repository"]["webUrl"] = "https://git.example.test:443/GoreeCloud/code"
         self.assertTrue(evaluate_repository_context(payload, TARGET, now=NOW).accepted)
 
+    def test_repository_url_credentials_in_query_or_fragment_fail_closed(self):
+        urls = (
+            "https://git.example.test/GoreeCloud/code?access_token=synthetic",
+            "https://git.example.test/GoreeCloud/code?api%255Fkey=synthetic",
+            "https://git.example.test/GoreeCloud/code?X-Amz-Signature=synthetic",
+            "https://git.example.test/GoreeCloud/code#refreshToken=synthetic",
+            "https://git.example.test/GoreeCloud/code?oauthCode=synthetic",
+        )
+        for url in urls:
+            with self.subTest(url=url):
+                payload = valid_payload()
+                payload["repository"]["webUrl"] = url
+                decision = evaluate_repository_context(payload, TARGET, now=NOW)
+                self.assertFalse(decision.accepted)
+                self.assertIn("repository_context_invalid_repository_url", decision.reason_codes)
+
+    def test_collection_urls_with_sensitive_parameters_fail_closed(self):
+        for collection in ("commits", "issues", "pullRequests"):
+            with self.subTest(collection=collection):
+                payload = valid_payload()
+                payload[collection][0]["webUrl"] += "?access_token=synthetic"
+                decision = evaluate_repository_context(payload, TARGET, now=NOW)
+                self.assertFalse(decision.accepted)
+                self.assertIn(f"repository_context_invalid_{collection}_item", decision.reason_codes)
+
+    def test_credential_bearing_evidence_url_is_never_returned_to_reasoning(self):
+        payload = valid_payload()
+        payload["evidence"]["webUrls"] = ["https://git.example.test/code#session_key=synthetic"]
+        result = RepositoryContextIntakeGate(FakeProvider(payload)).load(target=TARGET, now=NOW)
+        self.assertFalse(result.decision.accepted)
+        self.assertIn("repository_context_invalid_evidence_url", result.decision.reason_codes)
+        self.assertIsNone(result.context)
+
+    def test_benign_query_and_fragment_navigation_remain_accepted(self):
+        payload = valid_payload()
+        payload["repository"]["webUrl"] += "?tab=files#readme"
+        payload["commits"][0]["webUrl"] += "?view=diff"
+        payload["issues"][0]["webUrl"] += "?tab=comments"
+        payload["pullRequests"][0]["webUrl"] += "#files"
+        payload["evidence"]["webUrls"] = ["https://git.example.test/GoreeCloud/code?q=test&tab=commits"]
+        self.assertTrue(evaluate_repository_context(payload, TARGET, now=NOW).accepted)
+
     def test_collection_items_require_complete_typed_shapes(self):
         payload = valid_payload()
         del payload["commits"][0]["sha"]
