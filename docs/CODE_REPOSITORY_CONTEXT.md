@@ -42,6 +42,21 @@ GoreeCloud AI does not receive Forgejo credentials. The initial GoreeCloud Code 
 
 The Python consumer intentionally depends on a `GoreeCloudCodeContextProvider` protocol rather than a Forgejo client. This keeps transport replaceable and prevents the AI product from coupling to backing provider APIs.
 
+## Repository context kind filtering
+
+The Development selector `select_repository_context(..., kinds=(...))` can limit
+query-matched evidence to named repository item categories: `repository`,
+`branch`, `commit`, `issue`, and `pull_request`. The filter is applied
+after the accepted, freshness- and scope-bound GoreeCloud Code envelope enters
+the selector, and before the scored results are returned.
+
+The default `kinds=None` preserves existing behavior. A non-empty tuple of
+known categories is required when filtering; malformed or unknown categories
+raise `invalid_repository_context_kinds` instead of silently broadening the
+result. The existing eight-item default, twenty-item hard cap, and 600-character
+per-item preview remain unchanged. The filter does not grant source authority,
+execution, external browsing, or repository-write access.
+
 ## Future work
 
 Repository file content, diffs, code search, write operations, review actions, pipeline execution, and agentic changes require separate contracts and authorization. They must not be inferred from this read-only context bridge.
