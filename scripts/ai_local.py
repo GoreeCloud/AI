@@ -56,10 +56,55 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 continue
             if command == "/status":
                 print(f"Retained conversation turns: {len(session.turns)} (memory only)")
+                print(f"Local model: {_terminal_safe(session.model)}; "
+                      f"system instruction: {'on' if session.has_system_instruction else 'off'}")
+                continue
+            if command == "/undo":
+                if session.undo_last_turn():
+                    print("Last completed turn removed from in-memory context.")
+                else:
+                    print("No completed turn to undo.")
+                continue
+            if command == "/models":
+                try:
+                    models = runtime.list_models()
+                    print("Installed local models: " +
+                          (", ".join(_terminal_safe(m.name) for m in models) if models else "(none)"))
+                except LocalModelError as exc:
+                    print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
+                continue
+            if command == "/model":
+                print("Active local model: " + _terminal_safe(session.model))
+                continue
+            if command.startswith("/model "):
+                try:
+                    changed = session.switch_model(command[len("/model "):])
+                    print("Local model selected: " + _terminal_safe(session.model) +
+                          ("; prior context cleared." if changed else "; unchanged."))
+                except LocalModelError as exc:
+                    print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
+                continue
+            if command == "/system":
+                print("System instruction: " + ("on" if session.has_system_instruction else "off") +
+                      " (content is never shown).")
+                continue
+            if command == "/system off":
+                session.set_system_instruction(None)
+                print("System instruction and prior context cleared.")
+                continue
+            if command.startswith("/system "):
+                try:
+                    session.set_system_instruction(prompt[len("/system "):])
+                    print("Session-only system instruction set; prior context cleared.")
+                except LocalModelError as exc:
+                    print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
                 continue
             if command == "/help":
-                print("/reset clears in-memory context; /status shows retained-turn count; "
-                      "/exit quits; // sends a message starting with /.")
+                print("/models lists local models; /model NAME switches models and clears context; "
+                      "/system TEXT sets ephemeral system instruction; /system off clears it; "
+                      "/undo removes the last completed turn; /reset clears all context; "
+                      "/status reports configuration and count; /exit quits; "
+                      "// sends a message starting with /.")
                 continue
             print("Unknown command. Use /help. Nothing sent to the model.")
             continue
