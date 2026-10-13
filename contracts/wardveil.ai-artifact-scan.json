@@ -22,6 +22,7 @@
     "rehash_staging_after_clean_before_release": true,
     "atomic_destination_create_no_clobber": true,
     "staged_symlink_rejected": true,
+    "staged_inode_identity_verified_before_release_and_cleanup": true,
     "rehash_released_link_before_retiring_staging": true,
     "unknown_and_unsupported_fail_closed": true,
     "scanner_unavailable_fails_closed": true,

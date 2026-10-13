@@ -318,6 +318,15 @@ class ArtifactIntakeGate:
         if final_path.exists() or final_path.is_symlink():
             return ArtifactReleaseResult(_blocked("final_destination_already_exists"), None, True)
 
+        # A digest alone does not identify the staged filesystem object. Another
+        # writer could replace the staging name with identical bytes, causing
+        # the gate to retire someone else's file after a clean scan.
+        try:
+            initial_stat = staged_path.lstat()
+        except OSError:
+            return ArtifactReleaseResult(_blocked("staged_artifact_unavailable"), None, False)
+        initial_identity = (initial_stat.st_dev, initial_stat.st_ino)
+
         try:
             before_digest = sha256_file(staged_path)
         except OSError:
@@ -343,8 +352,11 @@ class ArtifactIntakeGate:
             return ArtifactReleaseResult(_blocked("staged_artifact_symlink_not_allowed"), None, True)
         try:
             after_digest = sha256_file(staged_path)
+            verified_stat = staged_path.lstat()
         except OSError:
             return ArtifactReleaseResult(_blocked("staged_artifact_unavailable_during_verification"), None, staged_path.exists())
+        if (verified_stat.st_dev, verified_stat.st_ino) != initial_identity:
+            return ArtifactReleaseResult(_blocked("staged_artifact_replaced_during_verification"), None, True)
         if after_digest != before_digest:
             return ArtifactReleaseResult(_blocked("staged_artifact_changed_during_verification"), None, True)
 
@@ -361,13 +373,27 @@ class ArtifactIntakeGate:
         # The scan is bound to bytes, not a filename. Ensure the newly
         # published link is still a regular file with those exact bytes.
         try:
-            if final_path.is_symlink() or sha256_file(final_path) != before_digest:
+            released_stat = final_path.lstat()
+            released_identity = (released_stat.st_dev, released_stat.st_ino)
+            if final_path.is_symlink() or released_identity != initial_identity or sha256_file(final_path) != before_digest:
                 try:
                     final_path.unlink()
                 except OSError:
                     pass
                 return ArtifactReleaseResult(
                     _blocked("staged_artifact_changed_during_release"), None, staged_path.exists()
+                )
+            # Do not delete a replacement staging name even when it carries
+            # byte-for-byte identical content. The linked inode must still
+            # belong to the original staged object before retiring its name.
+            current_stat = staged_path.lstat()
+            if (current_stat.st_dev, current_stat.st_ino) != released_identity:
+                try:
+                    final_path.unlink()
+                except OSError:
+                    pass
+                return ArtifactReleaseResult(
+                    _blocked("staged_artifact_replaced_during_release"), None, staged_path.exists()
                 )
             staged_path.unlink()
         except OSError:
