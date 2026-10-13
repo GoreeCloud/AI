@@ -54,3 +54,42 @@ test("GlzChoice bounds option counts, text and unknown object keys", () => {
   ];
   for (const source of cases) assert.equal(validateOpenUIProgram(source).ok, false, source);
 });
+
+test("local choice interactions update the visible selection without a network action", async () => {
+  const { JSDOM } = await import("jsdom");
+  const dom = new JSDOM("<div id=\"root\"></div>", { url: "http://localhost/" });
+  const previous = {
+    window: globalThis.window,
+    document: globalThis.document,
+    navigator: globalThis.navigator,
+  };
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  try {
+    const { act } = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const container = dom.window.document.getElementById("root")!;
+    const root = createRoot(container);
+    const source = 'root = GlzChoice("Mode?", [{label: "Local", description: "Private"}, {label: "Offline", description: "No network"}])';
+    await act(async () => {
+      root.render(createElement(Renderer, { response: source, library: glazeOpenUILibrary }));
+    });
+    const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    assert.equal(radios.length, 2);
+    assert.equal(radios[0].checked, false);
+    assert.equal(radios[1].checked, false);
+    await act(async () => radios[1].click());
+    assert.equal(radios[1].checked, true);
+    assert.match(container.querySelector("output")?.textContent ?? "", /Selected: Offline. Not submitted or saved/);
+    assert.equal(container.querySelector('button[type="submit"]'), null);
+    await act(async () => root.unmount());
+  } finally {
+    Object.assign(globalThis, previous);
+    delete (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
+    dom.window.close();
+  }
+});
