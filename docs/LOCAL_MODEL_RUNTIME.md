@@ -28,6 +28,18 @@ Calling close() on an active iterator closes the underlying local HTTP response;
 
 Each incoming JSON frame is limited to 64 KiB, streams to 4096 frames or 2 MiB wire data, and combined text output to 1 MiB UTF-8. Unsupported tool/image output, unexpected model identity, malformed JSON, invalid completion flags, missing final completion, HTTP redirects, and service failures fail closed. Consumers should observe an explicit completed event before committing conversation state. This is an isolated Developer API and CLI feature, not a connected Glaze streaming interface.
 
+## Private multi-turn chat (Development)
+
+Run interactive local chat using an already-installed local model:
+
+    python3 scripts/ai_local.py repl --model llama3.2
+
+The repl streams by default; add --no-stream to display only completed answers. The session has commands /help, /status, /reset, and /exit (// at the start sends a literal slash-prefixed message). Unknown commands are not forwarded as prompts. /status displays only a count, never conversation content. EOF or /exit ends the process; all remembered turn references are cleared on exit.
+
+The LocalChatSession reference API retains only successfully completed user/assistant pairs **in process memory**. Incomplete, failed, interrupted or malformed responses are not added. Before each generation, it drops the oldest *complete* pairs to fit the 32-message and 64 KiB request bounds. Model output larger than 16 KiB, empty output or output containing NUL cannot be kept as a valid future conversation message: that response is shown but the context is reset, with a clear warning, rather than silently claiming continuity. reset() immediately discards the retained transcript references. It cannot erase copies held by terminal scrollback, the local runtime, operating-system swap/core dumps, shell capture, monitoring, or other tools.
+
+This session is designed for **one sequential local console user**, not concurrent clients, accounts or trusted persistent history. No session database, file, network synchronization, external model fallback or plugin/tool execution is implemented. Chat content is sent to the selected local Ollama runtime, not persisted by this adapter. The caller is responsible for authenticating any future service/UI integration and verifying the runtime's retention policy.
+
 ## Current capability and limits
 
 - Models: retrieve, normalize and sort at most 200 locally installed Ollama model identifiers.
@@ -41,6 +53,6 @@ The adapter confines outbound transport to a loopback address but does not enfor
 
 ## Validation and acceptance
 
-The deterministic regression suite uses a synthetic HTTP service bound to loopback, covering catalog, chat, malformed data, input limits, redirects, provider errors, offline behavior, and actual CLI subprocess calls. The separate streaming suite tests token deltas, completion, partial failures, interruption/iterator closing, CLI behavior, frame/answer bounds, and prohibited tool output. It does not establish live Ollama model inference, deployed authorization, mobile compatibility, Glaze interface accessibility, independent security review or production acceptance.
+The private-session suite additionally validates multi-turn context, complete-pair eviction, reset, explicit stream completion, failed-response rollback, terminal REPL commands, and malformed Unicode handling. The deterministic regression suite uses a synthetic HTTP service bound to loopback, covering catalog, chat, malformed data, input limits, redirects, provider errors, offline behavior, and actual CLI subprocess calls. The separate streaming suite tests token deltas, completion, partial failures, interruption/iterator closing, CLI behavior, frame/answer bounds, and prohibited tool output. It does not establish live Ollama model inference, deployed authorization, mobile compatibility, Glaze interface accessibility, independent security review or production acceptance.
 
 Further provider integration should follow [Model Provider Architecture](MODEL_PROVIDER_ARCHITECTURE.md), and any exposed application surface must retain provider-neutral contracts and explicit local/external processing disclosure.
