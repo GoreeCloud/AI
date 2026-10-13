@@ -90,6 +90,11 @@ class LocalChatSession:
         elif len(self._turns) > limit:
             self._turns = self._turns[-limit:]
 
+    def restore_automatic_retention(self) -> None:
+        """Restore automatic retention without recovering previously discarded turns."""
+        self.turn_limit = None
+        self.last_reply_retained = True
+
     def switch_model(self, name: str) -> bool:
         """Only select installed local models; isolate conversation context by model."""
         name = _model_name(name)

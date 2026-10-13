@@ -74,6 +74,10 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 current = session.turn_limit
                 print("Retained completed-turn cap: " + ("automatic" if current is None else str(current)))
                 continue
+            if command == "/keep auto":
+                session.restore_automatic_retention()
+                print("Automatic retention restored; previously deleted turns stay deleted.")
+                continue
             if command.startswith("/keep "):
                 number = command[6:].strip()
                 if number.isascii() and number.isdecimal() and len(number) <= 2:
@@ -136,7 +140,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /keep N caps retained turns; /delete N removes one; /undo removes the last turn; /clear forgets turns but preserves system instruction; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue

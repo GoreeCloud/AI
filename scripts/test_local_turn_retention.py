@@ -150,3 +150,40 @@ class HistoryClearTests(unittest.TestCase):
             )
         finally:
             harness.tearDown()
+
+
+class AutomaticRetentionRestoreTests(unittest.TestCase):
+    def test_stateless_to_automatic_keeps_only_new_history(self):
+        runtime = CatalogRuntime()
+        session = LocalChatSession(runtime, "tiny:1")
+        session.set_system_instruction("Be concise")
+        session.set_turn_limit(0)
+        session.reply("discard me")
+        session.restore_automatic_retention()
+        self.assertIsNone(session.turn_limit)
+        self.assertEqual(session.turns, ())
+        self.assertTrue(session.has_system_instruction)
+        session.reply("retain this")
+        session.reply("use this context")
+        sent = runtime.requests[-1][1]
+        self.assertEqual([m.content for m in sent if m.role == "user"],
+                         ["retain this", "use this context"])
+        self.assertEqual(len(session.turns), 2)
+
+    def test_console_restore_retention_does_not_replay_old_turns(self):
+        from test_local_chat_controls import ConsoleControlTests
+        harness = ConsoleControlTests("test_missing_model_does_not_discard_context")
+        harness.setUp()
+        try:
+            result = harness.run_console(
+                "/system Be concise\n/keep 0\nsecret old message\n"
+                "/keep auto\nretain one\nretain two\n/keep\n/exit\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Automatic retention restored", result.stdout)
+            self.assertIn("Retained completed-turn cap: automatic", result.stdout)
+            sent = harness.server.requests[2]["messages"]
+            self.assertEqual([m["content"] for m in sent if m["role"] == "user"],
+                             ["retain one", "retain two"])
+            self.assertFalse(any(m["content"] == "secret old message" for m in sent))
+        finally:
+            harness.tearDown()
