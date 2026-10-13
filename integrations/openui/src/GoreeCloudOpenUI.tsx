@@ -25,7 +25,7 @@ export function GoreeCloudOpenUI({ response, isStreaming = false }: GoreeCloudOp
       response={response}
       library={glazeOpenUILibrary}
       isStreaming={isStreaming}
-      onError={() => setRenderError(true)}
+      onError={(errors) => setRenderError(errors.length > 0)}
     />
   </section>;
 }
