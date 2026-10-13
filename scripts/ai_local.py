@@ -65,6 +65,14 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool) -> int:
                 else:
                     print("No completed turn to undo.")
                 continue
+            if command.startswith("/delete "):
+                number = command[8:].strip()
+                if (number.isascii() and number.isdecimal() and len(number) <= 6
+                        and int(number) > 0 and session.delete_turn(int(number) - 1)):
+                    print("Selected completed turn removed from local in-memory context.")
+                else:
+                    print("Invalid or missing completed turn number; history unchanged.")
+                continue
             if command == "/models":
                 try:
                     models = runtime.list_models()

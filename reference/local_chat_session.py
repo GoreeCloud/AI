@@ -51,6 +51,18 @@ class LocalChatSession:
         self.last_reply_retained = True
         return True
 
+    def delete_turn(self, index: int) -> bool:
+        """Delete one completed local turn without inference or disk writes.
+
+        Indices are zero-based. Negative or boolean values never delete the
+        most recent private turn by accident.
+        """
+        if type(index) is not int or index < 0 or index >= len(self._turns):
+            return False
+        del self._turns[index]
+        self.last_reply_retained = True
+        return True
+
     def switch_model(self, name: str) -> bool:
         """Only select installed local models; isolate conversation context by model."""
         name = _model_name(name)
