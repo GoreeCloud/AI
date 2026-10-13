@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Local-first OpenUI Lang rendering integration for GoreeCloud AI (Development only)",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
   "devDependencies": {
     "typescript": "^5.9.3",
     "@types/react": "^19",
-    "@types/react-dom": "^19"
+    "@types/react-dom": "^19",
+    "tsx": "^4.21.0"
   }
 }
