@@ -207,7 +207,7 @@ class ConsoleControlTests(unittest.TestCase):
         self.assertIn("Last completed turn removed", p.stdout)
 
     def test_invalid_system_stays_out_of_model(self):
-        p = self.run_console("/system \nhello\n/exit\n")
+        p = self.run_console("/system \0\nhello\n/exit\n")
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertIn("invalid_messages", p.stderr)
         self.assertEqual(self.server.requests[0]["messages"], [{"role": "user", "content": "hello"}])
