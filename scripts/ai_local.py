@@ -204,7 +204,8 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                         print()
                     raise
             else:
-                answer = (session.reply_once(prompt) if ephemeral else
+                answer = (session.edit_last(prompt) if edit_requested else
+                          session.reply_once(prompt) if ephemeral else
                           session.regenerate_last() if regenerate else session.reply(prompt))
                 print("AI> " + _terminal_safe(answer.content))
             if ephemeral:
