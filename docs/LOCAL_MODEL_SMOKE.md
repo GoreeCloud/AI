@@ -1,6 +1,6 @@
 # GoreeCloud AI — Synthetic Local Inference Smoke Test (Development)
 
-`ai_health.py` only confirms that the loopback runtime's model catalog is reachable. This additional opt-in smoke check confirms that an **already-installed** local Ollama model can respond to one synthetic, fixed prompt. It does not establish model quality, accuracy, device/GPU readiness, authorization, Glaze accessibility, or production acceptance.
+The separate catalog-only readiness probe is tracked in [Draft PR #58](https://github.com/GoreeCloud/AI/pull/58) and is not a dependency of this feature branch. This opt-in smoke check confirms that an **already-installed** local Ollama model can respond to one synthetic, fixed prompt. It does not establish model quality, accuracy, device/GPU readiness, authorization, Glaze accessibility, or production acceptance.
 
 ```sh
 python3 scripts/ai_smoke.py --model llama3.2
