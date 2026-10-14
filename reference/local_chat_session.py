@@ -210,6 +210,14 @@ class LocalChatSession:
         if (not isinstance(result, ChatResult) or result.model != self.model
                 or result.provider != "ollama" or result.processing != "local"):
             raise LocalModelError("invalid_response", "Unexpected local model response identity.")
+        if not isinstance(result.content, str):
+            raise LocalModelError("invalid_response", "Local model returned invalid text.")
+        try:
+            answer_bytes = len(result.content.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise LocalModelError("invalid_response", "Local model returned invalid text.") from None
+        if answer_bytes > MAX_RESPONSE_BYTES:
+            raise LocalModelError("response_too_large", "Local answer exceeded its size limit.")
         return result
 
     def iter_reply_once(self, prompt: str) -> Iterator[ChatStreamEvent]:
