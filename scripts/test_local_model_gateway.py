@@ -11,6 +11,8 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from reference.local_model_gateway import ChatMessage, LocalModelError, LocalOllamaGateway
@@ -161,6 +163,67 @@ class GatewayTests(unittest.TestCase):
     def test_size_bounded_catalog_response(self):
         self.reply(b" " * (1024 * 1024 + 1))
         self.assert_error("response_too_large", self.gateway.list_models)
+
+    def test_nonstream_read_deadline_stops_trickle_without_leaking_private_request(self):
+        class DripResponse:
+            status = 200
+            closed = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.closed = True
+
+            def read(self, count):
+                return b"{"  # Never finishes JSON; each byte arrives within socket timeout.
+
+        for request in (
+            self.gateway.list_models,
+            lambda: self.gateway.chat("tiny:1", [ChatMessage("user", "PRIVATE_TEST_PROMPT")]),
+        ):
+            with self.subTest(request=request):
+                response = DripResponse()
+                self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: response)
+                clock = iter((0, 1, 10, 901))
+                with patch("reference.local_model_gateway.time.monotonic",
+                           side_effect=lambda: next(clock)):
+                    with self.assertRaises(LocalModelError) as caught:
+                        request()
+                self.assertEqual(caught.exception.code, "runtime_timeout")
+                self.assertNotIn("PRIVATE_TEST_PROMPT", str(caught.exception))
+                self.assertTrue(response.closed)
+
+    def test_nonstream_read_deadline_accepts_completed_bodies(self):
+        class CompleteResponse:
+            status = 200
+            closed = False
+
+            def __init__(self, data):
+                self.data = data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.closed = True
+
+            def read(self, count):
+                result, self.data = self.data[:count], self.data[count:]
+                return result
+
+        for body, request, expected in (
+            (b'{"models":[]}', self.gateway.list_models, ()),
+            (b'{"done":true,"message":{"role":"assistant","content":"ok"}}',
+             lambda: self.gateway.chat("tiny:1", [ChatMessage("user", "hello")]), "ok"),
+        ):
+            with self.subTest(body=body):
+                response = CompleteResponse(body)
+                self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: response)
+                with patch("reference.local_model_gateway.time.monotonic", return_value=1):
+                    result = request()
+                self.assertEqual(result.content if hasattr(result, "content") else result, expected)
+                self.assertTrue(response.closed)
 
     def test_provider_errors_sanitized(self):
         self.reply(b'{"error":"sensitive prompt from backend"}', 500)
