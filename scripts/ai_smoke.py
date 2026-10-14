@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--model", required=True, help="An already-installed local model.")
     parser.add_argument("--json", action="store_true", help="Redacted machine-readable status.")
+    parser.add_argument("--max-tokens", type=int, default=16)
+    parser.add_argument("--strict-ready", action="store_true")
     args = parser.parse_args(argv)
     attempted = False
 
