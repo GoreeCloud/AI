@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from contextlib import closing
 import sys
 import unicodedata
@@ -15,6 +16,8 @@ from reference.local_model_gateway import (
     LocalModelError,
     LocalOllamaGateway,
     MAX_MESSAGE_BYTES,
+    _model_name,
+    _validated_messages,
 )
 
 
@@ -231,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("models", help="List installed local models.")
     chat = commands.add_parser("chat", help="Read one user prompt from stdin and print the response.")
     chat.add_argument("--model", required=True)
+    chat.add_argument("--validate-only", action="store_true",
+                      help="Validate the local request offline without contacting a model.")
     chat.add_argument("--max-tokens", type=int, choices=range(1, 513), metavar="1..512")
     chat.add_argument("--stream", action="store_true",
                       help="Print local model tokens as they arrive; output is provisional until completion.")
@@ -262,6 +267,17 @@ def main(argv: list[str] | None = None) -> int:
         except UnicodeDecodeError:
             raise LocalModelError("invalid_messages", "Prompt must be UTF-8 text.") from None
         messages = [ChatMessage(role="user", content=prompt)]
+        if args.validate_only:
+            _model_name(args.model)
+            _validated_messages(messages)
+            print(json.dumps({
+                "status": "valid",
+                "network_attempted": False,
+                "inference_attempted": False,
+                "model_installed_verified": False,
+                "processing": "local",
+            }, sort_keys=True))
+            return 0
         if args.stream:
             emitted = False
             try:
