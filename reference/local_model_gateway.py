@@ -246,13 +246,17 @@ class LocalOllamaGateway:
             found[name] = LocalModel(name=name, size_bytes=size)
         return tuple(found[k] for k in sorted(found))
 
-    def chat(self, model: str, messages: Sequence[ChatMessage]) -> ChatResult:
+    def chat(self, model: str, messages: Sequence[ChatMessage], *,
+             max_tokens: int | None = None) -> ChatResult:
+        """Optionally bound model generation without changing default chat behavior."""
         name = _model_name(model)
+        if max_tokens is not None and (type(max_tokens) is not int or not 1 <= max_tokens <= 512):
+            raise LocalModelError("invalid_generation_limit", "Output token limit must be 1–512.")
         normalized = _validated_messages(messages)
-        response = self._json_request(
-            "/api/chat",
-            {"model": name, "messages": normalized, "stream": False},
-        )
+        payload = {"model": name, "messages": normalized, "stream": False}
+        if max_tokens is not None:
+            payload["options"] = {"num_predict": max_tokens}
+        response = self._json_request("/api/chat", payload)
         if response.get("model", name) != name:
             raise LocalModelError("invalid_response", "Local model identity mismatch.")
         message = response.get("message")
