@@ -71,10 +71,52 @@ class SmokeTests(unittest.TestCase):
         payload = self.server.requests[0]
         self.assertEqual(payload["model"], "tiny:1")
         self.assertFalse(payload["stream"])
+        self.assertEqual(payload["options"], {"num_predict": 16})
         self.assertEqual(payload["messages"], [
             {"role": "user", "content": "Reply with the single word READY."}
         ])
         self.assertNotIn("READY", result.stdout)
+
+    def test_bounded_output_can_be_customized(self):
+        result = self.run_probe("--max-tokens", "4", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.server.requests[0]["options"], {"num_predict": 4})
+
+    def test_invalid_output_limits_do_not_contact_model(self):
+        for value in ("0", "-1", "129"):
+            with self.subTest(value=value):
+                result = self.run_probe("--max-tokens", value, "--json")
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(json.loads(result.stdout)["code"], "invalid_generation_limit")
+                self.assertFalse(json.loads(result.stdout)["inference_attempted"])
+        self.assertEqual(self.server.calls, [])
+
+    def test_strict_ready_accepts_exact_response_only(self):
+        success = self.run_probe("--strict-ready", "--json")
+        self.assertEqual(success.returncode, 0, success.stderr)
+        self.assertEqual(json.loads(success.stdout)["code"], "ok")
+        for output in ("Ready", "NOT READY", "I cannot comply"):
+            with self.subTest(output=output):
+                self.server.answer = (200, {
+                    "model": "tiny:1", "done": True,
+                    "message": {"role": "assistant", "content": output},
+                })
+                result = self.run_probe("--strict-ready", "--json")
+                self.assertEqual(result.returncode, 1)
+                report = json.loads(result.stdout)
+                self.assertEqual(report["code"], "unexpected_output")
+                self.assertFalse(report["inference_verified"])
+                self.assertTrue(report["inference_attempted"])
+                self.assertNotIn(output, result.stdout)
+
+    def test_non_strict_still_accepts_nonempty_answer(self):
+        self.server.answer = (200, {
+            "model": "tiny:1", "done": True,
+            "message": {"role": "assistant", "content": "other answer"},
+        })
+        result = self.run_probe("--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)["inference_verified"])
 
     def test_structured_success_redacts_model_and_generated_text(self):
         result = self.run_probe("--json")
