@@ -128,6 +128,27 @@ def _validated_messages(messages: Sequence[ChatMessage]) -> list[dict[str, str]]
     return prepared
 
 
+def _bounded_stream_frame(response, deadline: float) -> bytes:
+    """Read one NDJSON frame, checking the total deadline after every byte.
+
+    A single buffered readline() can run without end while its peer trickles
+    bytes faster than the per-socket timeout. Bytewise reads prevent that.
+    """
+    raw = bytearray()
+    while len(raw) <= MAX_STREAM_FRAME_BYTES:
+        if time.monotonic() >= deadline:
+            raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
+        part = response.read(1)
+        if time.monotonic() >= deadline:
+            raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
+        if not part:
+            break
+        raw.extend(part)
+        if part == b"\n":
+            break
+    return bytes(raw)
+
+
 class LocalOllamaGateway:
     """Explicitly loopback-only provider adapter with no redirect or proxy use."""
 
@@ -267,11 +288,7 @@ class LocalOllamaGateway:
                 wire_bytes = 0
                 answer_bytes = 0
                 while True:
-                    if time.monotonic() >= deadline:
-                        raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
-                    raw = response.readline(MAX_STREAM_FRAME_BYTES + 1)
-                    if time.monotonic() >= deadline:
-                        raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
+                    raw = _bounded_stream_frame(response, deadline)
                     if not raw:
                         raise LocalModelError("incomplete_stream", "Local response ended without completion.")
                     frames += 1
