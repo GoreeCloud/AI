@@ -206,8 +206,11 @@ class StreamingTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 self.closed = True
 
-            def readline(self, maximum):
-                return ndjson(frame("first"))
+            def read(self, maximum):
+                if not hasattr(self, "_buffer"):
+                    self._buffer = ndjson(frame("first"))
+                result, self._buffer = self._buffer[:maximum], self._buffer[maximum:]
+                return result
 
         response = TrackingResponse()
         self.gateway._opener = SimpleNamespace(open=lambda *a, **kw: response)
@@ -229,12 +232,11 @@ class StreamingTests(unittest.TestCase):
             def __exit__(self, *args):
                 return False
 
-            def readline(self, limit):
-                return ndjson(frame("a"))
+            def read(self, count):
+                return b"{"  # One byte, but never an entire NDJSON frame.
 
         self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: FakeResponse())
-        # First clock sample sets the deadline; the first frame exceeds it.
-        clock = iter((0, 1, 901))
+        clock = iter((0, 1, 10, 901))
         with patch("reference.local_model_gateway.time.monotonic", side_effect=lambda: next(clock)):
             self.assert_stream_error("runtime_timeout")
 
@@ -243,7 +245,7 @@ class StreamingTests(unittest.TestCase):
             status = 200
 
             def __init__(self):
-                self.frames = iter((ndjson(frame("ok")), ndjson(frame(done=True))))
+                self.contents = ndjson(frame("ok"), frame(done=True))
 
             def __enter__(self):
                 return self
@@ -251,12 +253,12 @@ class StreamingTests(unittest.TestCase):
             def __exit__(self, *args):
                 return False
 
-            def readline(self, limit):
-                return next(self.frames)
+            def read(self, count):
+                result, self.contents = self.contents[:count], self.contents[count:]
+                return result
 
         self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: FakeResponse())
-        clock = iter((0, 1, 10, 20, 30))
-        with patch("reference.local_model_gateway.time.monotonic", side_effect=lambda: next(clock)):
+        with patch("reference.local_model_gateway.time.monotonic", return_value=1):
             received = list(self.gateway.iter_chat("tiny:1", self.messages))
         self.assertEqual([(event.delta, event.done) for event in received],
                          [("ok", False), ("", True)])
