@@ -46,6 +46,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             continue
 
         regenerate = False
+        ephemeral = False
         if prompt.startswith("//"):
             prompt = prompt[1:]  # Literal user message starting with '/'.
         elif prompt.startswith("/"):
@@ -159,11 +160,17 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /clear forgets turns but preserves system instruction; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /once TEXT answers without prior chat history or retention; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
-            if command == "/again":
+            if command == "/once":
+                print("Use /once TEXT for a response without prior turns or retention.")
+                continue
+            if command.startswith("/once "):
+                prompt = prompt[len("/once "):]
+                ephemeral = True
+            elif command == "/again":
                 regenerate = True
             else:
                 print("Unknown command. Use /help. Nothing sent to the model.")
@@ -176,8 +183,9 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 emitted = False
                 print("AI> ", end="", flush=True)
                 try:
-                    with closing(session.iter_regenerate_last() if regenerate
-                                 else session.iter_reply(prompt)) as events:
+                    with closing(session.iter_reply_once(prompt) if ephemeral else
+                                 session.iter_regenerate_last() if regenerate else
+                                 session.iter_reply(prompt)) as events:
                         for event in events:
                             if event.done:
                                 print(flush=True)
@@ -191,9 +199,12 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                         print()
                     raise
             else:
-                answer = session.regenerate_last() if regenerate else session.reply(prompt)
+                answer = (session.reply_once(prompt) if ephemeral else
+                          session.regenerate_last() if regenerate else session.reply(prompt))
                 print("AI> " + _terminal_safe(answer.content))
-            if not session.last_reply_retained:
+            if ephemeral:
+                print("One-time reply: not added to conversation memory.")
+            elif not session.last_reply_retained:
                 if session.turn_limit == 0:
                     print("Private stateless mode: completed turn not retained.")
                 else:
