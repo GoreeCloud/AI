@@ -12,6 +12,7 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from reference.local_model_gateway import ChatMessage, LocalModelError, LocalOllamaGateway
@@ -205,8 +206,11 @@ class StreamingTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 self.closed = True
 
-            def readline(self, maximum):
-                return ndjson(frame("first"))
+            def read(self, maximum):
+                if not hasattr(self, "_buffer"):
+                    self._buffer = ndjson(frame("first"))
+                result, self._buffer = self._buffer[:maximum], self._buffer[maximum:]
+                return result
 
         response = TrackingResponse()
         self.gateway._opener = SimpleNamespace(open=lambda *a, **kw: response)
@@ -217,6 +221,47 @@ class StreamingTests(unittest.TestCase):
         self.assertTrue(response.closed)
         with self.assertRaises(StopIteration):
             next(iterator)
+
+    def test_slow_trickle_stream_has_finite_total_deadline(self):
+        class FakeResponse:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self, count):
+                return b"{"  # One byte, but never an entire NDJSON frame.
+
+        self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: FakeResponse())
+        clock = iter((0, 1, 10, 901))
+        with patch("reference.local_model_gateway.time.monotonic", side_effect=lambda: next(clock)):
+            self.assert_stream_error("runtime_timeout")
+
+    def test_stream_finishing_before_total_deadline_is_accepted(self):
+        class FakeResponse:
+            status = 200
+
+            def __init__(self):
+                self.contents = ndjson(frame("ok"), frame(done=True))
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self, count):
+                result, self.contents = self.contents[:count], self.contents[count:]
+                return result
+
+        self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: FakeResponse())
+        with patch("reference.local_model_gateway.time.monotonic", return_value=1):
+            received = list(self.gateway.iter_chat("tiny:1", self.messages))
+        self.assertEqual([(event.delta, event.done) for event in received],
+                         [("ok", False), ("", True)])
 
     def test_nonstream_rejects_tool_calls_too(self):
         self.set_stream(json.dumps({

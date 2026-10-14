@@ -9,6 +9,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import math
+import time
 import re
 import urllib.error
 import urllib.parse
@@ -24,6 +25,8 @@ MAX_MODELS = 200
 MAX_STREAM_FRAME_BYTES = 64 * 1024
 MAX_STREAM_FRAMES = 4096
 MAX_STREAM_WIRE_BYTES = 2 * MAX_RESPONSE_BYTES
+MAX_STREAM_SECONDS = 15 * 60  # One finite total-budget guard against trickle streams.
+MAX_JSON_SECONDS = 15 * 60  # Also bound trickle responses for discovery and nonstream chat.
 _MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/+:@-]{0,159}$")
 
 
@@ -86,7 +89,7 @@ def _endpoint_url(endpoint: str) -> str:
         or parts.path not in ("", "/")
         or parts.query
         or parts.fragment
-        or not address.is_loopback
+        or address not in (ipaddress.IPv4Address("127.0.0.1"), ipaddress.IPv6Address("::1"))
         or not port
     ):
         raise LocalModelError(
@@ -126,6 +129,47 @@ def _validated_messages(messages: Sequence[ChatMessage]) -> list[dict[str, str]]
     return prepared
 
 
+
+def _bounded_json_body(response, deadline: float) -> bytes:
+    """Bound total body duration even if the peer dribbles within socket timeout.
+
+    HTTPResponse.read(n) can wait until n bytes arrive or EOF. Using read(1)
+    makes the deadline observable inside an unfinished JSON body.
+    """
+    raw = bytearray()
+    while len(raw) <= MAX_RESPONSE_BYTES:
+        if time.monotonic() >= deadline:
+            raise LocalModelError("runtime_timeout", "Local response exceeded its total duration limit.")
+        part = response.read(1)
+        if time.monotonic() >= deadline:
+            raise LocalModelError("runtime_timeout", "Local response exceeded its total duration limit.")
+        if not part:
+            return bytes(raw)
+        raw.extend(part)
+    raise LocalModelError("response_too_large", "Local model response exceeds size limit.")
+
+
+def _bounded_stream_frame(response, deadline: float) -> bytes:
+    """Read one NDJSON frame, checking the total deadline after every byte.
+
+    A single buffered readline() can run without end while its peer trickles
+    bytes faster than the per-socket timeout. Bytewise reads prevent that.
+    """
+    raw = bytearray()
+    while len(raw) <= MAX_STREAM_FRAME_BYTES:
+        if time.monotonic() >= deadline:
+            raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
+        part = response.read(1)
+        if time.monotonic() >= deadline:
+            raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
+        if not part:
+            break
+        raw.extend(part)
+        if part == b"\n":
+            break
+    return bytes(raw)
+
+
 class LocalOllamaGateway:
     """Explicitly loopback-only provider adapter with no redirect or proxy use."""
 
@@ -156,11 +200,12 @@ class LocalOllamaGateway:
             method="GET" if body is None else "POST",
             headers={"Accept": "application/json", "Content-Type": "application/json"},
         )
+        deadline = time.monotonic() + MAX_JSON_SECONDS
         try:
             with self._opener.open(req, timeout=self.timeout_seconds) as response:
                 if response.status != 200:
                     raise LocalModelError("runtime_error", "Local model service returned an error.")
-                data = response.read(MAX_RESPONSE_BYTES + 1)
+                data = _bounded_json_body(response, deadline)
         except urllib.error.HTTPError as exc:
             exc.close()  # HTTPError carries a response stream; avoid leaking failed requests.
             if 300 <= exc.code < 400:
@@ -176,6 +221,8 @@ class LocalOllamaGateway:
             raise LocalModelError("invalid_response", "Local model service returned invalid JSON.") from None
         if not isinstance(parsed, dict):
             raise LocalModelError("invalid_response", "Local model service returned an invalid result.")
+        if "error" in parsed:
+            raise LocalModelError("runtime_error", "Local model service returned an error.")
         return parsed
 
     def list_models(self) -> tuple[LocalModel, ...]:
@@ -206,6 +253,8 @@ class LocalOllamaGateway:
             "/api/chat",
             {"model": name, "messages": normalized, "stream": False},
         )
+        if response.get("model", name) != name:
+            raise LocalModelError("invalid_response", "Local model identity mismatch.")
         message = response.get("message")
         if (
             response.get("done") is not True
@@ -247,6 +296,7 @@ class LocalOllamaGateway:
             method="POST",
             headers={"Accept": "application/x-ndjson", "Content-Type": "application/json"},
         )
+        deadline = time.monotonic() + MAX_STREAM_SECONDS
         try:
             try:
                 response = self._opener.open(request, timeout=self.timeout_seconds)
@@ -264,7 +314,7 @@ class LocalOllamaGateway:
                 wire_bytes = 0
                 answer_bytes = 0
                 while True:
-                    raw = response.readline(MAX_STREAM_FRAME_BYTES + 1)
+                    raw = _bounded_stream_frame(response, deadline)
                     if not raw:
                         raise LocalModelError("incomplete_stream", "Local response ended without completion.")
                     frames += 1

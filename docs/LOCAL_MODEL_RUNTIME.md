@@ -26,7 +26,11 @@ The terminal CLI prints untrusted model text with control and bidirectional-form
 
 Calling close() on an active iterator closes the underlying local HTTP response; this is local request cancellation, **not evidence that the Ollama server stopped its underlying GPU job**. There is no automatic retry, alternate-provider routing, or tool execution after an interruption.
 
-Each incoming JSON frame is limited to 64 KiB, streams to 4096 frames or 2 MiB wire data, and combined text output to 1 MiB UTF-8. Unsupported tool/image output, unexpected model identity, malformed JSON, invalid completion flags, missing final completion, HTTP redirects, and service failures fail closed. Consumers should observe an explicit completed event before committing conversation state. This is an isolated Developer API and CLI feature, not a connected Glaze streaming interface.
+Only the exact literal endpoints `127.0.0.1` and `[::1]` are accepted; other 127/8 addresses are rejected to avoid unexpected local-service routing.
+
+Non-streaming model discovery and chat also enforce a 15-minute total elapsed response deadline, including incomplete slow-trickle JSON bodies. The socket timeout still bounds individual blocked reads and the 1 MiB total JSON response limit remains. Deadline failures are sanitized and do not commit conversation history.
+
+Each incoming JSON frame is limited to 64 KiB, streams to 4096 frames or 2 MiB wire data, and combined text output to 1 MiB UTF-8. A stream also has a 15-minute total elapsed-time guard against slow-trickle responses, checked even within individual NDJSON frames (with one final socket-byte-read timeout overrun possible); exceeding it fails closed without a completed answer. Unsupported tool/image output, unexpected model identity, malformed JSON, invalid completion flags, missing final completion, HTTP redirects, and service failures fail closed. Consumers should observe an explicit completed event before committing conversation state. This is an isolated Developer API and CLI feature, not a connected Glaze streaming interface.
 
 ## Private multi-turn chat (Development)
 

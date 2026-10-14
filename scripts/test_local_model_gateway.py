@@ -11,6 +11,8 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from reference.local_model_gateway import ChatMessage, LocalModelError, LocalOllamaGateway
@@ -94,11 +96,18 @@ class GatewayTests(unittest.TestCase):
             "http://localhost:11434", "http://user:pass@127.0.0.1:11434",
             "http://127.0.0.1:11434/api", "http://127.0.0.1:11434?x=1",
             "http://127.0.0.1:11434#fragment", "http://127.0.0.1:0",
+            "http://127.0.0.2:11434", "http://127.255.255.255:11434",
             "http://127.0.0.1:99999", "http://127.0.0.1:11434@evil.invalid",
             "http://127.0.0.1:11434\\@evil.invalid",
         ):
             with self.subTest(endpoint=endpoint):
                 self.assert_error("invalid_endpoint", lambda: LocalOllamaGateway(endpoint))
+
+    def test_literal_ipv4_and_ipv6_loopback_are_accepted(self):
+        self.assertEqual(LocalOllamaGateway("http://127.0.0.1:11434").endpoint,
+                         "http://127.0.0.1:11434")
+        self.assertEqual(LocalOllamaGateway("http://[::1]:11434").endpoint,
+                         "http://[::1]:11434")
 
     def test_no_redirect_follows_external_destination(self):
         self.reply(b"", 302, {"Location": "https://example.com/collect"})
@@ -151,9 +160,113 @@ class GatewayTests(unittest.TestCase):
                 "invalid_response", lambda: self.gateway.chat("m", [ChatMessage("user", "hello")])
             )
 
+    def test_chat_rejects_conflicting_model_identity(self):
+        for returned in ("other:latest", "", None, 17):
+            with self.subTest(returned=returned):
+                self.reply({
+                    "model": returned, "done": True,
+                    "message": {"role": "assistant", "content": "plausible answer"}
+                })
+                self.assert_error("invalid_response", lambda: self.gateway.chat(
+                    "tiny:1", [ChatMessage("user", "hello")]
+                ))
+
+    def test_chat_accepts_matching_model_identity(self):
+        self.reply({
+            "model": "tiny:1", "done": True,
+            "message": {"role": "assistant", "content": "ok"}
+        })
+        self.assertEqual(
+            self.gateway.chat("tiny:1", [ChatMessage("user", "hello")]).content,
+            "ok"
+        )
+
+    def test_explicit_provider_errors_fail_closed(self):
+        for payload, action in (
+            ({"models": [], "error": "private details"}, self.gateway.list_models),
+            ({"done": True, "error": "private details",
+              "message": {"role": "assistant", "content": "looks valid"}},
+             lambda: self.gateway.chat("m", [ChatMessage("user", "secret")])),
+        ):
+            with self.subTest(payload=payload):
+                self.reply(payload)
+                with self.assertRaises(LocalModelError) as caught:
+                    action()
+                self.assertEqual(caught.exception.code, "runtime_error")
+                self.assertNotIn("private details", str(caught.exception))
+
+    def test_nonerror_provider_responses_remain_supported(self):
+        self.reply({"models": []})
+        self.assertEqual(self.gateway.list_models(), ())
+        self.reply({"done": True, "message": {"role": "assistant", "content": "ok"}})
+        self.assertEqual(
+            self.gateway.chat("m", [ChatMessage("user", "hello")]).content, "ok"
+        )
+
     def test_size_bounded_catalog_response(self):
         self.reply(b" " * (1024 * 1024 + 1))
         self.assert_error("response_too_large", self.gateway.list_models)
+
+    def test_nonstream_read_deadline_stops_trickle_without_leaking_private_request(self):
+        class DripResponse:
+            status = 200
+            closed = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.closed = True
+
+            def read(self, count):
+                return b"{"  # Never finishes JSON; each byte arrives within socket timeout.
+
+        for request in (
+            self.gateway.list_models,
+            lambda: self.gateway.chat("tiny:1", [ChatMessage("user", "PRIVATE_TEST_PROMPT")]),
+        ):
+            with self.subTest(request=request):
+                response = DripResponse()
+                self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: response)
+                clock = iter((0, 1, 10, 901))
+                with patch("reference.local_model_gateway.time.monotonic",
+                           side_effect=lambda: next(clock)):
+                    with self.assertRaises(LocalModelError) as caught:
+                        request()
+                self.assertEqual(caught.exception.code, "runtime_timeout")
+                self.assertNotIn("PRIVATE_TEST_PROMPT", str(caught.exception))
+                self.assertTrue(response.closed)
+
+    def test_nonstream_read_deadline_accepts_completed_bodies(self):
+        class CompleteResponse:
+            status = 200
+            closed = False
+
+            def __init__(self, data):
+                self.data = data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.closed = True
+
+            def read(self, count):
+                result, self.data = self.data[:count], self.data[count:]
+                return result
+
+        for body, request, expected in (
+            (b'{"models":[]}', self.gateway.list_models, ()),
+            (b'{"done":true,"message":{"role":"assistant","content":"ok"}}',
+             lambda: self.gateway.chat("tiny:1", [ChatMessage("user", "hello")]), "ok"),
+        ):
+            with self.subTest(body=body):
+                response = CompleteResponse(body)
+                self.gateway._opener = SimpleNamespace(open=lambda *args, **kwargs: response)
+                with patch("reference.local_model_gateway.time.monotonic", return_value=1):
+                    result = request()
+                self.assertEqual(result.content if hasattr(result, "content") else result, expected)
+                self.assertTrue(response.closed)
 
     def test_provider_errors_sanitized(self):
         self.reply(b'{"error":"sensitive prompt from backend"}', 500)
