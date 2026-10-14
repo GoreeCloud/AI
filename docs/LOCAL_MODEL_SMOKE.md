@@ -1,0 +1,14 @@
+# GoreeCloud AI — Synthetic Local Inference Smoke Test (Development)
+
+`ai_health.py` only confirms that the loopback runtime's model catalog is reachable. This additional opt-in smoke check confirms that an **already-installed** local Ollama model can respond to one synthetic, fixed prompt. It does not establish model quality, accuracy, device/GPU readiness, authorization, Glaze accessibility, or production acceptance.
+
+```sh
+python3 scripts/ai_smoke.py --model llama3.2
+python3 scripts/ai_smoke.py --model llama3.2 --timeout 120 --json
+```
+
+The check first fetches the local installed-model catalog (`GET /api/tags`). It makes **one** `POST /api/chat` with a fixed synthetic prompt only when the requested model is installed. No user prompt, session transcript, secret or file contents are sent. Strict HTTP loopback validation, redirect refusal, sanitized failures and gateway size/deadline checks remain in force. There is no automatic retry, model installation, remote provider routing, credential use, tool execution or persistence.
+
+The model's generated text is never printed. Default terminal output gives a plain success/failure status. `--json` produces a redacted JSON result containing `status`, stable `code`, `inference_attempted`, `inference_verified`, and `processing: "local"`. Successful inference means only that a nonempty local assistant text response was received. It **does not require or claim** semantic compliance with the synthetic instruction.
+
+The command may load a model and consume CPU, GPU, memory, energy or inference time. Run it only deliberately on a trusted approved local host with sufficient resources. No real AI Services VM inference was performed during offline test development.
