@@ -47,6 +47,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
 
         regenerate = False
         ephemeral = False
+        edit_requested = False
         if prompt.startswith("//"):
             prompt = prompt[1:]  # Literal user message starting with '/'.
         elif prompt.startswith("/"):
