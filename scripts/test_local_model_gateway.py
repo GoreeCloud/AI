@@ -90,6 +90,24 @@ class GatewayTests(unittest.TestCase):
                          ["system", "user", "assistant", "user"])
         self.assertEqual(set(self.server.requests[0]), {"model", "messages", "stream"})
 
+    def test_bounded_generation_options_are_explicit_and_local(self):
+        self.reply({"done": True, "message": {"role": "assistant", "content": "READY"}})
+        answer = self.gateway.chat("tiny:1", [ChatMessage("user", "synthetic")],
+                                   max_tokens=16)
+        self.assertEqual(answer.content, "READY")
+        self.assertEqual(len(self.server.requests), 1)
+        self.assertEqual(self.server.requests[0]["options"], {"num_predict": 16})
+        self.assertEqual(self.server.received, [("POST", "/api/chat")])
+
+    def test_invalid_generation_limits_fail_before_network(self):
+        for value in (0, -1, 513, True, False, 1.0, "16", [], {}):
+            with self.subTest(value=value):
+                self.assert_error("invalid_generation_limit", lambda: self.gateway.chat(
+                    "tiny:1", [ChatMessage("user", "private test")], max_tokens=value
+                ))
+        self.assertFalse(self.server.requests)
+        self.assertFalse(self.server.received)
+
     def test_no_external_hosts_credentials_or_paths(self):
         for endpoint in (
             "https://127.0.0.1:11434", "http://example.com:11434",

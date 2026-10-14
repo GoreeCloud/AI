@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--model", required=True, help="An already-installed local model.")
     parser.add_argument("--json", action="store_true", help="Redacted machine-readable status.")
+    parser.add_argument("--max-tokens", type=int, default=16)
+    parser.add_argument("--strict-ready", action="store_true")
     args = parser.parse_args(argv)
     attempted = False
 
@@ -49,17 +51,22 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         model = _model_name(args.model)
+        if not 1 <= args.max_tokens <= 128:
+            return report(False, "invalid_generation_limit")
         gateway = LocalOllamaGateway(args.endpoint, args.timeout)
         catalog = gateway.list_models()
         if model not in (entry.name for entry in catalog):
             return report(False, "model_not_installed")
         # Intentionally no personal content, no retries, no nonlocal fallback.
         attempted = True
-        answer = gateway.chat(model, [ChatMessage("user", _SYNTHETIC_PROMPT)])
+        answer = gateway.chat(model, [ChatMessage("user", _SYNTHETIC_PROMPT)],
+                              max_tokens=args.max_tokens)
         if (answer.provider != "ollama" or answer.model != model
                 or answer.processing != "local" or not isinstance(answer.content, str)
                 or not answer.content.strip()):
             return report(False, "invalid_inference")
+        if args.strict_ready and answer.content.strip() != "READY":
+            return report(False, "unexpected_output")
         return report(True, "ok")
     except LocalModelError as exc:
         return report(False, exc.code)
