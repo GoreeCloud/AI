@@ -4,7 +4,8 @@ The separate catalog-only readiness probe is tracked in [Draft PR #58](https://g
 
 ```sh
 python3 scripts/ai_smoke.py --model llama3.2
-python3 scripts/ai_smoke.py --model llama3.2 --timeout 120 --json
+python3 scripts/ai_smoke.py --model llama3.2 --timeout 120 --max-tokens 16 --json
+python3 scripts/ai_smoke.py --model llama3.2 --strict-ready --json
 ```
 
 The check first fetches the local installed-model catalog (`GET /api/tags`). It makes **one** `POST /api/chat` with a fixed synthetic prompt only when the requested model is installed. No user prompt, session transcript, secret or file contents are sent. Strict HTTP loopback validation, redirect refusal, sanitized failures and gateway size/deadline checks remain in force. There is no automatic retry, model installation, remote provider routing, credential use, tool execution or persistence.
