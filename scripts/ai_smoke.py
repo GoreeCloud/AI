@@ -59,7 +59,8 @@ def main(argv: list[str] | None = None) -> int:
             return report(False, "model_not_installed")
         # Intentionally no personal content, no retries, no nonlocal fallback.
         attempted = True
-        answer = gateway.chat(model, [ChatMessage("user", _SYNTHETIC_PROMPT)])
+        answer = gateway.chat(model, [ChatMessage("user", _SYNTHETIC_PROMPT)],
+                              max_tokens=args.max_tokens)
         if (answer.provider != "ollama" or answer.model != model
                 or answer.processing != "local" or not isinstance(answer.content, str)
                 or not answer.content.strip()):
