@@ -65,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
                 or answer.processing != "local" or not isinstance(answer.content, str)
                 or not answer.content.strip()):
             return report(False, "invalid_inference")
+        if args.strict_ready and answer.content.strip() != "READY":
+            return report(False, "unexpected_output")
         return report(True, "ok")
     except LocalModelError as exc:
         return report(False, exc.code)
