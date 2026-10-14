@@ -203,6 +203,19 @@ class LocalChatSession:
         if size > MAX_MESSAGE_BYTES:
             raise LocalModelError("response_too_large", "Replacement answer cannot be retained.")
 
+    def reply_once(self, prompt: str) -> ChatResult:
+        """Perform one local inference without sharing or retaining prior turns."""
+        _, messages = self._prepare(prompt, stream=False, prior_turns=[])
+        result = self.runtime.chat(self.model, messages)
+        if (not isinstance(result, ChatResult) or result.model != self.model
+                or result.provider != "ollama" or result.processing != "local"):
+            raise LocalModelError("invalid_response", "Unexpected local model response identity.")
+        return result
+
+    def iter_reply_once(self, prompt: str) -> Iterator[ChatStreamEvent]:
+        """Stream a one-time reply without reading or saving conversation turns."""
+        yield from self._stream_answer(prompt, regenerate=False, ephemeral=True)
+
     def regenerate_last(self) -> ChatResult:
         """Explicitly retry last user prompt, atomically replacing its saved reply."""
         if not self._turns:
@@ -227,9 +240,9 @@ class LocalChatSession:
             raise LocalModelError("no_turns", "No completed answer to regenerate.")
         yield from self._stream_answer(self._turns[-1][0].content, regenerate=True)
 
-    def _stream_answer(self, prompt: str, *, regenerate: bool) -> Iterator[ChatStreamEvent]:
+    def _stream_answer(self, prompt: str, *, regenerate: bool, ephemeral: bool = False) -> Iterator[ChatStreamEvent]:
         kept, messages = self._prepare(
-            prompt, stream=True, prior_turns=self._turns[:-1] if regenerate else None
+            prompt, stream=True, prior_turns=[] if ephemeral else self._turns[:-1] if regenerate else None
         )
         chunks: list[str] = []
         total_bytes = 0
@@ -245,7 +258,8 @@ class LocalChatSession:
                     answer = "".join(chunks)
                     if regenerate:
                         self._replacement_is_retained(answer)
-                    self._commit(kept, prompt, answer)
+                    if not ephemeral:
+                        self._commit(kept, prompt, answer)
                     yield event
                     return
                 try:
@@ -255,6 +269,7 @@ class LocalChatSession:
                 total_bytes += size
                 if total_bytes > MAX_RESPONSE_BYTES:
                     raise LocalModelError("response_too_large", "Local answer exceeded its size limit.")
-                chunks.append(event.delta)
+                if not ephemeral:
+                    chunks.append(event.delta)
                 yield event
         raise LocalModelError("incomplete_stream", "Local response ended without completion.")
