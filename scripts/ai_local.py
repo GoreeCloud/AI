@@ -265,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.stream:
             emitted = False
             try:
-                with closing(runtime.iter_chat(args.model, messages)) as events:
+                with closing(runtime.iter_chat(args.model, messages, max_tokens=args.max_tokens)) as events:
                     for event in events:
                         if event.done:
                             print(flush=True)
