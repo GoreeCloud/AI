@@ -9,6 +9,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import math
+import time
 import re
 import urllib.error
 import urllib.parse
@@ -24,6 +25,7 @@ MAX_MODELS = 200
 MAX_STREAM_FRAME_BYTES = 64 * 1024
 MAX_STREAM_FRAMES = 4096
 MAX_STREAM_WIRE_BYTES = 2 * MAX_RESPONSE_BYTES
+MAX_STREAM_SECONDS = 15 * 60  # One finite total-budget guard against trickle streams.
 _MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/+:@-]{0,159}$")
 
 
@@ -86,7 +88,7 @@ def _endpoint_url(endpoint: str) -> str:
         or parts.path not in ("", "/")
         or parts.query
         or parts.fragment
-        or not address.is_loopback
+        or address not in (ipaddress.IPv4Address("127.0.0.1"), ipaddress.IPv6Address("::1"))
         or not port
     ):
         raise LocalModelError(
@@ -247,6 +249,7 @@ class LocalOllamaGateway:
             method="POST",
             headers={"Accept": "application/x-ndjson", "Content-Type": "application/json"},
         )
+        deadline = time.monotonic() + MAX_STREAM_SECONDS
         try:
             try:
                 response = self._opener.open(request, timeout=self.timeout_seconds)
@@ -264,7 +267,11 @@ class LocalOllamaGateway:
                 wire_bytes = 0
                 answer_bytes = 0
                 while True:
+                    if time.monotonic() >= deadline:
+                        raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
                     raw = response.readline(MAX_STREAM_FRAME_BYTES + 1)
+                    if time.monotonic() >= deadline:
+                        raise LocalModelError("runtime_timeout", "Local stream exceeded its total duration limit.")
                     if not raw:
                         raise LocalModelError("incomplete_stream", "Local response ended without completion.")
                     frames += 1

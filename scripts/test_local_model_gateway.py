@@ -94,11 +94,18 @@ class GatewayTests(unittest.TestCase):
             "http://localhost:11434", "http://user:pass@127.0.0.1:11434",
             "http://127.0.0.1:11434/api", "http://127.0.0.1:11434?x=1",
             "http://127.0.0.1:11434#fragment", "http://127.0.0.1:0",
+            "http://127.0.0.2:11434", "http://127.255.255.255:11434",
             "http://127.0.0.1:99999", "http://127.0.0.1:11434@evil.invalid",
             "http://127.0.0.1:11434\\@evil.invalid",
         ):
             with self.subTest(endpoint=endpoint):
                 self.assert_error("invalid_endpoint", lambda: LocalOllamaGateway(endpoint))
+
+    def test_literal_ipv4_and_ipv6_loopback_are_accepted(self):
+        self.assertEqual(LocalOllamaGateway("http://127.0.0.1:11434").endpoint,
+                         "http://127.0.0.1:11434")
+        self.assertEqual(LocalOllamaGateway("http://[::1]:11434").endpoint,
+                         "http://[::1]:11434")
 
     def test_no_redirect_follows_external_destination(self):
         self.reply(b"", 302, {"Location": "https://example.com/collect"})
