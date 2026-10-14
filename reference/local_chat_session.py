@@ -238,6 +238,17 @@ class LocalChatSession:
         self._commit(kept, prompt, result.content)
         return result
 
+    def edit_last(self, prompt: str) -> ChatResult:
+        if not self._turns:
+            raise LocalModelError("no_turns", "No completed turn to edit.")
+        kept, messages = self._prepare(prompt, stream=False, prior_turns=self._turns[:-1])
+        result = self.runtime.chat(self.model, messages)
+        if not isinstance(result, ChatResult) or (result.provider, result.model, result.processing) != ("ollama", self.model, "local"):
+            raise LocalModelError("invalid_response", "Unexpected local model response identity.")
+        self._replacement_is_retained(result.content)
+        self._commit(kept, prompt, result.content)
+        return result
+
     def iter_reply(self, prompt: str) -> Iterator[ChatStreamEvent]:
         """Stream an answer, committing only after an explicit completion."""
         yield from self._stream_answer(prompt, regenerate=False)
