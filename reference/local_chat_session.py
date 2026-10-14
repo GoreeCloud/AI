@@ -249,6 +249,11 @@ class LocalChatSession:
         self._commit(kept, prompt, result.content)
         return result
 
+    def iter_edit_last(self, prompt: str) -> Iterator[ChatStreamEvent]:
+        if not self._turns:
+            raise LocalModelError("no_turns", "No completed turn to edit.")
+        yield from self._stream_answer(prompt, regenerate=True)
+
     def iter_reply(self, prompt: str) -> Iterator[ChatStreamEvent]:
         """Stream an answer, committing only after an explicit completion."""
         yield from self._stream_answer(prompt, regenerate=False)
