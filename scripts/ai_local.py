@@ -231,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("models", help="List installed local models.")
     chat = commands.add_parser("chat", help="Read one user prompt from stdin and print the response.")
     chat.add_argument("--model", required=True)
+    chat.add_argument("--max-tokens", type=int, choices=range(1, 513), metavar="1..512")
     chat.add_argument("--stream", action="store_true",
                       help="Print local model tokens as they arrive; output is provisional until completion.")
     repl = commands.add_parser("repl", help="Start private multi-turn local chat in memory.")
