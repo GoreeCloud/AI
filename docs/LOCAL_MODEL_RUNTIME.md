@@ -38,7 +38,7 @@ Run interactive local chat using an already-installed local model:
 
     python3 scripts/ai_local.py repl --model llama3.2
 
-The repl streams by default; add --no-stream to display only completed answers. The session has commands /help, /status, /reset, and /exit (// at the start sends a literal slash-prefixed message). Unknown commands are not forwarded as prompts. /status displays only a count, never conversation content. EOF or /exit ends the process; all remembered turn references are cleared on exit.
+The repl streams by default; add --no-stream to display only completed answers. /help shows the supported controls and // at the start sends a literal slash-prefixed message. Unknown commands are not forwarded as prompts. /status displays only a count and configuration, never conversation content. EOF or /exit ends the process; all remembered turn references are cleared on exit.
 
 The LocalChatSession reference API retains only successfully completed user/assistant pairs **in process memory**. Incomplete, failed, interrupted or malformed responses are not added. Before each generation, it drops the oldest *complete* pairs to fit the 32-message and 64 KiB request bounds. Model output larger than 16 KiB, empty output or output containing NUL cannot be kept as a valid future conversation message: that response is shown but the context is reset, with a clear warning, rather than silently claiming continuity. reset() immediately discards the retained transcript references. It cannot erase copies held by terminal scrollback, the local runtime, operating-system swap/core dumps, shell capture, monitoring, or other tools.
 
@@ -51,6 +51,9 @@ The interactive local console also includes explicit privacy-aware controls:
 - `/models` lists installed local model names. `/model NAME` switches only to a verified installed model and clears prior turns and system instruction to avoid cross-model context leaks. Invalid, absent or unavailable models do not change session state.
 - `/system TEXT` installs an in-memory system instruction first in the local request, clearing the previous conversation. `/system off` clears instruction and conversation; `/system` reports only enabled/disabled status, not the instruction itself.
 - `/undo` discards the latest *completed* user/assistant pair in process memory, without another request. It cannot revoke previous inference, output in terminal scrollback or copies held by a runtime.
+- `/rewind N` keeps only the first N completed pairs (N may be 0); later turns are forgotten from process memory without inference. Use `/turns` for redacted turn numbers before choosing N.
+- `/forget N` discards the oldest N completed pairs without contacting the model, retaining the newer turns. Invalid, negative and out-of-range counts leave the conversation unchanged.
+- `/again` **explicitly** requests another response to the most recent retained user prompt, with its previous assistant answer excluded from the request. Both streamed and non-streamed modes commit a replacement only after valid completion. A failed, canceled, empty, invalid or unretainably large replacement leaves the previous completed pair intact. It is unavailable in stateless mode or without a retained turn. This is a user-triggered extra inference call, never an automatic retry.
 - `/status` shows retained-turn count, active model and instruction state without printing confidential prompt or instruction content.
 
 These features still obey existing 32-message and 64 KiB payload limits, do not save a session or invoke tools, and do not make external-provider requests. They do not establish a multi-user service, authenticated application UI, permanent deletion at the model runtime or production readiness.

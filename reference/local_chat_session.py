@@ -75,6 +75,26 @@ class LocalChatSession:
         self.last_reply_retained = True
         return True
 
+
+    def rewind_to(self, count: int) -> int:
+        """Keep the first count completed pairs, discarding all later turns."""
+        if type(count) is not int or not 0 <= count <= len(self._turns):
+            raise LocalModelError("invalid_turn_index", "Choose a completed turn count.")
+        removed = len(self._turns) - count
+        if removed:
+            del self._turns[count:]
+        self.last_reply_retained = self.turn_limit != 0
+        return removed
+
+    def forget_oldest(self, count: int) -> int:
+        """Discard count oldest pairs without inference or persistent copies."""
+        if type(count) is not int or not 0 <= count <= len(self._turns):
+            raise LocalModelError("invalid_turn_index", "Choose a completed turn count.")
+        if count:
+            del self._turns[:count]
+        self.last_reply_retained = self.turn_limit != 0
+        return count
+
     def set_turn_limit(self, limit: int) -> None:
         """Limit retained completed turns, 0-50; remove older context now.
 
@@ -123,10 +143,10 @@ class LocalChatSession:
         self._system_instruction = None
         self.last_reply_retained = True
 
-    def _prepare(self, prompt: str, *, stream: bool) -> tuple[list[tuple[ChatMessage, ChatMessage]], list[ChatMessage]]:
+    def _prepare(self, prompt: str, *, stream: bool, prior_turns: list[tuple[ChatMessage, ChatMessage]] | None = None) -> tuple[list[tuple[ChatMessage, ChatMessage]], list[ChatMessage]]:
         candidate = ChatMessage("user", prompt)
         _validated_messages([candidate])
-        kept = list(self._turns)
+        kept = list(self._turns if prior_turns is None else prior_turns)
         while True:
             messages = ([self._system_instruction] if self._system_instruction is not None else []) + [part for turn in kept for part in turn] + [candidate]
             if len(messages) <= MAX_MESSAGES:
@@ -171,12 +191,46 @@ class LocalChatSession:
         self._commit(kept, prompt, result.content)
         return result
 
-    def iter_reply(self, prompt: str) -> Iterator[ChatStreamEvent]:
-        """Stream text deltas; commit history only after receiving an explicit done event.
 
-        Consumers must close the iterator when cancelled, e.g. with contextlib.closing.
-        """
-        kept, messages = self._prepare(prompt, stream=True)
+    def _replacement_is_retained(self, answer: str) -> None:
+        """Fail before altering the previous completed answer."""
+        if not isinstance(answer, str) or not answer or "\x00" in answer:
+            raise LocalModelError("invalid_response", "Replacement answer cannot be retained.")
+        try:
+            size = len(answer.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise LocalModelError("invalid_response", "Replacement answer contains invalid text.") from None
+        if size > MAX_MESSAGE_BYTES:
+            raise LocalModelError("response_too_large", "Replacement answer cannot be retained.")
+
+    def regenerate_last(self) -> ChatResult:
+        """Explicitly retry last user prompt, atomically replacing its saved reply."""
+        if not self._turns:
+            raise LocalModelError("no_turns", "No completed answer to regenerate.")
+        prompt = self._turns[-1][0].content
+        kept, messages = self._prepare(prompt, stream=False, prior_turns=self._turns[:-1])
+        result = self.runtime.chat(self.model, messages)
+        if (not isinstance(result, ChatResult) or result.model != self.model
+                or result.provider != "ollama" or result.processing != "local"):
+            raise LocalModelError("invalid_response", "Unexpected local model response identity.")
+        self._replacement_is_retained(result.content)
+        self._commit(kept, prompt, result.content)
+        return result
+
+    def iter_reply(self, prompt: str) -> Iterator[ChatStreamEvent]:
+        """Stream an answer, committing only after an explicit completion."""
+        yield from self._stream_answer(prompt, regenerate=False)
+
+    def iter_regenerate_last(self) -> Iterator[ChatStreamEvent]:
+        """Explicitly retry latest turn; cancellation preserves the old answer."""
+        if not self._turns:
+            raise LocalModelError("no_turns", "No completed answer to regenerate.")
+        yield from self._stream_answer(self._turns[-1][0].content, regenerate=True)
+
+    def _stream_answer(self, prompt: str, *, regenerate: bool) -> Iterator[ChatStreamEvent]:
+        kept, messages = self._prepare(
+            prompt, stream=True, prior_turns=self._turns[:-1] if regenerate else None
+        )
         chunks: list[str] = []
         total_bytes = 0
         with closing(self.runtime.iter_chat(self.model, messages)) as events:
@@ -188,7 +242,10 @@ class LocalChatSession:
                 if event.done:
                     if event.delta:
                         raise LocalModelError("invalid_response", "Completion must not carry text.")
-                    self._commit(kept, prompt, "".join(chunks))
+                    answer = "".join(chunks)
+                    if regenerate:
+                        self._replacement_is_retained(answer)
+                    self._commit(kept, prompt, answer)
                     yield event
                     return
                 try:
