@@ -160,6 +160,49 @@ class GatewayTests(unittest.TestCase):
                 "invalid_response", lambda: self.gateway.chat("m", [ChatMessage("user", "hello")])
             )
 
+    def test_chat_rejects_conflicting_model_identity(self):
+        for returned in ("other:latest", "", None, 17):
+            with self.subTest(returned=returned):
+                self.reply({
+                    "model": returned, "done": True,
+                    "message": {"role": "assistant", "content": "plausible answer"}
+                })
+                self.assert_error("invalid_response", lambda: self.gateway.chat(
+                    "tiny:1", [ChatMessage("user", "hello")]
+                ))
+
+    def test_chat_accepts_matching_model_identity(self):
+        self.reply({
+            "model": "tiny:1", "done": True,
+            "message": {"role": "assistant", "content": "ok"}
+        })
+        self.assertEqual(
+            self.gateway.chat("tiny:1", [ChatMessage("user", "hello")]).content,
+            "ok"
+        )
+
+    def test_explicit_provider_errors_fail_closed(self):
+        for payload, action in (
+            ({"models": [], "error": "private details"}, self.gateway.list_models),
+            ({"done": True, "error": "private details",
+              "message": {"role": "assistant", "content": "looks valid"}},
+             lambda: self.gateway.chat("m", [ChatMessage("user", "secret")])),
+        ):
+            with self.subTest(payload=payload):
+                self.reply(payload)
+                with self.assertRaises(LocalModelError) as caught:
+                    action()
+                self.assertEqual(caught.exception.code, "runtime_error")
+                self.assertNotIn("private details", str(caught.exception))
+
+    def test_nonerror_provider_responses_remain_supported(self):
+        self.reply({"models": []})
+        self.assertEqual(self.gateway.list_models(), ())
+        self.reply({"done": True, "message": {"role": "assistant", "content": "ok"}})
+        self.assertEqual(
+            self.gateway.chat("m", [ChatMessage("user", "hello")]).content, "ok"
+        )
+
     def test_size_bounded_catalog_response(self):
         self.reply(b" " * (1024 * 1024 + 1))
         self.assert_error("response_too_large", self.gateway.list_models)
