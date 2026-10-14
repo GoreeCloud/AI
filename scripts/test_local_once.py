@@ -82,6 +82,21 @@ class OneTimeSessionTests(unittest.TestCase):
             list(self.session.iter_reply_once("truncate"))
         self.assertEqual(self.session.turns, self.before)
 
+    def test_malformed_or_oversized_oneoff_answer_fails_closed(self):
+        previous = self.session.turns
+        for response in (None, "\ud800", "x" * (1024 * 1024 + 1)):
+            with self.subTest(response_type=type(response).__name__):
+                self.runtime.response = response
+                with self.assertRaises(LocalModelError):
+                    self.session.reply_once("one-off")
+                self.assertEqual(self.session.turns, previous)
+
+    def test_oneoff_may_return_reply_larger_than_retained_turn_limit(self):
+        self.runtime.response = "z" * 17000
+        answer = self.session.reply_once("unretained")
+        self.assertEqual(len(answer.content), 17000)
+        self.assertEqual(self.session.turns, self.before)
+
     def test_stateless_retention_and_original_history_independent(self):
         self.session.set_turn_limit(0)
         self.session.reply_once("ephemeral question")
