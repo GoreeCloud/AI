@@ -51,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         model = _model_name(args.model)
+        if not 1 <= args.max_tokens <= 128:
+            return report(False, "invalid_generation_limit")
         gateway = LocalOllamaGateway(args.endpoint, args.timeout)
         catalog = gateway.list_models()
         if model not in (entry.name for entry in catalog):
