@@ -204,3 +204,44 @@ class RetentionModeStatusTests(unittest.TestCase):
             self.assertEqual(len(harness.server.requests), 0)
         finally:
             harness.tearDown()
+
+class StreamingRetentionTests(unittest.TestCase):
+    """Completed or interrupted streams must obey private session retention."""
+
+    def test_stateless_stream_cannot_forward_previous_prompts(self):
+        from test_local_chat_session import FakeRuntime
+        runtime = FakeRuntime(response="streamed answer")
+        session = LocalChatSession(runtime, "tiny:1")
+        session.reply("private before stateless")
+        session.set_turn_limit(0)
+
+        first = list(session.iter_reply("private streaming prompt"))
+        self.assertEqual([event.done for event in first], [False, True])
+        self.assertEqual(session.turns, ())
+        self.assertFalse(session.last_reply_retained)
+
+        second = list(session.iter_reply("next streaming prompt"))
+        self.assertTrue(second[-1].done)
+        self.assertEqual(runtime.requests[-1][1],
+                         (ChatMessage("user", "next streaming prompt"),))
+        self.assertEqual(session.turns, ())
+
+    def test_incomplete_stateless_stream_cannot_resurrect_history(self):
+        from test_local_chat_session import FakeRuntime
+        from reference.local_model_gateway import ChatStreamEvent
+        runtime = FakeRuntime()
+        session = LocalChatSession(runtime, "tiny:1")
+        session.reply("secret context")
+        session.set_turn_limit(0)
+        runtime.stream_events = [
+            ChatStreamEvent("ollama", "tiny:1", "local", "partial", False)
+        ]
+
+        with self.assertRaisesRegex(LocalModelError, "completion"):
+            list(session.iter_reply("interrupted"))
+        self.assertEqual(session.turns, ())
+        runtime.stream_events = None
+        list(session.iter_reply("fresh prompt"))
+        self.assertEqual(runtime.requests[-1][1],
+                         (ChatMessage("user", "fresh prompt"),))
+        self.assertEqual(session.turns, ())
