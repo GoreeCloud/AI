@@ -173,6 +173,9 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 ephemeral = True
             elif command == "/again":
                 regenerate = True
+            elif command.startswith("/edit "):
+                prompt = prompt[6:]
+                edit_requested = True
             else:
                 print("Unknown command. Use /help. Nothing sent to the model.")
                 continue
