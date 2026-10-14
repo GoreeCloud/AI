@@ -45,6 +45,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             print("\nUse /exit to leave or /reset to clear the conversation.")
             continue
 
+        regenerate = False
         if prompt.startswith("//"):
             prompt = prompt[1:]  # Literal user message starting with '/'.
         elif prompt.startswith("/"):
@@ -107,6 +108,20 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 else:
                     print("Invalid or missing completed turn number; history unchanged.")
                 continue
+            if command in ("/rewind", "/forget") or command.startswith(("/rewind ", "/forget ")):
+                action, _, value = command.partition(" ")
+                number = value.strip()
+                if not number.isascii() or not number.isdecimal() or len(number) > 6:
+                    print("Specify a valid completed-turn count; history unchanged.")
+                else:
+                    try:
+                        count = int(number)
+                        removed = (session.rewind_to(count) if action == "/rewind"
+                                   else session.forget_oldest(count))
+                        print(f"Discarded {removed} completed turn(s) from process memory.")
+                    except LocalModelError as exc:
+                        print(f"GoreeCloud AI ({exc.code}): {exc}; history unchanged.", file=sys.stderr)
+                continue
             if command == "/models":
                 try:
                     models = runtime.list_models()
@@ -144,12 +159,15 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /clear forgets turns but preserves system instruction; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
-            print("Unknown command. Use /help. Nothing sent to the model.")
-            continue
+            if command == "/again":
+                regenerate = True
+            else:
+                print("Unknown command. Use /help. Nothing sent to the model.")
+                continue
 
         if not prompt.strip():
             continue
@@ -158,7 +176,8 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 emitted = False
                 print("AI> ", end="", flush=True)
                 try:
-                    with closing(session.iter_reply(prompt)) as events:
+                    with closing(session.iter_regenerate_last() if regenerate
+                                 else session.iter_reply(prompt)) as events:
                         for event in events:
                             if event.done:
                                 print(flush=True)
@@ -172,7 +191,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                         print()
                     raise
             else:
-                answer = session.reply(prompt)
+                answer = session.regenerate_last() if regenerate else session.reply(prompt)
                 print("AI> " + _terminal_safe(answer.content))
             if not session.last_reply_retained:
                 if session.turn_limit == 0:
