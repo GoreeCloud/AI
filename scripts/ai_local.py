@@ -281,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise
             print("GoreeCloud AI: stream lacked completion.", file=sys.stderr)
             return 1
-        result = runtime.chat(args.model, messages)
+        result = runtime.chat(args.model, messages, max_tokens=args.max_tokens)
         print(_terminal_safe(result.content))
         return 0
     except LocalModelError as exc:
