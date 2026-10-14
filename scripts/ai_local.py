@@ -231,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("models", help="List installed local models.")
     chat = commands.add_parser("chat", help="Read one user prompt from stdin and print the response.")
     chat.add_argument("--model", required=True)
+    chat.add_argument("--max-tokens", type=int, choices=range(1, 513), metavar="1..512")
     chat.add_argument("--stream", action="store_true",
                       help="Print local model tokens as they arrive; output is provisional until completion.")
     repl = commands.add_parser("repl", help="Start private multi-turn local chat in memory.")
@@ -264,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.stream:
             emitted = False
             try:
-                with closing(runtime.iter_chat(args.model, messages)) as events:
+                with closing(runtime.iter_chat(args.model, messages, max_tokens=args.max_tokens)) as events:
                     for event in events:
                         if event.done:
                             print(flush=True)
@@ -280,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise
             print("GoreeCloud AI: stream lacked completion.", file=sys.stderr)
             return 1
-        result = runtime.chat(args.model, messages)
+        result = runtime.chat(args.model, messages, max_tokens=args.max_tokens)
         print(_terminal_safe(result.content))
         return 0
     except LocalModelError as exc:

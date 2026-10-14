@@ -70,6 +70,21 @@ class StreamingTests(unittest.TestCase):
         }])
         self.assertEqual(self.server.received, [("POST", "/api/chat")])
 
+    def test_optional_stream_budget_is_carried_to_local_model(self):
+        with closing(self.gateway.iter_chat("tiny:1", self.messages, max_tokens=32)) as events:
+            result = list(events)
+        self.assertTrue(result[-1].done)
+        self.assertEqual(self.server.requests[0]["options"], {"num_predict": 32})
+        self.assertEqual(self.server.received, [("POST", "/api/chat")])
+
+    def test_invalid_stream_budgets_fail_before_network(self):
+        for value in (0, -1, 513, True, False, 1.0, "16", []):
+            with self.subTest(value=value):
+                with self.assertRaises(LocalModelError) as error:
+                    list(self.gateway.iter_chat("tiny:1", self.messages, max_tokens=value))
+                self.assertEqual(error.exception.code, "invalid_generation_limit")
+        self.assertFalse(self.server.received)
+
     def test_stream_cli_flushes_complete_answer(self):
         command = [
             sys.executable, str(ROOT / "scripts/ai_local.py"),
@@ -79,6 +94,15 @@ class StreamingTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout, "Hello world!\n")
         self.assertFalse(proc.stderr)
+
+    def test_cli_budget_writes_local_stream_option(self):
+        command = [sys.executable, str(ROOT / "scripts/ai_local.py"),
+                   "--endpoint", self.endpoint, "chat", "--model", "tiny:1",
+                   "--stream", "--max-tokens", "24"]
+        proc = subprocess.run(command, input="Greetings", capture_output=True,
+                              text=True, timeout=8)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(self.server.requests[-1]["options"], {"num_predict": 24})
 
     def test_truncated_stream_never_claims_completion(self):
         self.set_stream(ndjson(frame("partial")))

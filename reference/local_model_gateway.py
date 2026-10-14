@@ -278,7 +278,7 @@ class LocalOllamaGateway:
             raise LocalModelError("response_too_large", "Local model response exceeds size limit.")
         return ChatResult(provider="ollama", model=name, processing="local", content=content)
 
-    def iter_chat(self, model: str, messages: Sequence[ChatMessage]) -> Iterator[ChatStreamEvent]:
+    def iter_chat(self, model: str, messages: Sequence[ChatMessage], *, max_tokens: int | None = None) -> Iterator[ChatStreamEvent]:
         """Yield bounded local text deltas and a final completion acknowledgement.
 
         No token is a completed answer until the caller observes done=True.
@@ -286,11 +286,13 @@ class LocalOllamaGateway:
         No automatic retry/fallback may duplicate or externalize a prompt.
         """
         name = _model_name(model)
+        if max_tokens is not None and (type(max_tokens) is not int or not 1 <= max_tokens <= 512):
+            raise LocalModelError("invalid_generation_limit", "Output token limit must be 1–512.")
         normalized = _validated_messages(messages)
-        body = json.dumps(
-            {"model": name, "messages": normalized, "stream": True},
-            ensure_ascii=False, separators=(",", ":"),
-        ).encode("utf-8")
+        payload = {"model": name, "messages": normalized, "stream": True}
+        if max_tokens is not None:
+            payload["options"] = {"num_predict": max_tokens}
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(body) > MAX_REQUEST_BYTES:
             raise LocalModelError("request_too_large", "Conversation payload is too large.")
 
