@@ -10,6 +10,8 @@ Ollama must already be installed and serving the selected local model on a trust
     printf 'Explain photosynthesis in one paragraph.\n' | python3 scripts/ai_local.py chat --model llama3.2
     python3 scripts/test_local_model_gateway.py
 
+For **offline request-shape validation** without Ollama or a loaded model, use `printf '%s' 'Synthetic example' | python3 scripts/ai_local.py chat --model example:latest --validate-only`. This validates input and prints redacted JSON without network or inference; it does not prove the model is installed or runnable. See [Offline Request Validation](LOCAL_OFFLINE_REQUEST_VALIDATION.md). No dedicated AI Services VM is required.
+
 An alternate local-only tunnel can be configured using --endpoint http://127.0.0.1:PORT. The tunnel must terminate on a trusted environment managed by the operator; this adapter cannot authenticate the other end. Plain HTTP is permitted only on literal loopback IP addresses. DNS names, remote IPs, HTTPS, credentials in URLs, URL paths/queries/fragments, redirects and proxy environment settings are refused. Do not expose the CLI as a remotely reachable endpoint.
 
 Prompts are read from standard input rather than CLI arguments to avoid putting them in process argument lists. No prompt, model output, history, tokens, credentials, or conversation metadata are intentionally persisted or logged by the adapter. Shell history, terminal capture, pipes, runtime diagnostics and OS telemetry are outside these guarantees.
