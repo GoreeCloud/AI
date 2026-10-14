@@ -28,7 +28,7 @@ Calling close() on an active iterator closes the underlying local HTTP response;
 
 Only the exact literal endpoints `127.0.0.1` and `[::1]` are accepted; other 127/8 addresses are rejected to avoid unexpected local-service routing.
 
-Each incoming JSON frame is limited to 64 KiB, streams to 4096 frames or 2 MiB wire data, and combined text output to 1 MiB UTF-8. A stream also has a 15-minute total elapsed-time guard against slow-trickle responses (with one final per-read timeout overrun possible); exceeding it fails closed without a completed answer. Unsupported tool/image output, unexpected model identity, malformed JSON, invalid completion flags, missing final completion, HTTP redirects, and service failures fail closed. Consumers should observe an explicit completed event before committing conversation state. This is an isolated Developer API and CLI feature, not a connected Glaze streaming interface.
+Each incoming JSON frame is limited to 64 KiB, streams to 4096 frames or 2 MiB wire data, and combined text output to 1 MiB UTF-8. A stream also has a 15-minute total elapsed-time guard against slow-trickle responses, checked even within individual NDJSON frames (with one final socket-byte-read timeout overrun possible); exceeding it fails closed without a completed answer. Unsupported tool/image output, unexpected model identity, malformed JSON, invalid completion flags, missing final completion, HTTP redirects, and service failures fail closed. Consumers should observe an explicit completed event before committing conversation state. This is an isolated Developer API and CLI feature, not a connected Glaze streaming interface.
 
 ## Private multi-turn chat (Development)
 
