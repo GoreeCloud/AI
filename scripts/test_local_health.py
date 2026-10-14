@@ -94,6 +94,34 @@ class HealthProbeTests(unittest.TestCase):
         self.assertIn("redirect_blocked", result.stderr)
         self.assertEqual(self.server.received, [("GET", "/api/tags")] * 2)
 
+    def test_machine_readable_json_is_bounded_and_redacted(self):
+        result = self.probe("--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {
+            "status": "ready", "code": "ok", "model_count": 1,
+            "inference_tested": False
+        })
+        self.assertNotIn("tiny:1", result.stdout)
+        self.assertEqual(self.server.received, [("GET", "/api/tags")])
+        self.assertFalse(self.server.requests)
+
+    def test_machine_readable_json_reports_missing_model(self):
+        result = self.probe("--json", "--model", "missing:1")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)["code"], "model_not_installed")
+        self.assertEqual(json.loads(result.stdout)["model_count"], 1)
+        self.assertEqual(result.stderr, "")
+
+    def test_machine_readable_json_errors_do_not_disclose_provider_body(self):
+        self.server.reply = (500, b'{"error":"PRIVATE_PAYLOAD"}', {})
+        result = self.probe("--json")
+        self.assertEqual(result.returncode, 1)
+        obj = json.loads(result.stdout)
+        self.assertEqual(obj["status"], "not_ready")
+        self.assertEqual(obj["code"], "runtime_error")
+        self.assertFalse(obj["inference_tested"])
+        self.assertNotIn("PRIVATE_PAYLOAD", result.stdout + result.stderr)
+
     def test_unavailable_runtime_fails_with_actionable_error(self):
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
