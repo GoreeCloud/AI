@@ -221,6 +221,8 @@ class LocalOllamaGateway:
             raise LocalModelError("invalid_response", "Local model service returned invalid JSON.") from None
         if not isinstance(parsed, dict):
             raise LocalModelError("invalid_response", "Local model service returned an invalid result.")
+        if "error" in parsed:
+            raise LocalModelError("runtime_error", "Local model service returned an error.")
         return parsed
 
     def list_models(self) -> tuple[LocalModel, ...]:
@@ -251,6 +253,8 @@ class LocalOllamaGateway:
             "/api/chat",
             {"model": name, "messages": normalized, "stream": False},
         )
+        if response.get("model", name) != name:
+            raise LocalModelError("invalid_response", "Local model identity mismatch.")
         message = response.get("message")
         if (
             response.get("done") is not True
