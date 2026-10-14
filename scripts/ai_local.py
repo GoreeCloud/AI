@@ -161,7 +161,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /once TEXT answers without prior chat history or retention; /clear forgets turns but preserves system instruction; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /edit TEXT revises the last completed question; /once TEXT answers without prior chat history or retention; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
