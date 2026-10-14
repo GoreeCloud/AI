@@ -187,7 +187,8 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 emitted = False
                 print("AI> ", end="", flush=True)
                 try:
-                    with closing(session.iter_reply_once(prompt) if ephemeral else
+                    with closing(session.iter_edit_last(prompt) if edit_requested else
+                                 session.iter_reply_once(prompt) if ephemeral else
                                  session.iter_regenerate_last() if regenerate else
                                  session.iter_reply(prompt)) as events:
                         for event in events:
