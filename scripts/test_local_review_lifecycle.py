@@ -158,6 +158,40 @@ class ReviewLifecycleTests(unittest.TestCase):
             self.finalize(review)
         self.assertEqual(self.reserved(), 0)
 
+    def test_review_cannot_later_relax_required_rule(self):
+        review = self.draft()
+        with self.assertRaisesRegex(ReviewError, "review_changed"):
+            self.finalize(review, rules=(InputRule("count", "integer", False),))
+        self.assertEqual(self.reserved(), 0)
+
+    def test_review_cannot_later_change_field_type(self):
+        review = self.draft()
+        with self.assertRaisesRegex(ReviewError, "review_changed"):
+            self.finalize(review, rules=(InputRule("count", "string"),))
+        self.assertEqual(self.reserved(), 0)
+
+    def test_review_contract_digest_is_not_a_bearer_permission(self):
+        review = self.draft()
+        forged = dataclasses.replace(review, contract_sha256="0" * 64)
+        with self.assertRaisesRegex(ReviewError, "review_changed"):
+            self.finalize(forged)
+        self.assertEqual(self.reserved(), 0)
+
+    def test_equivalent_rule_order_is_accepted(self):
+        first = InputRule("count", "integer")
+        second = InputRule("tags", "string_list", False)
+        review = self.draft(rules=(first, second))
+        self.assertEqual(
+            self.finalize(review, rules=(second, first)).status,
+            "reserved_no_execution",
+        )
+
+    def test_duplicate_final_contract_never_reserves(self):
+        review = self.draft()
+        with self.assertRaisesRegex(ReviewError, "invalid_contract"):
+            self.finalize(review, rules=(self.rules[0], self.rules[0]))
+        self.assertEqual(self.reserved(), 0)
+
     def test_session_and_review_expiration(self):
         review = self.draft()
         with self.assertRaisesRegex(ReviewError, "review_expired_or_changed"):

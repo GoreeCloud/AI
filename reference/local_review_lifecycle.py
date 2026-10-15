@@ -29,13 +29,26 @@ class ReviewError(Exception):
         super().__init__(code)
 
 
+def _contract_digest(rules: tuple[InputRule, ...]) -> str:
+    """Bind review to backend-validated field definitions, independent of order."""
+    if (type(rules) is not tuple or len(rules) > 32
+            or any(type(item) is not InputRule for item in rules)
+            or len({item.key for item in rules}) != len(rules)):
+        raise ReviewError("invalid_contract")
+    schema = sorted((item.key, item.kind, item.required) for item in rules)
+    return hashlib.sha256(json.dumps(
+        schema, ensure_ascii=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+
+
 def _fingerprint(proposal: ActionProposal, identity: VerifiedIdentity,
-                 transport: str, connection_id: str, risk: str) -> str:
+                 transport: str, connection_id: str, risk: str,
+                 contract_sha256: str) -> str:
     data = [identity.subject, identity.tenant, identity.session,
             proposal.intent.request_id, proposal.intent.service,
             proposal.intent.operation, proposal.intent.resource,
             proposal.intent.arguments_sha256, proposal.requirement_revision,
-            transport, connection_id, risk]
+            transport, connection_id, risk, contract_sha256]
     return hashlib.sha256(json.dumps(
         data, ensure_ascii=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
@@ -50,6 +63,7 @@ class ReviewDraft:
     risk: str
     issued_at: int
     expires_at: int
+    contract_sha256: str = field(repr=False)
     fingerprint: str
 
     def display(self) -> dict[str, object]:
@@ -93,6 +107,7 @@ def draft_local_review(runtime: LocalOllamaGateway, model: str, user_prompt: str
         if type(target_resource) is not str or proposal.intent.resource != target_resource:
             raise ReviewError("target_denied")
         check_input(proposal, rules)
+        contract_sha256 = _contract_digest(rules)
         route = directory.resolve(proposal.intent.service, proposal.intent.operation,
                                   permitted_services=permitted_services,
                                   permitted_operations=permitted_operations)
@@ -113,8 +128,10 @@ def draft_local_review(runtime: LocalOllamaGateway, model: str, user_prompt: str
         return ReviewDraft(
             frozen_proposal, identity, route.transport, route.connection_id,
             requirement.minimum_risk, now, expires_at,
+            contract_sha256,
             _fingerprint(frozen_proposal, identity, route.transport,
-                         route.connection_id, requirement.minimum_risk),
+                         route.connection_id, requirement.minimum_risk,
+                         contract_sha256),
         )
     except (LocalProposalError, HandoffError, IntegrationError, RequirementError,
             ArgumentError) as exc:
@@ -133,8 +150,12 @@ def reserve_reviewed_action(review: ReviewDraft, directory: IntegrationDirectory
             or identity != review.identity or identity.expires_at <= now):
         raise ReviewError("review_expired_or_changed")
     proposal = review.proposal
+    contract_sha256 = _contract_digest(rules)
+    if (type(review.contract_sha256) is not str
+            or not hmac.compare_digest(review.contract_sha256, contract_sha256)):
+        raise ReviewError("review_changed")
     expected = _fingerprint(proposal, identity, review.transport,
-                            review.connection_id, review.risk)
+                            review.connection_id, review.risk, contract_sha256)
     if (type(review.fingerprint) is not str
             or not hmac.compare_digest(review.fingerprint, expected)):
         raise ReviewError("review_changed")

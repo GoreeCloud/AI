@@ -17,3 +17,15 @@ After review, the caller obtains a **new, independently verified** Identity/Poli
 The review fingerprint is a consistency hash, **not** a cryptographic signature or authenticated issuer attestation. The `ReviewDraft` object must remain internal to a trusted backend session, never be accepted from model/client-controlled JSON as an authorization token. Actual Glaze consent must display exact service, target, intended changes, data disclosure, irreversibility and identity, with an accessible cancel path. The future issuer must record a durable, tamper-evident approval, support expiry and revocation, and bind that approval to one exact action and the right tenant/session. Independent execution-time reauthorization, production replay/idempotency/recovery, isolated service transports, output sanitation, real installed Ollama/provider testing, visual/accessibility testing, review and release gates remain outstanding.
 
 The current UI view is an inert demo, the database is a non-production reference, and the full capability stack remains draft/unmerged/undeployed.
+
+## Backend contract revision binding
+
+The reviewed input-field definitions are now hashed in normalized order
+(name, type and required/optional status), and the digest participates in the
+review consistency fingerprint. A request whose field is later changed from
+required to optional, whose argument type changes, or whose backend input
+rules are otherwise altered must receive **another review**, even if the
+original argument values happen to pass both schemas. Reordering identical
+definitions does not invalidate a review. This is a consistency check on
+internal backend session state, **not a signature, issuer credential,
+authorization token or substitute for server-side trusted schemas**.
