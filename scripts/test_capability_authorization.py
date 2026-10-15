@@ -140,6 +140,7 @@ class GateTests(unittest.TestCase):
             ("github", "issues.write", "write", ("mcp", "mcp"), "v1"),
             ("github", "issues.write", "unknown", ("mcp",), "v1"),
             ("github", "issues.write", "write", ("https://untrusted",), "v1"),
+            ("github", "issues.write", "write", (["mcp"],), "v1"),
             ("github", "issues.write", "write", (), "v1"),
             ("github", "issues.write", "write", ("mcp",), ""),
         ):
