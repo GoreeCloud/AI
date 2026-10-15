@@ -87,9 +87,9 @@ class GateTests(unittest.TestCase):
                      dataclasses.replace(approved, operation="pulls.write"),
                      dataclasses.replace(approved, resource="repo:other/target")):
             with self.assertRaisesRegex(AuthorizationError, "approval_required"):
-                authorize(self.directory, intent, identity=self.identity, policy=policy,
+                authorize(self.directory, self.requirements, intent, identity=self.identity, policy=policy,
                           approval=data, now=1000)
-        receipt = authorize(self.directory, intent, identity=self.identity, policy=policy,
+        receipt = authorize(self.directory, self.requirements, intent, identity=self.identity, policy=policy,
                             approval=approved, now=1000)
         self.assertEqual(receipt.risk, "write")
         self.assertEqual(receipt.requirement_revision, "manifest-v1")
