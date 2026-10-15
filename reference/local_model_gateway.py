@@ -270,6 +270,8 @@ class LocalOllamaGateway:
         ):
             raise LocalModelError("invalid_response", "Local model returned an incomplete response.")
         content = message["content"]
+        if not content.strip():
+            raise LocalModelError("invalid_response", "Local model returned no answer text.")
         try:
             size = len(content.encode("utf-8"))
         except UnicodeEncodeError:
