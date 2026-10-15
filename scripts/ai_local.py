@@ -30,12 +30,14 @@ def _terminal_safe(value: str) -> str:
     )
 
 
-def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: int | None = None) -> int:
+def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: int | None = None, max_tokens: int | None = None) -> int:
     from reference.local_chat_session import LocalChatSession
 
     session = LocalChatSession(runtime, model)
     if keep is not None:
         session.set_turn_limit(keep)
+    if max_tokens is not None:
+        session.set_generation_limit(max_tokens)
     print("GoreeCloud AI — local-only in-memory chat. /help for commands.")
     while True:
         try:
@@ -72,6 +74,8 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                              "stateless" if session.turn_limit == 0 else
                              f"last {session.turn_limit} completed turn(s)")
                 print(f"Retention mode: {retention} (process memory only)")
+                print("Generation token budget: " + ("default" if session.generation_limit is None
+                      else str(session.generation_limit)))
                 print(f"Local model: {_terminal_safe(session.model)}; "
                       f"system instruction: {'on' if session.has_system_instruction else 'off'}")
                 continue
@@ -98,6 +102,38 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                         print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
                 else:
                     print("Enter an integer turn limit from 0 to 50; history unchanged.")
+                continue
+            if command == "/budget":
+                print("Local generation token budget: " +
+                      ("default" if session.generation_limit is None else str(session.generation_limit)))
+                continue
+            if command == "/budget auto":
+                session.set_generation_limit(None)
+                print("Default local generation budget restored.")
+                continue
+            if command.startswith("/budget "):
+                number = command[len("/budget "):].strip()
+                if number.isascii() and number.isdecimal() and len(number) <= 3:
+                    try:
+                        session.set_generation_limit(int(number))
+                        print(f"Local generation budget set to {session.generation_limit} token(s).")
+                    except LocalModelError as exc:
+                        print(f"GoreeCloud AI ({exc.code}): {exc}", file=sys.stderr)
+                else:
+                    print("Enter an output token limit from 1 to 512; unchanged.")
+                continue
+            if command == "/preview":
+                print("Use /preview TEXT to inspect the next request without contacting a model.")
+                continue
+            if command.startswith("/preview "):
+                try:
+                    info = session.preview_next(prompt[len("/preview "):], stream=stream)
+                    print("Preview (no network): " +
+                          f"{info['messages']} messages; {info['turns_sent']} completed turn(s) included; " +
+                          f"{info['turns_omitted']} omitted; {info['request_bytes']} request bytes; " +
+                          f"system instruction {'on' if info['system_instruction'] else 'off'}.")
+                except LocalModelError as exc:
+                    print(f"GoreeCloud AI ({exc.code}): {exc}; no request sent.", file=sys.stderr)
                 continue
             if command == "/undo":
                 if session.undo_last_turn():
@@ -164,7 +200,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
             if command == "/help":
                 print("/models lists local models; /model NAME switches models and clears context; "
                       "/system TEXT sets ephemeral system instruction; /system off clears it; "
-                      "/turns lists redacted turn numbers; /keep N caps retained turns; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /edit TEXT revises the last completed question; /once TEXT answers without prior chat history or retention; /clear forgets turns but preserves system instruction; /reset clears all context; "
+                      "/turns lists redacted turn numbers; /keep N caps retained turns; /budget N limits local output tokens; /budget auto restores default; /preview TEXT shows safe request counts offline; /keep auto restores automatic retention; /delete N removes one; /undo removes the last turn; /rewind N keeps the first N turns; /forget N drops the oldest N turns; /again regenerates the last answer; /edit TEXT revises the last completed question; /once TEXT answers without prior chat history or retention; /clear forgets turns but preserves system instruction; /reset clears all context; "
                       "/status reports configuration and count; /exit quits; "
                       "// sends a message starting with /.")
                 continue
@@ -241,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="Print local model tokens as they arrive; output is provisional until completion.")
     repl = commands.add_parser("repl", help="Start private multi-turn local chat in memory.")
     repl.add_argument("--model", required=True)
+    repl.add_argument("--max-tokens", type=int, choices=range(1, 513), metavar="1..512",
+                      help="Optional private session generation budget; change with /budget.")
     repl.add_argument("--keep", type=int, choices=range(51), metavar="0..50",
                       help="Maximum completed turns held in memory (0: stateless).")
     repl.add_argument("--no-stream", action="store_true", help="Wait for complete responses before displaying.")
@@ -255,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(model.name)
             return 0
         if args.command == "repl":
-            return _run_repl(runtime, args.model, stream=not args.no_stream, keep=args.keep)
+            return _run_repl(runtime, args.model, stream=not args.no_stream, keep=args.keep, max_tokens=args.max_tokens)
         if sys.stdin.isatty():
             print("Enter the prompt using standard input, not a command-line argument.", file=sys.stderr)
             return 2
