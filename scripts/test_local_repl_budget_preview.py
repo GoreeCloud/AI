@@ -171,7 +171,7 @@ class ReplCommandTests(unittest.TestCase):
         self.assertNotIn("PRIVATE_UNSENT_PROMPT", out.stdout + out.stderr)
 
     def test_preview_with_invalid_input_never_sends(self):
-        out = self.run_repl("/preview\n/preview   \n/budget 0\n/exit\n")
+        out = self.run_repl("/preview\n/preview x\0y\n/budget 0\n/exit\n")
         self.assertEqual(out.returncode, 0, out.stderr)
         self.assertFalse(self.server.received)
         self.assertIn("invalid_messages", out.stderr)
