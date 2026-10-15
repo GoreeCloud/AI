@@ -69,6 +69,32 @@ class ReplayTests(unittest.TestCase):
         with self.assertRaisesRegex(ReplayError, "ledger_unavailable"):
             self.ledger.was_reserved(tenant="tenant-1", request_id="request-1")
 
+    def test_two_connections_cannot_reserve_same_request_concurrently(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+
+        barrier = Barrier(2)
+
+        def attempt():
+            connection = sqlite3.connect(self.path, timeout=5, isolation_level=None)
+            try:
+                ledger = ReplayLedger(connection)
+                barrier.wait(timeout=5)
+                try:
+                    ledger.reserve(self.plan, now=1000)
+                    return "reserved"
+                except ReplayError as exc:
+                    return exc.code
+            finally:
+                connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            outcomes = list(workers.map(lambda _: attempt(), range(2)))
+        self.assertEqual(sorted(outcomes), ["replay_detected", "reserved"])
+        self.assertEqual(self.connection.execute(
+            "SELECT COUNT(*) FROM capability_request_reservations"
+        ).fetchone()[0], 1)
+
     def test_atomic_reservation_blocks_duplicate(self):
         reservation = self.ledger.reserve(self.plan, now=1000)
         self.assertEqual(self.ledger.status(reservation), "reserved")
