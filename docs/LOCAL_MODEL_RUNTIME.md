@@ -22,7 +22,7 @@ Streamed output is opt-in and **never falls back to an external model**:
 
     printf 'Summarize photosynthesis.\n' | python3 scripts/ai_local.py chat --model llama3.2 --stream
 
-Application clients can call LocalOllamaGateway.iter_chat(model, messages) with contextlib.closing, consuming ChatStreamEvent values. Every text event identifies local processing and carries one token/text delta with done=False; only a final event with done=True confirms that a complete answer was received. An interrupted, malformed, timed-out or truncated stream **must not** be saved or presented as a completed assistant answer. A partial CLI answer is accompanied by a failure status and a clear stderr warning.
+Application clients can call LocalOllamaGateway.iter_chat(model, messages) with contextlib.closing, consuming ChatStreamEvent values. Every text event identifies local processing and carries one token/text delta with done=False; only a final event with done=True confirms that a complete answer was received. A completed local answer containing only whitespace is rejected in both streaming and nonstreaming modes. An interrupted, malformed, timed-out or truncated stream **must not** be saved or presented as a completed assistant answer. A partial CLI answer is accompanied by a failure status and a clear stderr warning.
 
 The terminal CLI prints untrusted model text with control and bidirectional-format characters rendered as visible escapes. Newlines and tabs remain readable; this display sanitization does not authorize model output as instructions.
 
