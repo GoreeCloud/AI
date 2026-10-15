@@ -56,6 +56,16 @@ The existing draft reference/integration_directory.py offers a **non-executing**
 
 The reference data types are not cryptographically authenticated, and this example has no trusted adapter issuance, durable replay store, credential isolation, audited execution, or network access. It must not be exposed as a public authorization endpoint or considered production protection.
 
+## Development hardening: trusted operation baselines
+
+The new `reference/capability_requirements.py` adds an **operator-configured, versioned** requirements catalog. A capability must be defined in both the service directory and the requirements catalog before the non-executing broker returns a route. Its pinned transport must be explicitly allowed, and every operation has a backend-owned minimum risk classification.
+
+**Risk cannot be downgraded:** If an operation is classified `write` or `sensitive` in the trusted catalog, a Policy response labeling it `read` is rejected. Policy can elevate risk (for example, classify an otherwise read-only request as sensitive), triggering an approval requirement. Any missing/malformed requirement or transport mismatch fails closed. Approval receipts now include the exact session, service, operation, and resource, in addition to subject, tenant, request ID, and arguments digest.
+
+The requirements catalog only models **trusted configuration supplied by a future backend**. It does not verify signatures, manifest provenance, protocol schemas, or domain ownership. Adding a requirement in Python source is not a live connector enrollment or permission. No default permission manifests are enabled for the illustrative third-party service examples.
+
+Unit tests exercise downgrade attempts, policy escalation, transport drift, missing requirements, invalid manifests, approval context confusion, and malformed risk values. These tests provide **offline reference-contract evidence**, not authenticated end-to-end enforcement.
+
 ## Remaining acceptance gates
 
 Authenticated Identity, Policy, and approval adapters; signed or pinned manifest source verification; delegated connection/OAuth management; least-privilege credentials; resource-level permission enforcement; schema/protocol negotiation; sandboxed and network-restricted execution (including SSRF protections for HTTP/webhooks); atomic replay prevention; audit evidence; consent UI and accessibility; cancellation, rollback, data recovery; real tenant-isolation and adversarial tests; target-host end-to-end qualification; and explicit release authorization.
