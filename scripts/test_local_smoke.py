@@ -142,7 +142,7 @@ class SmokeTests(unittest.TestCase):
         })
         result = self.run_probe("--json")
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(json.loads(result.stdout)["code"], "invalid_inference")
+        self.assertEqual(json.loads(result.stdout)["code"], "invalid_response")
         self.assertTrue(json.loads(result.stdout)["inference_attempted"])
         self.assertFalse(json.loads(result.stdout)["inference_verified"])
 

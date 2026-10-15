@@ -270,6 +270,8 @@ class LocalOllamaGateway:
         ):
             raise LocalModelError("invalid_response", "Local model returned an incomplete response.")
         content = message["content"]
+        if not content.strip():
+            raise LocalModelError("invalid_response", "Local model returned no answer text.")
         try:
             size = len(content.encode("utf-8"))
         except UnicodeEncodeError:
@@ -319,6 +321,7 @@ class LocalOllamaGateway:
                 frames = 0
                 wire_bytes = 0
                 answer_bytes = 0
+                has_answer_text = False
                 while True:
                     raw = _bounded_stream_frame(response, deadline)
                     if not raw:
@@ -361,8 +364,11 @@ class LocalOllamaGateway:
                     if answer_bytes > MAX_RESPONSE_BYTES:
                         raise LocalModelError("response_too_large", "Local answer exceeded its size limit.")
                     if delta:
+                        has_answer_text = has_answer_text or bool(delta.strip())
                         yield ChatStreamEvent("ollama", name, "local", delta, False)
                     if done:
+                        if not has_answer_text:
+                            raise LocalModelError("invalid_response", "Local stream returned no answer text.")
                         yield ChatStreamEvent("ollama", name, "local", "", True)
                         return
         except (urllib.error.URLError, TimeoutError, OSError):

@@ -217,7 +217,7 @@ def _run_repl(runtime: LocalOllamaGateway, model: str, *, stream: bool, keep: in
                 if session.turn_limit == 0:
                     print("Private stateless mode: completed turn not retained.")
                 else:
-                    print("Context reset: answer too large or empty to retain safely.", file=sys.stderr)
+                    print("New answer not retained; earlier completed turns remain in memory.", file=sys.stderr)
         except KeyboardInterrupt:
             print("Generation interrupted; the incomplete turn was not retained.", file=sys.stderr)
         except LocalModelError as exc:

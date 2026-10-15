@@ -122,17 +122,28 @@ class SessionTests(unittest.TestCase):
                     self.session.reply(prompt)
         self.assertFalse(self.runtime.requests)
 
-    def test_large_and_empty_reply_reset_context(self):
+    def test_large_and_empty_reply_preserve_completed_history(self):
         self.session.reply("one")
         for response in ("A" * 17000, "", "NUL\0in answer"):
             with self.subTest(response_length=len(response)):
+                before = self.session.turns
                 self.runtime.response = response
                 self.session.reply("second")
                 self.assertFalse(self.session.last_reply_retained)
-                self.assertEqual(self.session.turns, ())
+                self.assertEqual(self.session.turns, before)
                 self.runtime.response = "OK"
                 self.session.reply("again")
+                self.assertEqual(self.runtime.requests[-1][1][-1], ChatMessage("user", "again"))
+                self.assertNotIn(ChatMessage("user", "second"), self.runtime.requests[-1][1])
         self.assertTrue(self.session.last_reply_retained)
+
+    def test_empty_stream_preserves_previous_completed_turn(self):
+        self.session.reply("previous")
+        snapshot = self.session.turns
+        self.runtime.stream_events = [ChatStreamEvent("ollama", "tiny:1", "local", "", True)]
+        self.assertTrue(list(self.session.iter_reply("new"))[-1].done)
+        self.assertEqual(self.session.turns, snapshot)
+        self.assertFalse(self.session.last_reply_retained)
 
     def test_invalid_response_identity_does_not_modify_history(self):
         class BadRuntime(FakeRuntime):
@@ -189,13 +200,17 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(self.session.turns, ())
         self.assertTrue(self.runtime.stream_closed)
 
-    def test_oversized_stream_reply_clears_prior_context(self):
+    def test_oversized_stream_reply_preserves_prior_context(self):
         self.session.reply("previous")
+        before = self.session.turns
         self.runtime.response = "x" * 17000
         events = list(self.session.iter_reply("large"))
         self.assertTrue(events[-1].done)
         self.assertFalse(self.session.last_reply_retained)
-        self.assertEqual(self.session.turns, ())
+        self.assertEqual(self.session.turns, before)
+        self.runtime.response = "OK"
+        self.session.reply("next")
+        self.assertNotIn(ChatMessage("user", "large"), self.runtime.requests[-1][1])
 
     def test_invalid_unicode_stream_is_rejected(self):
         self.runtime.stream_events = [
