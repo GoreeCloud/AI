@@ -143,6 +143,7 @@ class CompletePreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(PreflightError, "approval_required"):
             self.run_flow(**updates)
         self.assertEqual(self.count_reservations(), 0)
+        self.assertEqual(len(self.runtime.calls), 0)
         receipt = ApprovalEvidence(
             "req-1", "subject", "tenant", "session",
             "sample", "items.write", "list:mine",
@@ -150,6 +151,42 @@ class CompletePreflightTests(unittest.TestCase):
         result = self.run_flow(approval=receipt, **updates)
         self.assertEqual(result.risk, "write")
         self.assertEqual(self.count_reservations(), 1)
+
+    def test_binding_or_manifest_change_denies_before_model(self):
+        for opts in (
+            {"expected_connection": "old-connector"},
+            {"expected_revision": "rev-old"},
+            {"expected_transport": "api"},
+        ):
+            with self.assertRaisesRegex(PreflightError, "capability_changed"):
+                self.run_flow(**opts)
+        self.assertEqual(len(self.runtime.calls), 0)
+
+    def test_risk_downgrade_denies_before_model(self):
+        self.response["operation"] = "items.write"
+        self.runtime.content = json.dumps(self.response)
+        policy = dataclasses.replace(
+            self.policy, operation="items.write",
+            permitted_operations=frozenset({"sample:items.write"}))
+        with self.assertRaisesRegex(PreflightError, "capability_unavailable"):
+            self.run_flow(policy=policy,
+                          permitted_operations=frozenset({"sample:items.write"}))
+        self.assertEqual(len(self.runtime.calls), 0)
+
+    def test_mismatched_approval_denies_before_model(self):
+        self.response["operation"] = "items.write"
+        self.runtime.content = json.dumps(self.response)
+        policy = self.make_policy("items.write", "write")
+        receipt = ApprovalEvidence(
+            "req-1", "subject", "tenant", "session",
+            "sample", "items.write", "list:mine",
+            policy.arguments_sha256, 1010, True)
+        with self.assertRaisesRegex(PreflightError, "approval_required"):
+            self.run_flow(
+                policy=policy,
+                permitted_operations=frozenset({"sample:items.write"}),
+                approval=dataclasses.replace(receipt, session="other-session"))
+        self.assertEqual(len(self.runtime.calls), 0)
 
     def test_changed_args_resource_or_connection_does_not_reserve(self):
         for response, changes in (
