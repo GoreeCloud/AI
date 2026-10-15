@@ -87,7 +87,7 @@ class CompletePreflightTests(unittest.TestCase):
         self.assertEqual(len(self.runtime.calls), 1)
         self.assertNotIn("connector-a", repr(preview))
         self.assertNotIn("list:mine", repr(preview))
-        self.assertNotIn("count", repr(preview))
+        self.assertNotIn("count", preview)
 
     def test_replay_rejected_even_after_identical_model_reply(self):
         self.run_flow()
