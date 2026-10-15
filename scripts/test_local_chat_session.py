@@ -192,7 +192,7 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(self.session.turns, ())
         self.assertTrue(self.runtime.stream_closed)
 
-    def test_oversized_stream_reply_clears_prior_context(self):
+    def test_oversized_stream_reply_preserves_prior_context(self):
         self.session.reply("previous")
         self.runtime.response = "x" * 17000
         events = list(self.session.iter_reply("large"))
