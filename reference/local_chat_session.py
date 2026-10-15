@@ -173,8 +173,7 @@ class LocalChatSession:
             self.last_reply_retained = False
             raise LocalModelError("invalid_response", "Local model returned invalid text.") from None
         if not answer or "\x00" in answer or len(encoded) > MAX_MESSAGE_BYTES:
-            # Never retain orphaned old turns after failing to retain the newest turn.
-            self.reset()
+            # Keep earlier completed turns; never append the unretainable new answer.
             self.last_reply_retained = False
             return
         self._turns = kept + [(ChatMessage("user", prompt), ChatMessage("assistant", answer))]
