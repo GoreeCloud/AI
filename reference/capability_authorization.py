@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 from reference.integration_directory import IntegrationDirectory, IntegrationError, PinnedRoute
 from reference.capability_requirements import RequirementCatalog, RequirementError, effective_risk
+from reference.capability_arguments import ArgumentError, canonical_arguments
 
 _SLUG = re.compile(r"^[a-z][a-z0-9_.:-]{0,127}$")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
@@ -110,6 +111,7 @@ def authorize(
     *,
     identity: VerifiedIdentity,
     policy: PolicyEvidence,
+    validated_arguments: dict[str, object],
     approval: ApprovalEvidence | None = None,
     now: int,
 ) -> AuthorizedRoute:
@@ -117,6 +119,8 @@ def authorize(
 
     The actual executor must independently recheck policy, approval, connector
     binding/version, resource scope, args hash and replay/idempotency state.
+    The validated argument object must be the exact one that the future
+    executor would receive; schemas and trusted evidence issuance are external.
     """
     if (type(directory) is not IntegrationDirectory
             or type(requirements) is not RequirementCatalog
@@ -124,6 +128,12 @@ def authorize(
         raise AuthorizationError("invalid_request")
     if type(now) is not int or now < 0:
         raise AuthorizationError("invalid_clock")
+    try:
+        backend_digest = canonical_arguments(validated_arguments).sha256
+    except ArgumentError as exc:
+        raise AuthorizationError("invalid_arguments") from exc
+    if intent.arguments_sha256 != backend_digest:
+        raise AuthorizationError("arguments_mismatch")
     if (type(identity) is not VerifiedIdentity
             or any(not _valid_id(v) for v in (identity.subject, identity.tenant, identity.session))
             or type(identity.expires_at) is not int or identity.expires_at <= now):
