@@ -62,7 +62,8 @@ class ReviewDraft:
             "operation": self.proposal.intent.operation,
             "target": self.proposal.intent.resource,
             "risk": self.risk,
-            "arguments": self.proposal.arguments,
+            "arguments": json.loads(canonical_arguments(
+                self.proposal.arguments).encoded),
             "status": "awaiting_user_review",
             "execution": "disabled",
         }
