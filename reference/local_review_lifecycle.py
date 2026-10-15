@@ -97,6 +97,44 @@ def draft_local_review(runtime: LocalOllamaGateway, model: str, user_prompt: str
             or now < 0 or type(identity.expires_at) is not int
             or identity.expires_at <= now):
         raise ReviewError("identity_unverified")
+    # Scope, target and schema are trusted backend inputs. Reject invalid
+    # configuration before transmitting any prompt to the local model.
+    if (type(request_id) is not str
+            or not request_id or len(request_id) > 128
+            or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789_.:-"
+                   for c in request_id)
+            or request_id[0] not in "abcdefghijklmnopqrstuvwxyz"
+            or type(target_resource) is not str
+            or not 1 <= len(target_resource) <= 512
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in target_resource)
+            or type(permitted_services) is not frozenset
+            or type(permitted_operations) is not frozenset
+            or type(directory) is not IntegrationDirectory
+            or type(requirements) is not RequirementCatalog):
+        raise ReviewError("invalid_review_request")
+    contract_sha256 = _contract_digest(rules)
+    try:
+        # A connection must match the trusted pin for at least one exposed
+        # operation; do not accept an unusable or drifted catalog as reviewable.
+        valid = False
+        for entry in directory.list_for(permitted_services, permitted_operations):
+            for operation in entry.available_operations:
+                route = directory.resolve(
+                    entry.id, operation, permitted_services=permitted_services,
+                    permitted_operations=permitted_operations)
+                requirement = requirements.resolve(
+                    entry.id, operation, route.transport)
+                if (route.transport == expected_transport
+                        and route.connection_id == expected_connection
+                        and requirement.revision == expected_revision):
+                    valid = True
+                    break
+            if valid:
+                break
+        if not valid:
+            raise ReviewError("capability_changed")
+    except (IntegrationError, RequirementError, TypeError, ValueError) as exc:
+        raise ReviewError("capability_unavailable") from exc
     try:
         proposal = propose_with_local_ollama(
             runtime, model, user_prompt, request_id=request_id,
@@ -107,7 +145,6 @@ def draft_local_review(runtime: LocalOllamaGateway, model: str, user_prompt: str
         if type(target_resource) is not str or proposal.intent.resource != target_resource:
             raise ReviewError("target_denied")
         check_input(proposal, rules)
-        contract_sha256 = _contract_digest(rules)
         route = directory.resolve(proposal.intent.service, proposal.intent.operation,
                                   permitted_services=permitted_services,
                                   permitted_operations=permitted_operations)
