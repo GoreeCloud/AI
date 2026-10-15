@@ -30,3 +30,22 @@ The directory uses a synthetic `local-preview` connection; `--operation` is a pr
 The review view contains **no Approve button**, local HTTP authorization endpoint, hidden form, JavaScript, live connector, or credential handling. Any future Glaze approval experience needs actual authenticated Identity/Policy/consent issuance, exact tenant and target scoping, one-time approval with cancellation and expiry, replay and idempotency, real connector sandboxing and security acceptance.
 
 `scripts/test_ai_review_local.py` verifies the CLI with a synthetic loopback Ollama server and checks bad digest/field denial, actual HTML/JSON review output, target mismatch denial, and absence of tool calls. This does not prove that a real Ollama model or provider is available. The existing review-lifecycle tests cover escaped hostile text, mutation isolation, approval and replay denial.
+
+## Private-file export without overwriting
+
+Use `--output ./review.html` (or `--format json --output ./review.json`)
+to save a new local review file without printing its sensitive contents to
+standard output. The tool stages output in the same directory as the target,
+flushes it to disk, and publishes the file with a no-replace hard link.
+Staged files are created with owner-only `0600` permissions on POSIX
+systems. An existing destination, including a symbolic link, is refused;
+retries must select a new filename. Errors do not print raw arguments,
+resources, or the destination path. A brief non-sensitive completion notice
+appears on stderr.
+
+The directory and filesystem still require appropriate local permissions
+and encryption. Explicit export **persists user/model-supplied data**; secure
+storage, retention, backups and deletion are the operator's responsibility.
+The default remains stdout-only for backwards compatibility. An absolute
+path is not required; the user selects the intended local output location.
+The export does not approve, reserve or execute any action.

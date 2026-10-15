@@ -89,6 +89,14 @@ class ReviewCliTests(unittest.TestCase):
             endpoint = f"http://127.0.0.1:{server.server_port}"
             page = self.execute(endpoint)
             data = self.execute(endpoint, mode="json")
+            private = Path(self.directory.name) / "private-review.html"
+            command = self.command(endpoint) + ["--output", str(private)]
+            private_saved = subprocess.run(
+                command, input="List two items", text=True,
+                capture_output=True, cwd=ROOT, timeout=12)
+            private_refused = subprocess.run(
+                command, input="List two items", text=True,
+                capture_output=True, cwd=ROOT, timeout=12)
             self.target.write_text("list:other", encoding="utf-8")
             rejected = self.execute(endpoint)
         finally:
@@ -110,7 +118,12 @@ class ReviewCliTests(unittest.TestCase):
         self.assertEqual(rejected.returncode, 2)
         self.assertEqual(rejected.stdout, "")
         self.assertIn("target_denied", rejected.stderr)
-        self.assertEqual(len(payloads), 3)
+        self.assertEqual(private_saved.returncode, 0, private_saved.stderr)
+        self.assertEqual(private_saved.stdout, "")
+        self.assertIn("list:sample", private.read_text(encoding="utf-8"))
+        self.assertEqual(private_refused.returncode, 2)
+        self.assertEqual(private_refused.stdout, "")
+        self.assertEqual(len(payloads), 4)
         self.assertTrue(all(path == "/api/chat" for path, _ in payloads))
         self.assertTrue(all("tools" not in body for _, body in payloads))
 

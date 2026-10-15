@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import tempfile
 import re
 import secrets
 import sys
@@ -27,6 +29,25 @@ _FIELD = re.compile(
 _MAX_PROMPT = 16384
 
 
+def _private_export(output: str, contents: str) -> None:
+    """Write owner-only review data without replacing any existing file.
+
+    Stage inside the destination directory and publish with a no-replace hard
+    link. A preexisting file or symlink is never followed or overwritten.
+    """
+    destination = Path(output)
+    fd, temporary = tempfile.mkstemp(
+        prefix=".goreecloud-ai-review-", dir=str(destination.parent))
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(contents.encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, destination)
+    finally:
+        os.unlink(temporary)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Inspect one local AI action draft without granting consent.")
@@ -41,9 +62,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--field", action="append", default=[], metavar="NAME:TYPE[:optional]",
                         help="Input contract: string, integer, boolean or string_list; add :optional for optional fields")
     parser.add_argument("--format", choices=("html", "json"), default="html")
+    parser.add_argument("--output",
+                        help="Write a new private review file (0600); never overwrite")
     parser.add_argument("--endpoint", default="http://127.0.0.1:11434")
     opts = parser.parse_args(argv)
     try:
+        if (opts.output is not None
+                and (not opts.output
+                     or os.path.lexists(opts.output)
+                     or not Path(opts.output).parent.is_dir())):
+            raise ValueError("invalid or existing output file")
         if len(opts.field) > 32 or any(_FIELD.fullmatch(x) is None for x in opts.field):
             raise ValueError("invalid argument contract")
         rules = tuple(
@@ -83,9 +111,16 @@ def main(argv: list[str] | None = None) -> int:
             identity=identity, now=now,
         )
         if opts.format == "html":
-            sys.stdout.write(render_review_html(draft))
+            rendered = render_review_html(draft)
         else:
-            print(json.dumps(draft.display(), ensure_ascii=True, sort_keys=True, indent=2))
+            rendered = json.dumps(
+                draft.display(), ensure_ascii=True, sort_keys=True, indent=2) + "\n"
+        if opts.output is not None:
+            _private_export(opts.output, rendered)
+            print("GoreeCloud AI: private review file created; no action executed.",
+                  file=sys.stderr)
+        else:
+            sys.stdout.write(rendered)
         return 0
     except (OSError, ValueError, UnicodeError, CatalogError, IntegrationError,
             LocalModelError, ReviewError, HandoffError) as exc:
