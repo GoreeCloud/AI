@@ -16,6 +16,15 @@ class InputRule:
     kind: str
     required: bool = True
 
+    def __post_init__(self):
+        import re
+        if (type(self.key) is not str
+                or re.fullmatch(r"[a-z][a-z0-9_.-]{0,95}", self.key) is None
+                or type(self.kind) is not str
+                or self.kind not in ("string", "integer", "boolean", "string_list")
+                or type(self.required) is not bool):
+            raise HandoffError("invalid_rules")
+
 def _match(kind, value):
     if kind == "string":
         return type(value) is str and len(value) <= 4096
@@ -23,13 +32,17 @@ def _match(kind, value):
         return type(value) is int and abs(value) <= 2**53 - 1
     if kind == "boolean":
         return type(value) is bool
+    if kind == "string_list":
+        return (type(value) is list and len(value) <= 64
+                and all(type(entry) is str and len(entry) <= 4096
+                        for entry in value))
     return False
 
 def check_input(proposal, rules):
     if type(proposal) is not ActionProposal or type(rules) is not tuple:
         raise HandoffError("invalid_input")
     if any(type(x) is not InputRule or type(x.key) is not str
-           or x.kind not in ("string", "integer", "boolean")
+           or x.kind not in ("string", "integer", "boolean", "string_list")
            or type(x.required) is not bool for x in rules):
         raise HandoffError("invalid_rules")
     fields = {x.key: x for x in rules}

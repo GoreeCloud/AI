@@ -21,7 +21,9 @@ from reference.local_review_lifecycle import ReviewError, draft_local_review
 from reference.local_review_html import render_review_html
 from reference.proposal_policy_handoff import HandoffError, InputRule
 
-_FIELD = re.compile(r"^[a-z][a-z0-9_.-]{0,95}:(string|integer|boolean)$")
+_FIELD = re.compile(
+    r"^([a-z][a-z0-9_.-]{0,95}):(string|integer|boolean|string_list)(:optional)?$"
+)
 _MAX_PROMPT = 16384
 
 
@@ -36,15 +38,19 @@ def main(argv: list[str] | None = None) -> int:
                         choices=("mcp", "api", "native", "webhook", "plugin"))
     parser.add_argument("--target-file", required=True,
                         help="Private local target text; avoid exposing it in process arguments")
-    parser.add_argument("--field", action="append", default=[], metavar="NAME:TYPE",
-                        help="Required argument (string, integer, boolean); repeat as needed")
+    parser.add_argument("--field", action="append", default=[], metavar="NAME:TYPE[:optional]",
+                        help="Input contract: string, integer, boolean or string_list; add :optional for optional fields")
     parser.add_argument("--format", choices=("html", "json"), default="html")
     parser.add_argument("--endpoint", default="http://127.0.0.1:11434")
     opts = parser.parse_args(argv)
     try:
         if len(opts.field) > 32 or any(_FIELD.fullmatch(x) is None for x in opts.field):
             raise ValueError("invalid argument contract")
-        rules = tuple(InputRule(*entry.split(":", 1)) for entry in opts.field)
+        rules = tuple(
+            InputRule(match.group(1), match.group(2), match.group(3) is None)
+            for entry in opts.field
+            for match in (_FIELD.fullmatch(entry),)
+        )
         if len({rule.key for rule in rules}) != len(rules):
             raise ValueError("duplicate field")
         with open(opts.manifest, "rb") as handle:
