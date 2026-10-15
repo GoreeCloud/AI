@@ -229,7 +229,52 @@ I may integrate additional local or external model providers when they provide a
 
 Every provider will remain behind the same GoreeCloud-owned application, authorization, privacy, tool-execution, and evidence boundaries.
 
-## 16. Current Implementation State
+## 16. Native Prompt Caching Architecture (Planned)
+
+### Decision and scope
+
+I will make **prompt caching a native, provider-aware Model Provider Gateway capability** instead of duplicating caching logic throughout GoreeCloud AI and its integrations. The intended benefits are reduced repeated prompt-processing work, eligible model-input charges, and latency. This is a design requirement, **not evidence that caching is implemented or production-accepted**.
+
+Asterport may adopt compatible contracts in its own independently operated backend. A common design must not mean shared tenancy, owner infrastructure, credentials, cached private data, or mandatory runtime coupling between Asterport and GoreeCloud AI.
+
+### Required capabilities
+
+1. **Shared instruction caching:** Keep stable, authorized system instructions and development standards in reusable prefixes where the selected provider supports them. Do not incorrectly elevate project-specific, user-specific, or untrusted text into broadly shared instructions.
+2. **Project-context caching:** Reuse eligible architecture specifications, documentation, reference context, and persistent project instructions only while source versions and access permissions remain valid. The cache does not replace the authoritative source.
+3. **Agent-context caching:** Permit compatible parallel development agents to reuse eligible context only when their identities, permissions, project scopes, model/provider choices, and data classifications permit it. Isolated agents must not gain additional information or privileges through caching.
+4. **Provider-aware caching:** Route through adapters for supported OpenAI, Anthropic, Google, and approved self-hosted runtimes. Honor each provider's actual cache eligibility, matching, retention, billing, expiration, and usage-reporting behavior. Lack of cache support must fall back to ordinary authorized inference.
+5. **Cache analytics:** Expose eligible tokens, provider-reported cached tokens where available, reuse rate, time to first token, end-to-end latency, costs, and appropriately qualified savings. Do not represent inferred hits as provider-confirmed results.
+6. **Security isolation:** Enforce authenticated principal, deployment owner, account, business, workspace, project, agent, permissions, and data-classification boundaries as applicable. Scope caching behavior by provider, model, instruction/context version, and relevant policy. A provider's internal cache is never GoreeCloud's authorization system.
+
+### Intended processing flow
+
+```text
+Authorized GoreeCloud AI client / application
+    -> Authentication and application permissions
+    -> Privacy Shield context and egress policy
+    -> Model Provider Gateway
+       -> Stable eligible prefix + dynamic request suffix
+       -> Scope, version, and cache-policy validation
+       -> Provider-specific cache adapter and metrics
+    -> Approved local or external model inference
+    -> Fresh normalized model response
+```
+
+Keep stable content before changing content when safe and compatible with provider matching rules. Internal cache fingerprints are design aids; some providers expose only implicit prefix reuse rather than an application-managed cache key. Neither caching nor retry behavior may silently move local-only data to an external model or bypass the AI Capability Broker, Wardveil Security, and Privacy Shield.
+
+### Lifecycle, observability, and security
+
+Re-evaluate eligibility whenever instructions, documents, repository revisions, permissions, data classification, provider/model selection, policies, or deployment configuration change. Reject reuse after access revocation or scope mismatch, even if provider-held computations have not yet expired. Follow provider-specific expiration, deletion, retention, and cost rules rather than assuming a universal TTL or purge API.
+
+Protect credentials and private prompts from cache keys and telemetry. Prefer aggregate metrics and opaque identifiers. Distinguish cached-input rates, cache-write/storage charges, ordinary input and output tokens, and estimates where those charges exist. Provider-side caching of transmitted data remains subject to explicit external-processing authorization.
+
+### Distinction and acceptance gates
+
+**Prompt caching is not response caching, RAG retrieval, project memory, or storage of an authoritative document.** It normally reuses eligible model prompt-processing computations while producing a new answer.
+
+Before any implementation or Stable claim, verify prefix matching and misses, invalidation, authorization across accounts/businesses/projects/agents, privacy-mode egress, local-only fallback, provider capability negotiation, error handling, metrics integrity, and representative latency/cost behavior. Do not claim provider parity or universal caching eligibility without live evidence.
+
+## 17. Current Implementation State
 
 The current verified repository remains centered on the existing local-model foundation and other first-party GoreeCloud integration work.
 
@@ -237,7 +282,7 @@ This document establishes the architecture and product direction for optional Op
 
 Those capabilities become implemented only when the authoritative source and applicable validation evidence establish that state.
 
-## 17. Final Architecture Decision
+## 18. Final Architecture Decision
 
 I will support the OpenAI API as an optional external AI provider inside GoreeCloud AI.
 
