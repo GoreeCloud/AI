@@ -8,7 +8,10 @@ from test_local_model_gateway import GatewayTests
 from test_local_model_streaming import StreamingTests, frame, ndjson
 from reference.local_model_gateway import ChatMessage, LocalModelError
 
-class BlankChatTests(GatewayTests):
+class BlankChatTests(unittest.TestCase):
+    setUp = GatewayTests.setUp
+    tearDown = GatewayTests.tearDown
+    reply = GatewayTests.reply
     def test_blank_nonstream_responses_fail_closed(self):
         for content in ("", " ", "\n\t"):
             with self.subTest(content=repr(content)):
@@ -17,7 +20,11 @@ class BlankChatTests(GatewayTests):
                     self.gateway.chat("tiny:1", [ChatMessage("user", "test")])
                 self.assertEqual(caught.exception.code, "invalid_response")
 
-class BlankStreamTests(StreamingTests):
+class BlankStreamTests(unittest.TestCase):
+    setUp = StreamingTests.setUp
+    tearDown = StreamingTests.tearDown
+    set_stream = StreamingTests.set_stream
+    assert_stream_error = StreamingTests.assert_stream_error
     def test_blank_stream_responses_fail_closed(self):
         for chunks in ((frame(done=True),), (frame(" "), frame(done=True)), (frame("\n\t"), frame(done=True))):
             with self.subTest(chunks=chunks):
