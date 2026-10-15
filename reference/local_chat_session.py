@@ -170,7 +170,7 @@ class LocalChatSession:
         try:
             encoded = answer.encode("utf-8")
         except UnicodeEncodeError:
-            self.reset()
+            self.last_reply_retained = False
             raise LocalModelError("invalid_response", "Local model returned invalid text.") from None
         if not answer or "\x00" in answer or len(encoded) > MAX_MESSAGE_BYTES:
             # Never retain orphaned old turns after failing to retain the newest turn.
