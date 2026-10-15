@@ -122,16 +122,19 @@ class SessionTests(unittest.TestCase):
                     self.session.reply(prompt)
         self.assertFalse(self.runtime.requests)
 
-    def test_large_and_empty_reply_reset_context(self):
+    def test_large_and_empty_reply_preserve_completed_history(self):
         self.session.reply("one")
         for response in ("A" * 17000, "", "NUL\0in answer"):
             with self.subTest(response_length=len(response)):
+                before = self.session.turns
                 self.runtime.response = response
                 self.session.reply("second")
                 self.assertFalse(self.session.last_reply_retained)
-                self.assertEqual(self.session.turns, ())
+                self.assertEqual(self.session.turns, before)
                 self.runtime.response = "OK"
                 self.session.reply("again")
+                self.assertEqual(self.runtime.requests[-1][1][-1], ChatMessage("user", "again"))
+                self.assertNotIn(ChatMessage("user", "second"), self.runtime.requests[-1][1])
         self.assertTrue(self.session.last_reply_retained)
 
     def test_invalid_response_identity_does_not_modify_history(self):
