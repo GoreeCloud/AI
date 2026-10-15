@@ -364,8 +364,11 @@ class LocalOllamaGateway:
                     if answer_bytes > MAX_RESPONSE_BYTES:
                         raise LocalModelError("response_too_large", "Local answer exceeded its size limit.")
                     if delta:
+                        has_answer_text = has_answer_text or bool(delta.strip())
                         yield ChatStreamEvent("ollama", name, "local", delta, False)
                     if done:
+                        if not has_answer_text:
+                            raise LocalModelError("invalid_response", "Local stream returned no answer text.")
                         yield ChatStreamEvent("ollama", name, "local", "", True)
                         return
         except (urllib.error.URLError, TimeoutError, OSError):
