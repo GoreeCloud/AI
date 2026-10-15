@@ -100,6 +100,6 @@ def parse_pinned_manifest(raw: bytes, *, expected_sha256: str) -> CapabilityMani
                 doc["service"], item["id"], item["minimum_risk"], choices,
                 doc["revision"],
             ))
-    except (IntegrationError, RequirementError, TypeError, ValueError) as exc:
+    except (IntegrationError, RequirementError, KeyError, TypeError, ValueError) as exc:
         raise ManifestError("invalid_manifest_schema") from exc
     return CapabilityManifest(definition, tuple(requirements), content_digest)
