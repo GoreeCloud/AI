@@ -44,7 +44,8 @@ class ReplayTests(unittest.TestCase):
                                     "objects/private-resource",
                                     intent.arguments_sha256, 1040, True)
         self.plan = authorize(directory, requirements, intent,
-                              identity=identity, policy=policy, approval=approval, now=1000)
+                              identity=identity, policy=policy, approval=approval,
+                              validated_arguments={"value": "secret"}, now=1000)
 
     def open_connection(self):
         return sqlite3.connect(self.path, timeout=1, isolation_level=None)
