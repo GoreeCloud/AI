@@ -17,3 +17,20 @@ After review, the caller obtains a **new, independently verified** Identity/Poli
 The review fingerprint is a consistency hash, **not** a cryptographic signature or authenticated issuer attestation. The `ReviewDraft` object must remain internal to a trusted backend session, never be accepted from model/client-controlled JSON as an authorization token. Actual Glaze consent must display exact service, target, intended changes, data disclosure, irreversibility and identity, with an accessible cancel path. The future issuer must record a durable, tamper-evident approval, support expiry and revocation, and bind that approval to one exact action and the right tenant/session. Independent execution-time reauthorization, production replay/idempotency/recovery, isolated service transports, output sanitation, real installed Ollama/provider testing, visual/accessibility testing, review and release gates remain outstanding.
 
 The current UI view is an inert demo, the database is a non-production reference, and the full capability stack remains draft/unmerged/undeployed.
+
+## Risk-specific inspection text and cancellation
+
+The inert local HTML preview describes the selected operation's **intended**
+impact: read operations propose reading target information; write operations
+may create or change data; sensitive operations require elevated caution.
+The page explicitly states that separate trusted approval is required for
+write/sensitive operations. Invalid or unknown risk labels fail closed.
+The reader can decline by closing the page; there are no interactive approval
+buttons, forms, scripts or network calls in this demonstration.
+
+These descriptions are *not* domain-specific predictions of real provider
+side effects. An authentic future consent flow must display the actual
+service/provider effects, data destinations, retention implications, and
+reversible/irreversible outcomes before approval. This preview does not
+validate vendor semantics, accessibility in a physical browser, or Glaze
+production rendering.
