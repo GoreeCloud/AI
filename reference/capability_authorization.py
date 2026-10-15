@@ -92,6 +92,7 @@ class AuthorizedRoute:
     request_id: str
     subject: str
     tenant: str
+    session: str
     service: str
     operation: str
     resource: str
@@ -158,6 +159,6 @@ def authorize(
                     intent.resource, intent.arguments_sha256)):
             raise AuthorizationError("approval_required")
     return AuthorizedRoute(intent.request_id, identity.subject, identity.tenant,
-                           intent.service, intent.operation, intent.resource,
+                           identity.session, intent.service, intent.operation, intent.resource,
                            intent.arguments_sha256, risk,
                            policy.policy_revision, requirement.revision, route)
