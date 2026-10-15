@@ -34,6 +34,7 @@ class LocalChatSession:
         self._turns: list[tuple[ChatMessage, ChatMessage]] = []
         self.last_reply_retained = True
         self.turn_limit: int | None = None
+        self.generation_limit: int | None = None
         self._system_instruction: ChatMessage | None = None
 
     @property
@@ -115,6 +116,22 @@ class LocalChatSession:
         self.turn_limit = None
         self.last_reply_retained = True
 
+    def set_generation_limit(self, limit: int | None) -> None:
+        """Set an optional session-only 1–512 output-token budget (None: default)."""
+        if limit is not None and (type(limit) is not int or not 1 <= limit <= 512):
+            raise LocalModelError("invalid_generation_limit", "Choose a token limit from 1 through 512.")
+        self.generation_limit = limit
+
+    def _chat(self, messages: list[ChatMessage]) -> ChatResult:
+        if self.generation_limit is None:
+            return self.runtime.chat(self.model, messages)
+        return self.runtime.chat(self.model, messages, max_tokens=self.generation_limit)
+
+    def _iter_chat(self, messages: list[ChatMessage]) -> Iterator[ChatStreamEvent]:
+        if self.generation_limit is None:
+            return self.runtime.iter_chat(self.model, messages)
+        return self.runtime.iter_chat(self.model, messages, max_tokens=self.generation_limit)
+
     def switch_model(self, name: str) -> bool:
         """Only select installed local models; isolate conversation context by model."""
         name = _model_name(name)
@@ -156,6 +173,8 @@ class LocalChatSession:
                     "messages": [{"role": msg.role, "content": msg.content} for msg in messages],
                     "stream": stream,
                 }
+                if self.generation_limit is not None:
+                    payload["options"] = {"num_predict": self.generation_limit}
                 try:
                     size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
                 except UnicodeEncodeError:
@@ -165,6 +184,25 @@ class LocalChatSession:
             if not kept:
                 raise LocalModelError("request_too_large", "Conversation payload exceeds its size limit.")
             kept.pop(0)  # Always evict an entire old user/assistant pair.
+
+    def preview_next(self, prompt: str, *, stream: bool = True) -> dict[str, int | bool]:
+        """Predict request size and prior-turn eviction without network or mutation."""
+        kept, messages = self._prepare(prompt, stream=stream)
+        payload = {
+            "model": self.model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "stream": stream,
+        }
+        if self.generation_limit is not None:
+            payload["options"] = {"num_predict": self.generation_limit}
+        return {
+            "messages": len(messages),
+            "turns_sent": len(kept),
+            "turns_omitted": len(self._turns) - len(kept),
+            "request_bytes": len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
+            "system_instruction": self._system_instruction is not None,
+            "network_attempted": False,
+        }
 
     def _commit(self, kept: list[tuple[ChatMessage, ChatMessage]], prompt: str, answer: str) -> None:
         try:
@@ -183,7 +221,7 @@ class LocalChatSession:
 
     def reply(self, prompt: str) -> ChatResult:
         kept, messages = self._prepare(prompt, stream=False)
-        result = self.runtime.chat(self.model, messages)
+        result = self._chat(messages)
         if (not isinstance(result, ChatResult) or result.model != self.model
                 or result.provider != "ollama" or result.processing != "local"):
             raise LocalModelError("invalid_response", "Unexpected local model response identity.")
@@ -205,7 +243,7 @@ class LocalChatSession:
     def reply_once(self, prompt: str) -> ChatResult:
         """Perform one local inference without sharing or retaining prior turns."""
         _, messages = self._prepare(prompt, stream=False, prior_turns=[])
-        result = self.runtime.chat(self.model, messages)
+        result = self._chat(messages)
         if (not isinstance(result, ChatResult) or result.model != self.model
                 or result.provider != "ollama" or result.processing != "local"):
             raise LocalModelError("invalid_response", "Unexpected local model response identity.")
@@ -229,7 +267,7 @@ class LocalChatSession:
             raise LocalModelError("no_turns", "No completed answer to regenerate.")
         prompt = self._turns[-1][0].content
         kept, messages = self._prepare(prompt, stream=False, prior_turns=self._turns[:-1])
-        result = self.runtime.chat(self.model, messages)
+        result = self._chat(messages)
         if (not isinstance(result, ChatResult) or result.model != self.model
                 or result.provider != "ollama" or result.processing != "local"):
             raise LocalModelError("invalid_response", "Unexpected local model response identity.")
@@ -241,7 +279,7 @@ class LocalChatSession:
         if not self._turns:
             raise LocalModelError("no_turns", "No completed turn to edit.")
         kept, messages = self._prepare(prompt, stream=False, prior_turns=self._turns[:-1])
-        result = self.runtime.chat(self.model, messages)
+        result = self._chat(messages)
         if not isinstance(result, ChatResult) or (result.provider, result.model, result.processing) != ("ollama", self.model, "local"):
             raise LocalModelError("invalid_response", "Unexpected local model response identity.")
         self._replacement_is_retained(result.content)
@@ -269,7 +307,7 @@ class LocalChatSession:
         )
         chunks: list[str] = []
         total_bytes = 0
-        with closing(self.runtime.iter_chat(self.model, messages)) as events:
+        with closing(self._iter_chat(messages)) as events:
             for event in events:
                 if (not isinstance(event, ChatStreamEvent) or event.provider != "ollama"
                         or event.processing != "local" or event.model != self.model

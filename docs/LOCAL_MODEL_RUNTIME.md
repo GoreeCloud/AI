@@ -16,6 +16,10 @@ An alternate local-only tunnel can be configured using --endpoint http://127.0.0
 
 Prompts are read from standard input rather than CLI arguments to avoid putting them in process argument lists. No prompt, model output, history, tokens, credentials, or conversation metadata are intentionally persisted or logged by the adapter. Shell history, terminal capture, pipes, runtime diagnostics and OS telemetry are outside these guarantees.
 
+## Private REPL output budgets and context preview (Development)
+
+The local in-memory REPL now supports `/budget N` (1–512 requested output tokens), `/budget auto` (restore default), and `/preview TEXT` (redacted, non-mutating estimates of what the next request would include). No network or model is required for preview; live replies still need an installed local runtime. The `repl --max-tokens N` flag sets an initial session budget. See [Private REPL Budgets and Preview](LOCAL_REPL_BUDGET_PREVIEW.md) for scope, safety and limitations.
+
 ## Streaming local responses (Development)
 
 Streamed output is opt-in and **never falls back to an external model**:
