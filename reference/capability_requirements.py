@@ -37,9 +37,9 @@ class OperationRequirement:
                 or type(self.minimum_risk) is not str or self.minimum_risk not in _RISK
                 or type(self.allowed_transports) is not tuple
                 or not 1 <= len(self.allowed_transports) <= len(_TRANSPORT)
-                or len(set(self.allowed_transports)) != len(self.allowed_transports)
                 or any(type(value) is not str or value not in _TRANSPORT
-                       for value in self.allowed_transports)):
+                       for value in self.allowed_transports)
+                or len(set(self.allowed_transports)) != len(self.allowed_transports)):
             raise RequirementError("invalid_requirement")
 
 
