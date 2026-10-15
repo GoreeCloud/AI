@@ -321,6 +321,7 @@ class LocalOllamaGateway:
                 frames = 0
                 wire_bytes = 0
                 answer_bytes = 0
+                has_answer_text = False
                 while True:
                     raw = _bounded_stream_frame(response, deadline)
                     if not raw:
