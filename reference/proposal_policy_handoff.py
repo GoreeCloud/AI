@@ -47,3 +47,42 @@ def check_input(proposal, rules):
     if digest != proposal.intent.arguments_sha256:
         raise HandoffError("arguments_changed")
     return args
+
+def prepare_plan(proposal, directory, requirements, *,
+                 rules, target_resource, expected_revision,
+                 expected_connection, expected_transport,
+                 identity, policy, approval=None, now=0):
+    """Trusted-input preflight. The returned plan cannot execute anything."""
+    from reference.capability_requirements import RequirementError
+    from reference.integration_directory import IntegrationError
+    from reference.capability_authorization import PolicyEvidence
+    import json
+    if type(policy) is not PolicyEvidence:
+        raise HandoffError("policy_denied")
+    if type(proposal) is not ActionProposal or (
+            type(target_resource) is not str
+            or proposal.intent.resource != target_resource):
+        raise HandoffError("target_denied")
+    arguments = check_input(proposal, rules)
+    try:
+        route = directory.resolve(
+            proposal.intent.service, proposal.intent.operation,
+            permitted_services=policy.permitted_services,
+            permitted_operations=policy.permitted_operations)
+        requirement = requirements.resolve(
+            proposal.intent.service, proposal.intent.operation, route.transport)
+    except (IntegrationError, RequirementError, TypeError, AttributeError) as exc:
+        raise HandoffError("capability_unavailable") from exc
+    if (route.transport != expected_transport
+            or route.connection_id != expected_connection
+            or requirement.revision != expected_revision
+            or proposal.requirement_revision != expected_revision
+            or proposal.minimum_risk != requirement.minimum_risk):
+        raise HandoffError("capability_changed")
+    snapshot = json.loads(canonical_arguments(arguments).encoded)
+    try:
+        return authorize(directory, requirements, proposal.intent,
+                         identity=identity, policy=policy,
+                         validated_arguments=snapshot, approval=approval, now=now)
+    except AuthorizationError as exc:
+        raise HandoffError(exc.code) from exc
