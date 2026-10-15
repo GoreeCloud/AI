@@ -5,7 +5,9 @@ import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_local_model_gateway as gateway_tests
-from test_local_model_streaming import StreamingTests, frame, ndjson
+import test_local_model_streaming as st
+frame = st.frame
+ndjson = st.ndjson
 from reference.local_model_gateway import ChatMessage, LocalModelError
 
 class BlankChatTests(unittest.TestCase):
@@ -21,10 +23,10 @@ class BlankChatTests(unittest.TestCase):
                 self.assertEqual(caught.exception.code, "invalid_response")
 
 class BlankStreamTests(unittest.TestCase):
-    setUp = StreamingTests.setUp
-    tearDown = StreamingTests.tearDown
-    set_stream = StreamingTests.set_stream
-    assert_stream_error = StreamingTests.assert_stream_error
+    setUp = st.StreamingTests.setUp
+    tearDown = st.StreamingTests.tearDown
+    set_stream = st.StreamingTests.set_stream
+    assert_stream_error = st.StreamingTests.assert_stream_error
     def test_blank_stream_responses_fail_closed(self):
         for chunks in ((frame(done=True),), (frame(" "), frame(done=True)), (frame("\n\t"), frame(done=True))):
             with self.subTest(chunks=chunks):
