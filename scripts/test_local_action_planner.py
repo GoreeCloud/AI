@@ -1,4 +1,4 @@
-"""Offline tests for proposed local model actions."""
+"""Offline proposal boundary contract tests."""
 import unittest
 from reference.local_action_planner import LocalProposalError, propose_with_local_ollama
 
