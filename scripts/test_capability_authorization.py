@@ -105,7 +105,9 @@ class GateTests(unittest.TestCase):
 
 
     def test_missing_requirements_fail_closed(self):
-        self.check_error("capability_unavailable", requirements=RequirementCatalog())
+        with self.assertRaisesRegex(AuthorizationError, "capability_unavailable"):
+            authorize(self.directory, RequirementCatalog(), self.intent,
+                      identity=self.identity, policy=self.policy, now=1000)
 
     def test_policy_cannot_downgrade_write_to_read(self):
         new_intent = dataclasses.replace(self.intent, operation="issues.write")
