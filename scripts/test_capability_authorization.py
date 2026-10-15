@@ -64,6 +64,11 @@ class GateTests(unittest.TestCase):
         self.check_error("capability_unavailable", policy=dataclasses.replace(
             self.policy, permitted_operations=frozenset()))
 
+    def test_backend_arguments_must_match_intent_and_policy_digest(self):
+        self.check_error("arguments_mismatch", validated_arguments={"page": 2})
+        self.check_error("arguments_mismatch", validated_arguments={"page": 1, "extra": True})
+        self.check_error("invalid_arguments", validated_arguments={"page": float("nan")})
+
     def test_no_connected_service_no_route(self):
         self.directory.disable("github")
         self.check_error("capability_unavailable")
