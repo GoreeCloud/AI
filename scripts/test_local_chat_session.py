@@ -194,11 +194,15 @@ class SessionTests(unittest.TestCase):
 
     def test_oversized_stream_reply_preserves_prior_context(self):
         self.session.reply("previous")
+        before = self.session.turns
         self.runtime.response = "x" * 17000
         events = list(self.session.iter_reply("large"))
         self.assertTrue(events[-1].done)
         self.assertFalse(self.session.last_reply_retained)
-        self.assertEqual(self.session.turns, ())
+        self.assertEqual(self.session.turns, before)
+        self.runtime.response = "OK"
+        self.session.reply("next")
+        self.assertNotIn(ChatMessage("user", "large"), self.runtime.requests[-1][1])
 
     def test_invalid_unicode_stream_is_rejected(self):
         self.runtime.stream_events = [
