@@ -47,11 +47,13 @@ def main(argv: list[str] | None = None) -> int:
         rules = tuple(InputRule(*entry.split(":", 1)) for entry in opts.field)
         if len({rule.key for rule in rules}) != len(rules):
             raise ValueError("duplicate field")
-        raw = Path(opts.manifest).read_bytes()
+        with open(opts.manifest, "rb") as handle:
+            raw = handle.read(65537)
         staged = build_staged_catalog((PinnedManifest(raw, opts.sha256),))
         service = staged.revisions[0].service
         requirement = staged.requirements.resolve(service, opts.operation, opts.transport)
-        target = Path(opts.target_file).read_bytes()
+        with open(opts.target_file, "rb") as handle:
+            target = handle.read(2049)
         if not 1 <= len(target) <= 2048:
             raise ValueError("invalid target length")
         resource = target.decode("utf-8", errors="strict").removesuffix("\n")
