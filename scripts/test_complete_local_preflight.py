@@ -94,6 +94,7 @@ class CompletePreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(PreflightError, "replay_detected"):
             self.run_flow()
         self.assertEqual(self.count_reservations(), 1)
+        self.assertEqual(len(self.runtime.calls), 1)
 
     def test_policy_denial_and_expired_identity_stop_before_model(self):
         for changed in (
@@ -106,6 +107,32 @@ class CompletePreflightTests(unittest.TestCase):
                 self.run_flow(**changed)
         self.assertEqual(self.runtime.calls, [])
         self.assertEqual(self.count_reservations(), 0)
+
+    def test_scope_mismatch_stops_before_model(self):
+        for changed in (
+            {"permitted_services": frozenset()},
+            {"permitted_operations": frozenset()},
+            {"policy": dataclasses.replace(self.policy, resource="list:other")},
+            {"policy": dataclasses.replace(self.policy, service="other")},
+            {"policy": dataclasses.replace(self.policy,
+                                          permitted_operations=frozenset())},
+            {"target_resource": "list:other"},
+        ):
+            with self.assertRaisesRegex(PreflightError, "identity_or_policy_denied"):
+                self.run_flow(**changed)
+        self.assertEqual(len(self.runtime.calls), 0)
+        self.assertEqual(self.count_reservations(), 0)
+
+    def test_broken_replay_store_fails_before_model(self):
+        self.db.execute("DROP TABLE capability_request_reservations")
+        with self.assertRaisesRegex(PreflightError, "ledger_unavailable"):
+            self.run_flow()
+        self.assertEqual(len(self.runtime.calls), 0)
+
+    def test_malformed_request_id_fails_before_inference(self):
+        with self.assertRaisesRegex(PreflightError, "identity_or_policy_denied"):
+            self.run_flow(request_id="not-the-policy-id")
+        self.assertEqual(len(self.runtime.calls), 0)
 
     def test_write_requires_matching_approval(self):
         self.response["operation"] = "items.write"
