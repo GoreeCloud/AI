@@ -4,12 +4,13 @@ import subprocess
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from test_ai_review_local import ReviewCliTests, ROOT, SCRIPT
+import test_ai_review_local as review_fixtures
+from test_ai_review_local import ROOT
 
 
 class ReviewListCliTests(unittest.TestCase):
     def test_optional_list_can_be_present_or_absent(self):
-        fixture = ReviewCliTests()
+        fixture = review_fixtures.ReviewCliTests()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         answers = [
