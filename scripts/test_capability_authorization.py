@@ -32,7 +32,7 @@ class GateTests(unittest.TestCase):
         )
 
     def check_error(self, expected, **overrides):
-        args = dict(identity=self.identity, policy=self.policy, now=1000)
+        args = dict(identity=self.identity, policy=self.policy, now=1000, validated_arguments={"page": 1})
         args.update(overrides)
         with self.assertRaises(AuthorizationError) as cm:
             authorize(self.directory, self.requirements, self.intent, **args)
@@ -40,7 +40,7 @@ class GateTests(unittest.TestCase):
 
     def test_read_with_exact_fresh_grants(self):
         receipt = authorize(self.directory, self.requirements, self.intent, identity=self.identity,
-                            policy=self.policy, now=1000)
+                            policy=self.policy, now=1000, validated_arguments={"page": 1})
         self.assertEqual((receipt.route.service, receipt.route.transport), ("github", "mcp"))
         self.assertEqual(receipt.policy_revision, "policy-v1")
 
@@ -73,7 +73,7 @@ class GateTests(unittest.TestCase):
         policy = dataclasses.replace(self.policy, operation="issues.write", risk="write",
                                      permitted_operations=frozenset({"github:issues.write"}))
         with self.assertRaisesRegex(AuthorizationError, "approval_required"):
-            authorize(self.directory, self.requirements, intent, identity=self.identity, policy=policy, now=1000)
+            authorize(self.directory, self.requirements, intent, identity=self.identity, policy=policy, now=1000, validated_arguments={"page": 1})
         approved = ApprovalEvidence(intent.request_id, self.identity.subject,
                                     self.identity.tenant, self.identity.session,
                                     intent.service, intent.operation, intent.resource,
@@ -88,9 +88,9 @@ class GateTests(unittest.TestCase):
                      dataclasses.replace(approved, resource="repo:other/target")):
             with self.assertRaisesRegex(AuthorizationError, "approval_required"):
                 authorize(self.directory, self.requirements, intent, identity=self.identity, policy=policy,
-                          approval=data, now=1000)
+                          approval=data, now=1000, validated_arguments={"page": 1})
         receipt = authorize(self.directory, self.requirements, intent, identity=self.identity, policy=policy,
-                            approval=approved, now=1000)
+                            approval=approved, now=1000, validated_arguments={"page": 1})
         self.assertEqual(receipt.risk, "write")
         self.assertEqual(receipt.requirement_revision, "manifest-v1")
         self.assertEqual(receipt.route.operation, "issues.write")
@@ -107,7 +107,7 @@ class GateTests(unittest.TestCase):
     def test_missing_requirements_fail_closed(self):
         with self.assertRaisesRegex(AuthorizationError, "capability_unavailable"):
             authorize(self.directory, RequirementCatalog(), self.intent,
-                      identity=self.identity, policy=self.policy, now=1000)
+                      identity=self.identity, policy=self.policy, now=1000, validated_arguments={"page": 1})
 
     def test_policy_cannot_downgrade_write_to_read(self):
         new_intent = dataclasses.replace(self.intent, operation="issues.write")
@@ -115,20 +115,20 @@ class GateTests(unittest.TestCase):
                                          permitted_operations=frozenset({"github:issues.write"}))
         with self.assertRaisesRegex(AuthorizationError, "capability_unavailable"):
             authorize(self.directory, self.requirements, new_intent,
-                      identity=self.identity, policy=new_policy, now=1000)
+                      identity=self.identity, policy=new_policy, now=1000, validated_arguments={"page": 1})
 
     def test_policy_can_escalate_read_to_sensitive(self):
         elevated = dataclasses.replace(self.policy, risk="sensitive")
         with self.assertRaisesRegex(AuthorizationError, "approval_required"):
             authorize(self.directory, self.requirements, self.intent,
-                      identity=self.identity, policy=elevated, now=1000)
+                      identity=self.identity, policy=elevated, now=1000, validated_arguments={"page": 1})
         receipt = ApprovalEvidence(self.intent.request_id, self.identity.subject,
                                    self.identity.tenant, self.identity.session,
                                    self.intent.service, self.intent.operation, self.intent.resource,
                                    self.intent.arguments_sha256, 1010, True)
         planned = authorize(self.directory, self.requirements, self.intent,
                             identity=self.identity, policy=elevated,
-                            approval=receipt, now=1000)
+                            approval=receipt, now=1000, validated_arguments={"page": 1})
         self.assertEqual(planned.risk, "sensitive")
 
     def test_transport_binding_must_match_manifest(self):
