@@ -17,3 +17,19 @@ The new modules do not call `authorize`, reserve or execute an effect, connect s
 Versioned operation-specific JSON Schema validation; a trusted proposal-to-validated-arguments boundary; independent Identity, Policy, Privacy Shield, Wardveil and resource authorization; Glaze target/payload consent and accessibility; cancellation and error UX; durable, auditable approval and idempotency; connector execution sandbox with network egress controls; results sanitization; representative installed-model and service end-to-end tests; security review and release approval.
 
 **Non-execution invariant:** A model-generated string, model tool call, or displayed capability never conveys permission to execute an external action.
+
+## Optional local CLI demonstration
+
+After an operator independently reviews and pins a service manifest and installs a local Ollama model, the preview-only command is:
+
+```sh
+printf 'List two items' | python3 scripts/ai_propose_local.py \
+  --manifest /path/to/reviewed.json \
+  --sha256 YOUR_INDEPENDENTLY_VERIFIED_PIN \
+  --model YOUR_INSTALLED_LOCAL_MODEL \
+  --transport mcp --permit items.read
+```
+
+All `--permit` options are **simulation-only preview scope**, not authenticated user grants. The CLI uses a synthetic `preview-only` connector binding, never real service credentials. It only calls local Ollama on an HTTP loopback address through the existing local-only gateway; the named external service is not contacted. It prints a redacted JSON status of `proposed_not_authorized` and `execution: disabled`, or a sanitized error. This is not an interactive approval experience and must not be exposed as a public or multi-tenant authorization endpoint. Prompts are read from standard input; terminal capture, pipes and Ollama's own process are outside the CLI's privacy guarantees.
+
+The test suite exercises the CLI against a **synthetic loopback HTTP server** and does not prove actual installed model inference, domain authorization, or real connector access.
