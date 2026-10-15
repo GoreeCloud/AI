@@ -19,6 +19,7 @@ def render_review_html(review: ReviewDraft) -> str:
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta http-equiv="Content-Security-Policy" content="default-src &apos;none&apos;; form-action &apos;none&apos;; base-uri &apos;none&apos;">'
         '<title>GoreeCloud AI - Review Proposed Action</title></head><body>'
         '<main aria-labelledby="review-title">'
         '<h1 id="review-title">Review proposed action</h1>'
