@@ -10,7 +10,8 @@ from reference.capability_authorization import (
     ApprovalEvidence, PolicyEvidence, VerifiedIdentity,
 )
 from reference.capability_replay_ledger import ReplayError, ReplayLedger
-from reference.capability_requirements import RequirementCatalog
+from reference.capability_requirements import RequirementCatalog, RequirementError, effective_risk
+from reference.integration_directory import IntegrationError
 from reference.integration_directory import IntegrationDirectory
 from reference.local_action_planner import LocalProposalError, propose_with_local_ollama
 from reference.local_model_gateway import LocalOllamaGateway
@@ -82,9 +83,52 @@ def simulate_local_preflight(
             or not now < policy.expires_at <= now + 300
             or policy.request_id != request_id
             or policy.subject != identity.subject
-            or policy.tenant != identity.tenant):
+            or policy.tenant != identity.tenant
+            or type(permitted_services) is not frozenset
+            or type(permitted_operations) is not frozenset
+            or type(policy.permitted_services) is not frozenset
+            or type(policy.permitted_operations) is not frozenset
+            or type(target_resource) is not str
+            or policy.resource != target_resource
+            or policy.service not in permitted_services
+            or policy.service not in policy.permitted_services
+            or f"{policy.service}:{policy.operation}" not in permitted_operations
+            or f"{policy.service}:{policy.operation}" not in policy.permitted_operations):
         raise PreflightError("identity_or_policy_denied")
     try:
+        # This check avoids sending a prompt for an operation the trusted
+        # backend already knows cannot be authorized in its current state.
+        route = directory.resolve(
+            policy.service, policy.operation,
+            permitted_services=policy.permitted_services,
+            permitted_operations=policy.permitted_operations,
+        )
+        requirement = requirements.resolve(
+            policy.service, policy.operation, route.transport)
+        minimum_risk = effective_risk(requirement.minimum_risk, policy.risk)
+    except (IntegrationError, RequirementError, AttributeError, TypeError) as exc:
+        raise PreflightError("capability_unavailable") from exc
+    if (route.connection_id != expected_connection
+            or route.transport != expected_transport
+            or requirement.revision != expected_revision):
+        raise PreflightError("capability_changed")
+    if minimum_risk != "read":
+        if (type(approval) is not ApprovalEvidence
+                or approval.approved is not True
+                or type(approval.expires_at) is not int
+                or not now < approval.expires_at <= now + 300
+                or (approval.request_id, approval.subject, approval.tenant,
+                    approval.session, approval.service, approval.operation,
+                    approval.resource, approval.arguments_sha256)
+                != (request_id, identity.subject, identity.tenant,
+                    identity.session, policy.service, policy.operation,
+                    target_resource, policy.arguments_sha256)):
+            raise PreflightError("approval_required")
+    try:
+        # An advisory precheck avoids duplicate inference. Atomic reserve()
+        # remains the final guard against cross-process concurrent requests.
+        if ledger.was_reserved(tenant=identity.tenant, request_id=request_id):
+            raise PreflightError("replay_detected")
         draft = propose_with_local_ollama(
             runtime, model, user_prompt,
             request_id=request_id, directory=directory,
@@ -103,6 +147,8 @@ def simulate_local_preflight(
         )
         # Reserve only after the complete plan has passed. Never dispatch.
         ledger.reserve(plan, now=now)
+    except PreflightError:
+        raise
     except (LocalProposalError, HandoffError, ReplayError) as exc:
         raise PreflightError(exc.code) from exc
     return PreflightPreview(

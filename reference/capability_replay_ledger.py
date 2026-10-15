@@ -163,3 +163,26 @@ class ReplayLedger:
         if row is None:
             raise ReplayError("reservation_unavailable")
         return row[0]
+
+    def was_reserved(self, *, tenant: str, request_id: str) -> bool:
+        """Advisory duplicate precheck; never a substitute for atomic reserve.
+
+        A negative result can become stale at once. Call reserve() after fresh
+        authorization even when this returns False. This is no execution grant.
+        """
+        identifier = re.compile(r"^[a-z][a-z0-9_.:-]{0,127}$")
+        if (type(tenant) is not str or identifier.fullmatch(tenant) is None
+                or type(request_id) is not str
+                or identifier.fullmatch(request_id) is None):
+            raise ReplayError("invalid_request")
+        raw = json.dumps([tenant, request_id], ensure_ascii=True,
+                         separators=(",", ":")).encode("utf-8")
+        key = hashlib.sha256(raw).hexdigest()
+        try:
+            row = self._connection.execute(
+                "SELECT 1 FROM capability_request_reservations WHERE key_hash = ?",
+                (key,),
+            ).fetchone()
+        except sqlite3.Error as exc:
+            raise ReplayError("ledger_unavailable") from exc
+        return row is not None
