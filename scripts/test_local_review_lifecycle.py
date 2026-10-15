@@ -104,6 +104,30 @@ class ReviewLifecycleTests(unittest.TestCase):
         self.assertEqual(self.reserved(), 1)
         self.assertEqual(len(self.model.calls), 1)
 
+    def test_review_display_cannot_mutate_original_action(self):
+        review = self.draft()
+        shown = review.display()
+        shown["arguments"]["count"] = 99
+        self.assertEqual(review.proposal.arguments["count"], 2)
+        self.assertEqual(self.finalize(review).risk, "read")
+
+    def test_inert_html_escapes_model_supplied_target(self):
+        from reference.local_review_html import render_review_html
+        dangerous = "<img src=x onerror=alert(1)>"
+        self.model.content = json.dumps(dict(
+            schema="goreecloud.ai.action-proposal.v1",
+            service="sample", operation="items.read",
+            resource=dangerous, arguments={"count": 2}))
+        review = self.draft(target_resource=dangerous)
+        markup = render_review_html(review)
+        self.assertIn("&lt;img", markup)
+        self.assertNotIn("<img ", markup)
+        self.assertIn("Content-Security-Policy", markup)
+        self.assertNotIn("<script", markup)
+        self.assertNotIn("<form", markup)
+        self.assertNotIn("<button", markup)
+        self.assertIn("Execution disabled", markup)
+
     def test_write_needs_consent_after_drafting(self):
         self.operation = "items.write"
         self.update_model()
