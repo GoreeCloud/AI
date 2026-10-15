@@ -82,9 +82,23 @@ def simulate_local_preflight(
             or not now < policy.expires_at <= now + 300
             or policy.request_id != request_id
             or policy.subject != identity.subject
-            or policy.tenant != identity.tenant):
+            or policy.tenant != identity.tenant
+            or type(permitted_services) is not frozenset
+            or type(permitted_operations) is not frozenset
+            or type(policy.permitted_services) is not frozenset
+            or type(policy.permitted_operations) is not frozenset
+            or type(target_resource) is not str
+            or policy.resource != target_resource
+            or policy.service not in permitted_services
+            or policy.service not in policy.permitted_services
+            or f"{policy.service}:{policy.operation}" not in permitted_operations
+            or f"{policy.service}:{policy.operation}" not in policy.permitted_operations):
         raise PreflightError("identity_or_policy_denied")
     try:
+        # An advisory precheck avoids duplicate inference. Atomic reserve()
+        # remains the final guard against cross-process concurrent requests.
+        if ledger.was_reserved(tenant=identity.tenant, request_id=request_id):
+            raise PreflightError("replay_detected")
         draft = propose_with_local_ollama(
             runtime, model, user_prompt,
             request_id=request_id, directory=directory,
@@ -103,6 +117,8 @@ def simulate_local_preflight(
         )
         # Reserve only after the complete plan has passed. Never dispatch.
         ledger.reserve(plan, now=now)
+    except PreflightError:
+        raise
     except (LocalProposalError, HandoffError, ReplayError) as exc:
         raise PreflightError(exc.code) from exc
     return PreflightPreview(
