@@ -4,14 +4,14 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_local_model_gateway import GatewayTests
+import test_local_model_gateway as gateway_tests
 from test_local_model_streaming import StreamingTests, frame, ndjson
 from reference.local_model_gateway import ChatMessage, LocalModelError
 
 class BlankChatTests(unittest.TestCase):
-    setUp = GatewayTests.setUp
-    tearDown = GatewayTests.tearDown
-    reply = GatewayTests.reply
+    setUp = gateway_tests.GatewayTests.setUp
+    tearDown = gateway_tests.GatewayTests.tearDown
+    reply = gateway_tests.GatewayTests.reply
     def test_blank_nonstream_responses_fail_closed(self):
         for content in ("", " ", "\n\t"):
             with self.subTest(content=repr(content)):
