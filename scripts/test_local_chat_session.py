@@ -137,6 +137,14 @@ class SessionTests(unittest.TestCase):
                 self.assertNotIn(ChatMessage("user", "second"), self.runtime.requests[-1][1])
         self.assertTrue(self.session.last_reply_retained)
 
+    def test_empty_stream_preserves_previous_completed_turn(self):
+        self.session.reply("previous")
+        snapshot = self.session.turns
+        self.runtime.stream_events = [ChatStreamEvent("ollama", "tiny:1", "local", "", True)]
+        self.assertTrue(list(self.session.iter_reply("new"))[-1].done)
+        self.assertEqual(self.session.turns, snapshot)
+        self.assertFalse(self.session.last_reply_retained)
+
     def test_invalid_response_identity_does_not_modify_history(self):
         class BadRuntime(FakeRuntime):
             def chat(self, model, messages):
