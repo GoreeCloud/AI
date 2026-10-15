@@ -13,7 +13,16 @@ def render_review_html(review: ReviewDraft) -> str:
     target = safe(details["target"])
     service = safe(details["service"])
     operation = safe(details["operation"])
-    risk = safe(details["risk"])
+    risk_value = details["risk"]
+    risk_notice = {
+        "read": "This proposal is intended to read information from the selected target.",
+        "write": "This proposal may create or change data. A separate trusted approval is required.",
+        "sensitive": "This proposal may involve sensitive data or a higher-impact operation. A separate trusted approval is required.",
+    }
+    if type(risk_value) is not str or risk_value not in risk_notice:
+        raise ReviewError("invalid_risk")
+    risk = safe(risk_value)
+    explanation = safe(risk_notice[risk_value])
     args = html.escape(json.dumps(details["arguments"], ensure_ascii=True,
                                   sort_keys=True, indent=2), quote=True)
     return (
@@ -45,8 +54,14 @@ def render_review_html(review: ReviewDraft) -> str:
         '<dt>Operation</dt><dd>' + operation + '</dd>'
         '<dt>Target</dt><dd>' + target + '</dd>'
         '<dt>Risk</dt><dd>' + risk + '</dd></dl>'
+        '<section aria-labelledby="impact-title">'
+        '<h2 id="impact-title">Potential impact</h2>'
+        '<p role="note">' + explanation + '</p>'
+        '</section>'
         '<h2>Proposed data</h2>'
         '<pre role="region" aria-label="Proposed argument values">' + args + '</pre>'
-        '<p>Only a separate trusted backend can validate consent.</p>'
+        '<p>Only a separate trusted backend can validate consent. '
+        'This page does not grant permission or perform an action.</p>'
+        '<p>To decline, close this local review. No action has been executed.</p>'
         '</main></body></html>'
     )
