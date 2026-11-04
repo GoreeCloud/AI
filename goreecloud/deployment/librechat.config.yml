@@ -1,5 +1,5 @@
-# GoreeCloud AI — external, deployment-owned LibreChat integration policy.
-# Official GoreeCloud/AI Git mirror remains unchanged.
+# GoreeCloud AI — Git-versioned LibreChat integration and GC UI policy.
+# Upstream LibreChat application source files remain unchanged.
 # No shared provider keys or OAuth tokens are included.
 version: 1.3.18
 cache: true
