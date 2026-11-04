@@ -228,14 +228,26 @@ mcpServers:
     startup: true
     initTimeout: 30000
     timeout: 60000
-  google-drive:
+  gmail:
+    title: Gmail
+    description: Search and read mail using per-user Google OAuth; no send or draft scope.
     type: streamable-http
-    url: https://drivemcp.googleapis.com/mcp/v1
+    url: https://gmailmcp.googleapis.com/mcp/v1
     requiresOAuth: true
+    # Google Workspace Developer Preview and registered OAuth client required.
+    # A per-user consent flow remains necessary; no shared user tokens in Git.
     startup: false
-    # OFF until Developer Preview + OAuth + GoreeCloud-only folder policy.
-    initTimeout: 30000
+    initTimeout: 150000
     timeout: 60000
+    oauth:
+      authorization_url: 'https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent'
+      token_url: https://oauth2.googleapis.com/token
+      client_id: '${GOOGLE_WORKSPACE_MCP_CLIENT_ID}'
+      client_secret: '${GOOGLE_WORKSPACE_MCP_CLIENT_SECRET}'
+      scope: 'https://www.googleapis.com/auth/gmail.readonly'
+      redirect_uri: https://ai.goreecloud.com/api/mcp/gmail/oauth/callback
+      token_exchange_method: default_post
+      token_endpoint_auth_methods_supported: ['client_secret_post']
   dropbox:
     type: streamable-http
     url: https://mcp.dropbox.com/mcp

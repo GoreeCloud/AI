@@ -1,0 +1,31 @@
+name: GoreeCloud Google Workspace API safety
+
+on:
+  pull_request:
+    paths:
+      - 'goreecloud/integrations/google-workspace/**'
+      - 'goreecloud/deployment/librechat.config.yml'
+      - '.github/workflows/goreecloud-google-workspace.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'goreecloud/integrations/google-workspace/**'
+      - 'goreecloud/deployment/librechat.config.yml'
+      - '.github/workflows/goreecloud-google-workspace.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  api-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Google API client syntax
+        run: node --check goreecloud/integrations/google-workspace/google-api.mjs
+      - name: Check Gmail and Drive account/subtree policy tests
+        run: node --test goreecloud/integrations/google-workspace/*.test.mjs
