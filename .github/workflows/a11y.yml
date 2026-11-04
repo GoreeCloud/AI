@@ -14,7 +14,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -29,7 +29,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v5
-      - uses: dequelabs/axe-linter-action@v2
+      - uses: dequelabs/axe-linter-action@67f0f5c49a4171cb9171213a2e2ae877386b9a80 # immutable v2.0.0
         with:
           api_key: ${{ secrets.AXE_LINTER_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
