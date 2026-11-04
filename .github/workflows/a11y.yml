@@ -64,8 +64,10 @@ jobs:
             esac
           done
           if [ "${#files[@]}" -eq 0 ]; then
-            echo "No changed JSX/TSX sources; offline accessibility check not applicable."
-            exit 0
+            # A workflow-only PR must exercise the real local linter instead of
+            # succeeding solely because the changed-source list was empty.
+            echo "No changed JSX/TSX sources; scanning the first-party Projects component as a smoke check."
+            files=("client/src/components/Conversations/ProjectsSection.tsx")
           fi
           echo "Checking ${#files[@]} changed JSX/TSX file(s) using the locked local ESLint plugins."
           ./node_modules/.bin/eslint --no-warn-ignored \
