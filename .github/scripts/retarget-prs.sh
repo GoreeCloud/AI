@@ -17,6 +17,18 @@ if [ "$#" -eq 0 ]; then
   exit 64
 fi
 
+# Avoid changing PR bases when a repository has no development branch.
+# A missing branch is a safe no-op, but authentication/network failures are not.
+if target_result="$(gh api "repos/$REPO/branches/$TARGET_BASE" --jq '.name' 2>&1)"; then
+  :
+elif [[ "$target_result" == *"(HTTP 404)"* ]]; then
+  echo "::warning::Target branch '$TARGET_BASE' does not exist; leaving PR bases unchanged."
+  exit 0
+else
+  echo "Unable to verify target branch; refusing to retarget PRs." >&2
+  exit 1
+fi
+
 # Branches on the upstream repository that legitimately merge into the release branch.
 # Backport branches are deliberately absent: `main` is kept as a fast-forward of `dev`, so a
 # backport merged straight to `main` would break that invariant. Use the label to exempt one.
