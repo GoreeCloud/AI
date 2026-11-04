@@ -4,7 +4,7 @@ This directory is the **version-controlled source of truth** for GoreeCloud's Li
 
 ## Files
 
-- `librechat.config.yml` — current VPS-01 LibreChat settings, **GoreeCloud Iris** light/dark theme, two optional user-key model providers, nine configured MCP entries. Google Drive, Dropbox and Remote Desktop Commander have `startup: false` pending separate authorization; do not infer lack/presence of user-level runtime access solely from this flag.
+- `librechat.config.yml` — current VPS-01 LibreChat settings, **GoreeCloud Iris** light/dark theme, two optional user-key model providers, nine configured MCP entries (Gmail included, pending OAuth). Gmail, Dropbox and Remote Desktop Commander have `startup: false` pending separate authorization. The unrestricted Google Drive MCP entry is **absent from the development catalog**; the live VPS configuration still needs governed reconciliation. A folder-restricted gateway must pass authorization and security tests before any Drive MCP connection. See [Google Workspace integration](../integrations/google-workspace/README.md).
 - `compose.yml` — unified, Git-tracked Docker override with loopback-only API/admin ports, external Caddy proxy network, RAG database password interpolation and the read-only mount for `librechat.config.yml`.
 - `Caddyfile.ai.goreecloud.com.example` — public HTTPS site snippet. Existing Caddyfile has unrelated sites; **never overwrite it wholesale**.
 - `rollback.md` — deployment, validation and recovery procedures.
@@ -12,6 +12,10 @@ This directory is the **version-controlled source of truth** for GoreeCloud's Li
 ## Secrets and runtime state
 
 Do not commit the production `.env`, OAuth tokens, PATs, Porkbun keys, browser profiles, admin password, database files, MongoDB data, uploads or logs. The repository's existing `.gitignore` protects most runtime paths; always review the staged diff for secret values before a push. Store production secrets in the existing private `/home/ladamian/goreecloud-ai/.env` (permissions 0600), or an approved secrets manager. `LIBRECHAT_POSTGRES_PASSWORD` must be set there. All MCP OAuth authorization remains per user; ChatGPT connectors do not automatically share credentials with LibreChat.
+
+## Google Workspace — Gmail and Drive MCP/API
+
+Gmail's official Developer Preview MCP endpoint is configured with env-referenced OAuth client credentials and limited Gmail scopes, but cannot connect until Google Cloud enablement, provider authorization and a reviewed deployment. The unrestricted Google Drive MCP entry has been removed from this development configuration; its historical VPS entry is not safe to connect. A folder-scoped, source-only tool adapter exists but is not yet an authenticated or deployed MCP server. An injectable, tested Gmail/Drive REST API adapter is in [`goreecloud/integrations/google-workspace`](../integrations/google-workspace/README.md); it is not yet a public API service or an authenticated MCP gateway. Keep user OAuth tokens out of GitHub and review before deploying.
 
 ## GitHub MCP — fix missing Authorization header
 
