@@ -455,20 +455,24 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
       <div className="flex flex-col gap-1">
         {/* Permanent library entry, even when the sidebar shows only the first page.
             Previously "All projects" appeared only after 25 projects. */}
-        <Button
-          type="button"
-          variant="section-action"
-          size="sm"
-          onClick={openProjects}
-          aria-current={location.pathname === '/projects' ? 'page' : undefined}
+        <div
           className={cn(
-            'flex w-full items-center justify-start gap-2 rounded-lg text-start',
-            location.pathname === '/projects' && 'bg-surface-nav-selected text-text-primary',
+            'rounded-lg',
+            location.pathname === '/projects' && 'bg-surface-nav-selected',
           )}
         >
-          <Folders className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="truncate">{localize('com_ui_all_projects')}</span>
-        </Button>
+          <Button
+            type="button"
+            variant="section-action"
+            size="sm"
+            onClick={openProjects}
+            aria-current={location.pathname === '/projects' ? 'page' : undefined}
+            className="flex w-full items-center justify-start text-start"
+          >
+            <Folders className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{localize('com_ui_all_projects')}</span>
+          </Button>
+        </div>
 
         {isLoading && projects.length === 0 ? (
           <div
@@ -484,7 +488,7 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
             variant="section-action"
             size="sm"
             onClick={() => setIsCreateOpen(true)}
-            className="flex w-full justify-start gap-2"
+            className="flex w-full justify-start"
           >
             <FolderPlus className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{localize('com_ui_new_project')}</span>
