@@ -19,6 +19,7 @@ function runRetarget(t, prs, overrides = {}) {
 set -euo pipefail
 printf '%s\\n' "$*" >> "$CALLS_PATH"
 case "$1:$2" in
+  api:*/branches/*) if [ "\${MISSING_TARGET:-false}" = "true" ]; then echo "gh: Not Found (HTTP 404)" >&2; exit 1; fi; if [ "\${BRANCH_API_FAILURE:-false}" = "true" ]; then echo "gh: Forbidden (HTTP 403)" >&2; exit 1; fi; echo dev ;;
   api:*/pulls/*) cat "$FIXTURE_DIR/\${2##*/}.json" ;;
   api:*/comments) printf '%s\\n' '[]' ;;
   'pr:edit') exit 0 ;;
@@ -54,7 +55,7 @@ esac
       ...overrides,
     },
   });
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.equal(result.status, Number(overrides.EXPECT_STATUS ?? 0), `${result.stdout}\n${result.stderr}`);
   return {
     output: result.stdout,
     calls: readFileSync(callsPath, 'utf8').trim().split('\n'),
@@ -100,5 +101,23 @@ test('a dry run cannot propose retargeting canary', (t) => {
     { RELEASE_BASE: 'canary', DRY_RUN: 'true' },
   );
   assert.match(output, /would_retarget=0 skipped=1/);
+  assert.deepEqual(writes(calls), []);
+});
+
+test('missing target development branch leaves main-based PRs unchanged', (t) => {
+  const { output, calls } = runRetarget(t, { 106: { base: 'main' } }, {
+    MISSING_TARGET: 'true',
+  });
+  assert.match(output, /does not exist; leaving PR bases unchanged/);
+  assert.deepEqual(writes(calls), []);
+  assert.equal(calls.some(call => call.includes('/pulls/106')), false);
+});
+
+test('transient or unauthorized branch lookup fails instead of silently skipping', (t) => {
+  const { output, calls } = runRetarget(t, { 107: { base: 'main' } }, {
+    BRANCH_API_FAILURE: 'true',
+    EXPECT_STATUS: '1',
+  });
+  assert.equal(output, '');
   assert.deepEqual(writes(calls), []);
 });
