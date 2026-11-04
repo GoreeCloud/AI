@@ -1,0 +1,22 @@
+# HTTPS reverse-proxy site for VPS-01's existing Caddy `proxy` network.
+# Install inside the existing private Caddyfile; do not replace other sites.
+# Requires Porkbun DNS provider module and these PRIVATE Caddy env vars:
+# PORKBUN_API_KEY, PORKBUN_API_SECRET_KEY (do not commit their values).
+ai.goreecloud.com {
+    tls {
+        dns porkbun {
+            api_key {$PORKBUN_API_KEY}
+            api_secret_key {$PORKBUN_API_SECRET_KEY}
+        }
+        propagation_delay 30s
+        propagation_timeout 10m
+        resolvers 1.1.1.1 8.8.8.8
+    }
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        X-Frame-Options DENY
+    }
+    reverse_proxy LibreChat:3080
+}

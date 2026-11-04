@@ -1,0 +1,248 @@
+# GoreeCloud AI — external, deployment-owned LibreChat integration policy.
+# Official GoreeCloud/AI Git mirror remains unchanged.
+# No shared provider keys or OAuth tokens are included.
+version: 1.3.18
+cache: true
+interface:
+  customWelcome: "Your GoreeCloud AI workspace."
+  landingFooter: false
+  theme:
+    version: 1
+    name: goreecloud-iris
+    modes:
+      light:
+        colors:
+          rgb-text-primary: '24 33 52'
+          rgb-text-secondary: '77 91 116'
+          rgb-text-tertiary: '102 115 139'
+          rgb-accent-primary: '79 70 229'
+          rgb-accent-primary-hover: '67 56 202'
+          rgb-ring-primary: '79 70 229'
+          rgb-focus-outline: '79 70 229'
+          rgb-focus-control: '79 70 229'
+          rgb-link: '67 56 202'
+          rgb-link-hover: '55 48 163'
+          rgb-header-primary: '255 255 255'
+          rgb-header-hover: '241 245 253'
+          rgb-surface-canvas: '247 249 253'
+          rgb-page-canvas: '247 249 253'
+          rgb-surface-primary: '255 255 255'
+          rgb-surface-secondary: '245 248 254'
+          rgb-surface-tertiary: '237 242 252'
+          rgb-surface-sidebar: '245 247 252'
+          rgb-surface-chat: '255 255 255'
+          rgb-surface-composer: '255 255 255'
+          rgb-surface-user-message: '238 241 255'
+          rgb-surface-card: '255 255 255'
+          rgb-surface-menu: '255 255 255'
+          rgb-surface-popover: '255 255 255'
+          rgb-surface-dialog: '255 255 255'
+          rgb-surface-hover: '237 241 252'
+          rgb-surface-nav-hover: '235 240 253'
+          rgb-surface-nav-selected: '228 233 255'
+          rgb-surface-active: '228 233 255'
+          rgb-surface-submit: '79 70 229'
+          rgb-surface-submit-hover: '67 56 202'
+          rgb-surface-inverted: '29 36 69'
+          rgb-surface-inverted-hover: '48 53 90'
+          rgb-button-primary: '79 70 229'
+          rgb-button-primary-hover: '67 56 202'
+          rgb-text-inverted: '255 255 255'
+          rgb-border-light: '222 229 242'
+          rgb-border-medium: '192 204 226'
+          rgb-border-control: '178 193 218'
+          rgb-border-field-focus: '79 70 229'
+          rgb-field-fill: '255 255 255'
+          rgb-field-text: '24 33 52'
+          rgb-surface-tooltip: '29 36 69'
+          rgb-text-tooltip: '255 255 255'
+          rgb-surface-code: '246 248 252'
+          rgb-scrollbar-thumb: '187 201 224'
+        appearance:
+          controlRadius: "0.75rem"
+          surfaceRadius: "1.125rem"
+          largeSurfaceRadius: "1.625rem"
+          menuRadius: "1.125rem"
+          menuPanelRadius: "1.125rem"
+          popoverRadius: "1.125rem"
+          controlHeight: "2.75rem"
+          buttonHeight: "2.75rem"
+          fieldHeight: "2.75rem"
+          buttonPaddingX: "1rem"
+          controlPaddingX: "0.875rem"
+          controlGap: "0.5rem"
+          controlFontWeight: '600'
+          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          displayFontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          radiusLg: "0.75rem"
+          radiusXl: "1.125rem"
+          radius2xl: "1.625rem"
+          radius3xl: "2.25rem"
+          focusRingWidth: "2px"
+          focusRingOffset: "2px"
+      dark:
+        colors:
+          rgb-text-primary: '238 243 255'
+          rgb-text-secondary: '187 201 226'
+          rgb-text-tertiary: '158 174 199'
+          rgb-accent-primary: '169 162 255'
+          rgb-accent-primary-hover: '200 194 255'
+          rgb-ring-primary: '169 162 255'
+          rgb-focus-outline: '169 162 255'
+          rgb-focus-control: '169 162 255'
+          rgb-link: '189 182 255'
+          rgb-link-hover: '216 211 255'
+          rgb-header-primary: '17 25 43'
+          rgb-header-hover: '32 45 72'
+          rgb-surface-canvas: '11 16 31'
+          rgb-page-canvas: '11 16 31'
+          rgb-surface-primary: '17 25 43'
+          rgb-surface-secondary: '22 33 54'
+          rgb-surface-tertiary: '30 42 66'
+          rgb-surface-sidebar: '14 22 40'
+          rgb-surface-chat: '17 25 43'
+          rgb-surface-composer: '24 34 55'
+          rgb-surface-user-message: '39 49 83'
+          rgb-surface-card: '22 33 54'
+          rgb-surface-menu: '24 34 56'
+          rgb-surface-popover: '24 34 56'
+          rgb-surface-dialog: '24 34 56'
+          rgb-surface-hover: '36 49 75'
+          rgb-surface-nav-hover: '32 45 72'
+          rgb-surface-nav-selected: '45 50 99'
+          rgb-surface-active: '45 50 99'
+          rgb-surface-submit: '169 162 255'
+          rgb-surface-submit-hover: '195 188 255'
+          rgb-surface-inverted: '235 238 255'
+          rgb-surface-inverted-hover: '210 213 245'
+          rgb-button-primary: '169 162 255'
+          rgb-button-primary-hover: '195 188 255'
+          rgb-text-inverted: '18 21 45'
+          rgb-border-light: '43 59 85'
+          rgb-border-medium: '62 80 113'
+          rgb-border-control: '92 112 146'
+          rgb-border-field-focus: '169 162 255'
+          rgb-field-fill: '24 34 55'
+          rgb-field-text: '238 243 255'
+          rgb-surface-tooltip: '235 238 255'
+          rgb-text-tooltip: '24 34 56'
+          rgb-surface-code: '14 20 36'
+          rgb-scrollbar-thumb: '92 109 143'
+        appearance:
+          controlRadius: "0.75rem"
+          surfaceRadius: "1.125rem"
+          largeSurfaceRadius: "1.625rem"
+          menuRadius: "1.125rem"
+          menuPanelRadius: "1.125rem"
+          popoverRadius: "1.125rem"
+          controlHeight: "2.75rem"
+          buttonHeight: "2.75rem"
+          fieldHeight: "2.75rem"
+          buttonPaddingX: "1rem"
+          controlPaddingX: "0.875rem"
+          controlGap: "0.5rem"
+          controlFontWeight: '600'
+          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          displayFontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          radiusLg: "0.75rem"
+          radiusXl: "1.125rem"
+          radius2xl: "1.625rem"
+          radius3xl: "2.25rem"
+          focusRingWidth: "2px"
+          focusRingOffset: "2px"
+mcpSettings:
+  apps: false
+endpoints:
+  custom:
+    - name: OpenRouter
+      apiKey: user_provided
+      baseURL: https://openrouter.ai/api/v1
+      models:
+        default: [openai/gpt-4.1-mini]
+        fetch: true
+      dropParams: [stop]
+      titleConvo: false
+      summarize: false
+      modelDisplayLabel: OpenRouter
+    - name: Perplexity
+      apiKey: user_provided
+      baseURL: https://api.perplexity.ai/
+      models:
+        default: [sonar, sonar-pro, sonar-reasoning-pro, sonar-deep-research]
+        fetch: false
+      dropParams: [stop, frequency_penalty]
+      titleConvo: false
+      summarize: false
+      modelDisplayLabel: Perplexity
+mcpServers:
+  context7:
+    type: streamable-http
+    url: https://mcp.context7.com/mcp/oauth
+    requiresOAuth: true
+    startup: true
+    initTimeout: 15000
+    timeout: 60000
+    serverInstructions: false
+  deepwiki:
+    type: streamable-http
+    url: https://mcp.deepwiki.com/mcp
+    startup: true
+    initTimeout: 15000
+    timeout: 60000
+    serverInstructions: false
+  todoist:
+    type: streamable-http
+    url: https://ai.todoist.net/mcp
+    requiresOAuth: true
+    startup: true
+    initTimeout: 30000
+    timeout: 60000
+  github:
+    type: streamable-http
+    url: https://api.githubcopilot.com/mcp/
+    requiresOAuth: false
+    apiKey:
+      source: user
+      authorization_type: bearer
+    startup: true
+    initTimeout: 30000
+    timeout: 60000
+  linear:
+    type: streamable-http
+    url: https://mcp.linear.app/mcp/readonly
+    requiresOAuth: true
+    startup: true
+    initTimeout: 30000
+    timeout: 60000
+  sentry:
+    type: streamable-http
+    url: https://mcp.sentry.dev/mcp
+    requiresOAuth: true
+    startup: true
+    initTimeout: 30000
+    timeout: 60000
+  google-drive:
+    type: streamable-http
+    url: https://drivemcp.googleapis.com/mcp/v1
+    requiresOAuth: true
+    startup: false
+    # OFF until Developer Preview + OAuth + GoreeCloud-only folder policy.
+    initTimeout: 30000
+    timeout: 60000
+  dropbox:
+    type: streamable-http
+    url: https://mcp.dropbox.com/mcp
+    requiresOAuth: true
+    startup: false
+    # OFF pending Dropbox OAuth client + accepted redirect.
+    initTimeout: 30000
+    timeout: 60000
+  remote-desktop-commander:
+    type: streamable-http
+    url: https://mcp.desktopcommander.app/mcp
+    requiresOAuth: true
+    startup: false
+    # OFF pending separately approved full machine access.
+    initTimeout: 30000
+    timeout: 60000
+# Chrome requires local consent-based pairing; no hosted remote endpoint.

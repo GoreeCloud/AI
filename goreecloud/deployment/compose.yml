@@ -1,0 +1,29 @@
+# GoreeCloud AI production overlay. Compose paths are relative to repository root.
+# Keep passwords/API secrets in the private root .env, never Git.
+# Validate before use: docker compose -f docker-compose.yml -f goreecloud/deployment/compose.yml config --quiet
+services:
+  api:
+    ports: !override
+      - "127.0.0.1:3080:3080"
+    networks:
+      - default
+      - proxy
+    environment:
+      APP_TITLE: GoreeCloud AI
+    volumes:
+      - type: bind
+        source: ./goreecloud/deployment/librechat.config.yml
+        target: /app/librechat.yaml
+        read_only: true
+  admin-panel:
+    ports: !override
+      - "127.0.0.1:3000:3000"
+  vectordb:
+    environment:
+      POSTGRES_PASSWORD: ${LIBRECHAT_POSTGRES_PASSWORD}
+  rag_api:
+    environment:
+      POSTGRES_PASSWORD: ${LIBRECHAT_POSTGRES_PASSWORD}
+networks:
+  proxy:
+    external: true
