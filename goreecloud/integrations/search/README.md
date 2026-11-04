@@ -28,6 +28,14 @@ node --test goreecloud/integrations/search/research-client.test.mjs
 
 The corresponding GitHub Actions job checks these files without credentials, an exposed search port or external provider access.
 
+To exercise the **real** first-party Search localhost HTTP server in an authorized development environment, after inspecting the Search checkout:
+
+```bash
+python3 goreecloud/integrations/search/smoke_local.py /absolute/path/to/GoreeCloud/search
+```
+
+The optional smoke harness creates an owner-private temporary SQLite catalog, launches Search on an ephemeral `127.0.0.1` port, and verifies real readiness, citation results and refusal of unapproved external query sharing using the Node client. It closes the server and removes the fixture on completion. **The flags `enabled:true` and `releaseQualified:true` appear in that isolated test only**; they do not change deployment or establish real release qualification. No Google, Brave or SearXNG credentials are required. This smoke is not part of hosted CI until Search's checkout and supply-chain/security gates are approved.
+
 ## Required activation and release gates
 
 1. **Qualify Search.** Complete the greenfield Search PR, static/CI checks, live API and provider compatibility, privacy/legal/billing limits, first-party GC UI and accessibility acceptance, authentication, reliability, encrypted off-host recovery and rollback. A passing workflow is not a Stable release declaration.
