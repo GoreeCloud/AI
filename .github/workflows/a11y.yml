@@ -5,6 +5,7 @@ on:
     paths:
       - 'client/src/**'
       - '!**.md'
+      - '.github/workflows/a11y.yml'
   workflow_dispatch:
     inputs:
       run_workflow:
@@ -14,22 +15,64 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  axe-linter:
+  local-jsx-a11y:
+    name: Offline JSX accessibility regression check
     runs-on: ubuntu-latest
-    if: >
+    timeout-minutes: 25
+    if: >-
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_workflow == 'true')
-    
     steps:
-      - uses: actions/checkout@v5
-      - uses: dequelabs/axe-linter-action@v2
+      - name: Checkout PR merge for local lint
+        uses: actions/checkout@v5
         with:
-          api_key: ${{ secrets.AXE_LINTER_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - name: Install locked workspace dependencies
+        run: npm ci
+      - name: Build shared UI primitives required by ESLint
+        run: npm run build:client-package
+      - name: Check changed JSX accessibility locally
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test -n "$BASE_SHA"
+            git cat-file -e "${BASE_SHA}^{commit}"
+            git diff --name-only --diff-filter=ACMR -z "$BASE_SHA" "$GITHUB_SHA" -- client/src > "$RUNNER_TEMP/a11y-changed-files"
+          else
+            git ls-files -z client/src > "$RUNNER_TEMP/a11y-changed-files"
+          fi
+          mapfile -d '' -t changed < "$RUNNER_TEMP/a11y-changed-files"
+          files=()
+          for path in "${changed[@]}"; do
+            case "$path" in
+              *.tsx|*.jsx) files+=("$path") ;;
+            esac
+          done
+          if [ "${#files[@]}" -eq 0 ]; then
+            # A workflow-only PR must exercise the real local linter instead of
+            # succeeding solely because the changed-source list was empty.
+            echo "No changed JSX/TSX sources; scanning the first-party Projects component as a smoke check."
+            files=("client/src/components/Conversations/ProjectsSection.tsx")
+          fi
+          echo "Checking ${#files[@]} changed JSX/TSX file(s) using the locked local ESLint plugins."
+          ./node_modules/.bin/eslint --no-warn-ignored \
+            --rule 'jsx-a11y/alt-text:error' \
+            --rule 'jsx-a11y/click-events-have-key-events:error' \
+            --rule 'jsx-a11y/interactive-supports-focus:error' \
+            --rule 'jsx-a11y/label-has-associated-control:error' \
+            "${files[@]}"
