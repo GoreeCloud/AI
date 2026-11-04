@@ -474,7 +474,7 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
           </Button>
         </div>
 
-        {isLoading && projects.length === 0 ? (
+        {isLoading && projects.length === 0 && (
           <div
             className="flex justify-start py-2 ps-2"
             role="status"
@@ -482,7 +482,8 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
           >
             <Spinner tone="secondary" className="h-4 w-4" />
           </div>
-        ) : projects.length === 0 ? (
+        )}
+        {!isLoading && projects.length === 0 && (
           <Button
             type="button"
             variant="section-action"
@@ -493,7 +494,8 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
             <FolderPlus className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{localize('com_ui_new_project')}</span>
           </Button>
-        ) : (
+        )}
+        {projects.length > 0 && (
           <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {projects.map((project) => (
               <ProjectItem
@@ -526,7 +528,7 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
           className={cn(buttonVariants({ variant: 'section-header' }), 'group min-w-0 flex-1')}
           aria-expanded={isExpanded}
         >
-          <Folders className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
+          <Folders className="text-text-secondary h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="truncate select-none">{localize('com_ui_projects')}</span>
           <ChevronDown
             className={cn(
