@@ -436,7 +436,6 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
   );
 
   const projects = useMemo(() => data?.pages.flatMap((page) => page.projects) ?? [], [data?.pages]);
-  const hasMore = (data?.pages[data.pages.length - 1]?.nextCursor ?? null) != null;
 
   /**
    * Collapse the section by default for users with no projects who have never
@@ -452,57 +451,58 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
   }, [navigate, toggleNav]);
 
   const renderProjectsBody = () => {
-    if (isLoading && projects.length === 0) {
-      return (
-        <div className="flex justify-start py-2 ps-2">
-          <Spinner tone="secondary" className="h-4 w-4" />
-        </div>
-      );
-    }
-
-    if (projects.length === 0) {
-      return (
-        /* `section-action` owns the quiet-secondary-until-hovered treatment these
-         *  entries share with the section's other controls; only the row shape is
-         *  the caller's. */
+    return (
+      <div className="flex flex-col gap-1">
+        {/* Permanent library entry, even when the sidebar shows only the first page.
+            Previously "All projects" appeared only after 25 projects. */}
         <Button
           type="button"
           variant="section-action"
           size="sm"
-          onClick={() => setIsCreateOpen(true)}
-          className="flex w-full justify-start"
+          onClick={openProjects}
+          aria-current={location.pathname === '/projects' ? 'page' : undefined}
+          className={cn(
+            'flex w-full items-center justify-start gap-2 rounded-lg text-start',
+            location.pathname === '/projects' && 'bg-surface-nav-selected text-text-primary',
+          )}
         >
-          <FolderPlus className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="truncate">{localize('com_ui_new_project')}</span>
+          <Folders className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">{localize('com_ui_all_projects')}</span>
         </Button>
-      );
-    }
 
-    return (
-      <ul className="m-0 flex list-none flex-col gap-1 p-0">
-        {projects.map((project) => (
-          <ProjectItem
-            key={project._id}
-            project={project}
-            toggleNav={toggleNav}
-            defaultExpanded={project._id === highlightedProjectId}
-            isActive={project._id === highlightedProjectId}
-          />
-        ))}
-        {hasMore && (
-          <li className="list-none">
-            <Button
-              type="button"
-              variant="section-action"
-              size="xs"
-              onClick={openProjects}
-              className="flex w-full justify-start"
-            >
-              {localize('com_ui_all_projects')}
-            </Button>
-          </li>
+        {isLoading && projects.length === 0 ? (
+          <div
+            className="flex justify-start py-2 ps-2"
+            role="status"
+            aria-label={localize('com_ui_loading')}
+          >
+            <Spinner tone="secondary" className="h-4 w-4" />
+          </div>
+        ) : projects.length === 0 ? (
+          <Button
+            type="button"
+            variant="section-action"
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+            className="flex w-full justify-start gap-2"
+          >
+            <FolderPlus className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{localize('com_ui_new_project')}</span>
+          </Button>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
+            {projects.map((project) => (
+              <ProjectItem
+                key={project._id}
+                project={project}
+                toggleNav={toggleNav}
+                defaultExpanded={project._id === highlightedProjectId}
+                isActive={project._id === highlightedProjectId}
+              />
+            ))}
+          </ul>
         )}
-      </ul>
+      </div>
     );
   };
 
@@ -522,6 +522,7 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
           className={cn(buttonVariants({ variant: 'section-header' }), 'group min-w-0 flex-1')}
           aria-expanded={isExpanded}
         >
+          <Folders className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
           <span className="truncate select-none">{localize('com_ui_projects')}</span>
           <ChevronDown
             className={cn(
