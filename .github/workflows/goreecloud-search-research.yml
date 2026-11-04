@@ -1,0 +1,29 @@
+name: GoreeCloud AI Search research contract
+
+on:
+  pull_request:
+    paths:
+      - 'goreecloud/integrations/search/**'
+      - '.github/workflows/goreecloud-search-research.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'goreecloud/integrations/search/**'
+      - '.github/workflows/goreecloud-search-research.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  research-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check first-party research adapter syntax
+        run: node --check goreecloud/integrations/search/research-client.mjs
+      - name: Check fail-closed research contract
+        run: node --test goreecloud/integrations/search/research-client.test.mjs
