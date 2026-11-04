@@ -199,12 +199,19 @@ mcpServers:
     timeout: 60000
   github:
     type: streamable-http
-    url: https://api.githubcopilot.com/mcp/
+    # GitHub's official hosted MCP; read-only until permission is explicitly expanded.
+    url: https://api.githubcopilot.com/mcp/readonly
     requiresOAuth: false
-    apiKey:
-      source: user
-      authorization_type: bearer
-    startup: true
+    headers:
+      Authorization: 'Bearer {{GITHUB_PERSONAL_ACCESS_TOKEN}}'
+      X-MCP-Toolsets: repos,issues,pull_requests
+    customUserVars:
+      GITHUB_PERSONAL_ACCESS_TOKEN:
+        title: GitHub personal access token
+        description: "Create a fine-grained GitHub token restricted to GoreeCloud repositories and read-only permissions, then enter it here. Never paste it into a chat."
+        sensitive: true
+    # No unauthenticated startup probe; connect only after the user supplies a token.
+    startup: false
     initTimeout: 30000
     timeout: 60000
   linear:
