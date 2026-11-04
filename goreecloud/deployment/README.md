@@ -13,6 +13,45 @@ This directory is the **version-controlled source of truth** for GoreeCloud's Li
 
 Do not commit the production `.env`, OAuth tokens, PATs, Porkbun keys, browser profiles, admin password, database files, MongoDB data, uploads or logs. The repository's existing `.gitignore` protects most runtime paths; always review the staged diff for secret values before a push. Store production secrets in the existing private `/home/ladamian/goreecloud-ai/.env` (permissions 0600), or an approved secrets manager. `LIBRECHAT_POSTGRES_PASSWORD` must be set there. All MCP OAuth authorization remains per user; ChatGPT connectors do not automatically share credentials with LibreChat.
 
+## GitHub MCP — fix missing Authorization header
+
+The hosted GitHub MCP uses the official `https://api.githubcopilot.com/mcp/readonly`
+endpoint. LibreChat requires **each user** to supply a GitHub personal access token.
+The YAML registers a masked per-user field named `GITHUB_PERSONAL_ACCESS_TOKEN`.
+It is not a server-wide secret, and ChatGPT's connected GitHub app does not provide
+the token to LibreChat.
+
+1. In GitHub, visit **Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token**. Set the **Resource owner** to
+   `GoreeCloud`, choose only the repositories required (start with `AI`),
+   and grant **Contents: Read-only**, **Metadata: Read-only** and, if needed,
+   **Issues / Pull requests: Read-only**. Use an expiry and allow for any
+   account-specific token approval requirements.
+2. In LibreChat at `https://ai.goreecloud.com`, open **MCP Servers**, select
+   **github**, then **Configure / Connect**. Enter the token in the masked
+   **GitHub personal access token** field and save. **Do not paste the PAT into
+   a chat message, GitHub issue, Git repository, terminal command, or logs.**
+3. Retry connecting the server. A successful connection exposes GitHub tools.
+   Test a safe read, such as querying repository `GoreeCloud/AI` metadata or
+   reading its README. Do not interpret a grey status dot as connected.
+4. If the server reports `missing required Authorization header`, verify the
+   per-user credential was saved, reconnect, and check only sanitized server logs.
+   A GitHub 401/403 *after* a bearer header indicates a different problem
+   (invalid/expired token, wrong owner/repository, insufficient permissions).
+5. The endpoint is intentionally read-only. Enable writes only through a
+   separate, reviewed permission and toolset change, not by granting a token
+   broad rights or changing the path without approval.
+
+Because the server needs a per-user credential, `startup: false` avoids
+unauthenticated probes until the user actively connects. A restart is necessary
+when changing this YAML; do not confuse successful server registration with
+an authenticated GitHub MCP tool call. The exact cause of the screenshot failure
+was confirmed in the VPS logs: `missing required Authorization header`.
+
+References:
+- https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_servers
+- https://github.com/github/github-mcp-server/blob/main/docs/remote-server.md
+
 ## Deploy (VPS-01, approved maintenance window)
 
 First back up the live external configuration and verify the public repository commit. Run from **the repository root**. Review `git diff` and any upstream changes before `git pull --ff-only`.
