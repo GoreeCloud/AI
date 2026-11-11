@@ -8,6 +8,8 @@ import math
 from pathlib import Path
 import sqlite3
 
+MAX_SEARCH_CHUNKS = 4096
+
 
 def chunk_text(text: str, width: int = 800, overlap: int = 80) -> list[str]:
     """Bound chunks with deterministic overlap; never silently truncate content."""
@@ -34,9 +36,9 @@ def clean_vector(values: list[float]) -> list[float]:
 def cosine(left: list[float], right: list[float]) -> float | None:
     if len(left) != len(right):
         return None
-    norm_left = math.sqrt(sum(v * v for v in left))
-    norm_right = math.sqrt(sum(v * v for v in right))
-    if norm_left == 0 or norm_right == 0:
+    norm_left = math.hypot(*left)
+    norm_right = math.hypot(*right)
+    if not math.isfinite(norm_left) or not math.isfinite(norm_right) or norm_left == 0 or norm_right == 0:
         return None
     return sum(a * b for a, b in zip(left, right)) / (norm_left * norm_right)
 
@@ -87,6 +89,19 @@ class SemanticIndex:
                 )
         return len(chunks)
 
+    def indexed_count(self, model: str) -> int:
+        with self.connect() as db:
+            return db.execute("SELECT COUNT(*) FROM semantic_chunks WHERE model=?", (model,)).fetchone()[0]
+
+    def status(self) -> list[dict]:
+        """Return bounded index counts only; never expose stored text or vectors."""
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT model, COUNT(*) AS chunks, COUNT(DISTINCT document_id) AS documents
+                   FROM semantic_chunks GROUP BY model ORDER BY model LIMIT 100"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def search(self, query_vector: list[float], model: str, limit: int = 3) -> list[dict]:
         query = clean_vector(query_vector)
         with self.connect() as db:
@@ -94,15 +109,20 @@ class SemanticIndex:
                 """SELECT s.document_id, d.title, s.excerpt, s.vector_json
                    FROM semantic_chunks AS s
                    JOIN knowledge_documents AS d ON d.id = s.document_id
-                   WHERE s.model=? LIMIT 4096""",
-                (model,),
+                   WHERE s.model=? ORDER BY s.document_id,s.chunk_index LIMIT ?""",
+                (model,MAX_SEARCH_CHUNKS+1),
             ).fetchall()
+        if len(rows) > MAX_SEARCH_CHUNKS:
+            raise ValueError("Semantic index exceeds local search capacity; no partial results returned")
         best: dict[str, dict] = {}
         for row in rows:
             try:
-                score = cosine(query, clean_vector(json.loads(row["vector_json"])))
-            except (ValueError, TypeError):
-                continue
+                vector = clean_vector(json.loads(row["vector_json"]))
+            except (ValueError, TypeError) as exc:
+                raise ValueError("Indexed vector is corrupt; rebuild the semantic index") from exc
+            if len(vector) != len(query):
+                raise ValueError("Embedding dimensions do not match; rebuild the semantic index")
+            score = cosine(query, vector)
             if score is None or score <= 0:
                 continue
             match = {
