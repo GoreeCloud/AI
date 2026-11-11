@@ -48,3 +48,9 @@ Semantic indexing and search are opt-in and require an already installed Ollama 
 ## Adapter protocol regression tests
 
 Automated httpx MockTransport tests now check the Ollama request/response contracts, including embedding batch shape, nontruncation flags, incomplete NDJSON streams, normalized upstream HTTP errors and invalid model endpoint URLs. These are **offline contract tests**, not live Ollama runtime, real model quality, cloud data-flow, or GPU validation.
+
+## Baseline browser-response security headers
+
+The local preview adds a same-origin Content Security Policy for bundled JavaScript/CSS and same-origin API connections, denies framing, disables content-type sniffing, restricts referrer disclosure, and marks all `/api/` responses `Cache-Control: no-store` with legacy `Pragma: no-cache`. This includes errors and authentication failures; static scripts remain cacheable.
+
+These headers are defense in depth, **not** per-user identity, safe remote deployment, XSS immunity, request-rate limiting, CSRF protection, a trusted reverse proxy, or Wardveil integration. A future embeddable assistant or voice/video feature needs an explicit security review before widening CSP permissions or frame access. Browser security must be verified in actual supported environments before declaring UI acceptance.
