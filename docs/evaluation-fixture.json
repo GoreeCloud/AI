@@ -1,0 +1,38 @@
+{
+  "name": "synthetic-retrieval-smoke-test",
+  "k": 3,
+  "queries": [
+    {
+      "id": "cats-query",
+      "relevant": [
+        "doc-cats"
+      ],
+      "retrieved": [
+        "doc-cats",
+        "doc-dogs",
+        "doc-birds"
+      ]
+    },
+    {
+      "id": "dogs-query",
+      "relevant": [
+        "doc-dogs"
+      ],
+      "retrieved": [
+        "doc-cats",
+        "doc-dogs",
+        "doc-birds"
+      ]
+    },
+    {
+      "id": "no-hit-query",
+      "relevant": [
+        "doc-birds"
+      ],
+      "retrieved": [
+        "doc-cats",
+        "doc-dogs"
+      ]
+    }
+  ]
+}
