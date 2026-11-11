@@ -1,6 +1,6 @@
 "use strict";
 const byId = (id) => document.getElementById(id);
-const state = {chatId:null, busy:false, token:sessionStorage.getItem("goreeai-token")||""};
+const state = {chatId:null, busy:false, controller:null, token:sessionStorage.getItem("goreeai-token")||""};
 async function api(path, options={}) {
   const headers = {"Content-Type":"application/json",...(state.token?{"X-API-Key":state.token}:{})};
   const response=await fetch(path,{...options,headers:{...headers,...options.headers}});
@@ -33,7 +33,7 @@ async function loadChats(){
 }
 async function openChat(id){
   const chat=await api("/api/chats/"+encodeURIComponent(id));
-  state.chatId=id;byId("export-chat").disabled=false;clearMessages();
+  state.chatId=id;byId("export-chat").disabled=false;byId("delete-chat").disabled=false;clearMessages();
   for(const item of chat.messages)message(item.role,item.content,item.model);
   await loadChats();
 }
@@ -48,9 +48,9 @@ async function loadModels(){
   for(const name of data.models){const option=document.createElement("option");option.value=name;option.textContent=name;select.append(option);}
 }
 
-async function streamAnswer(path, text, model, useKnowledge, onChunk) {
+async function streamAnswer(path, text, model, useKnowledge, onChunk, signal) {
   const headers={"Content-Type":"application/json",...(state.token?{"X-API-Key":state.token}:{})};
-  const response=await fetch(path,{method:"POST",headers,body:JSON.stringify({content:text,model,use_knowledge:useKnowledge})});
+  const response=await fetch(path,{method:"POST",headers,signal,body:JSON.stringify({content:text,model,use_knowledge:useKnowledge})});
   if(!response.ok){let item={};try{item=await response.json()}catch(_e){}throw new Error(typeof item.detail==="string"?item.detail:"Request failed ("+response.status+")");}
   if(!response.body)throw new Error("This browser does not support streaming responses");
   const reader=response.body.getReader(), decoder=new TextDecoder();
@@ -82,19 +82,19 @@ async function streamAnswer(path, text, model, useKnowledge, onChunk) {
 async function submit(event){
   event.preventDefault();if(state.busy)return;
   const text=byId("prompt").value.trim();if(!text)return;
-  state.busy=true;byId("send").disabled=true;error("");
+  state.busy=true;state.controller=new AbortController();byId("send").disabled=true;byId("stop").disabled=false;error("");
   try{
     if(!state.chatId)await newChat();
     message("user",text);
     const output=message("assistant","",null);
     const result=await streamAnswer("/api/chats/"+encodeURIComponent(state.chatId)+"/stream",text,byId("model").value,byId("use-knowledge").checked,(part)=>{
       output.body.textContent+=part;byId("conversation").scrollTop=byId("conversation").scrollHeight;
-    });
+    },state.controller.signal);
     output.heading.textContent="AI · "+result.model;byId("prompt").value="";
     byId("hint").textContent=result.routing.reason+(result.sources&&result.sources.length?" · "+result.sources.map(s=>s.title).join(", "):"");
     await loadChats();
-  }catch(e){error(e.message);if(state.chatId){try{await openChat(state.chatId)}catch(_ignore){}}}
-  finally{state.busy=false;byId("send").disabled=false;}
+  }catch(e){error(e.name==="AbortError"?"Generation stopped":e.message);if(state.chatId){try{await openChat(state.chatId)}catch(_ignore){}}}
+  finally{state.busy=false;state.controller=null;byId("send").disabled=false;byId("stop").disabled=true;}
 }
 
 async function exportChat(){
@@ -110,8 +110,77 @@ async function exportChat(){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+
+async function deleteChat(){
+  if(!state.chatId || state.busy)return;
+  if(!window.confirm("Permanently delete this conversation?"))return;
+  await api("/api/chats/"+encodeURIComponent(state.chatId),{method:"DELETE"});
+  state.chatId=null;
+  byId("export-chat").disabled=true;byId("delete-chat").disabled=true;
+  clearMessages();
+  const intro=document.createElement("p");
+  intro.className="empty-message";intro.textContent="Conversation deleted. Create a new conversation to begin.";
+  byId("conversation").append(intro);
+  await loadChats();
+}
+
+function knowledgeError(message){
+  const element=byId("knowledge-error");
+  element.hidden=!message;
+  element.textContent=message||"";
+}
+async function loadKnowledge(){
+  const list=byId("knowledge-list");
+  const documents=await api("/api/knowledge/documents");
+  list.replaceChildren();
+  if(!documents.length){
+    const note=document.createElement("p");note.textContent="No knowledge documents yet.";list.append(note);
+    return;
+  }
+  for(const doc of documents){
+    const item=document.createElement("div");item.className="knowledge-item";
+    const label=document.createElement("span");label.textContent=doc.title;
+    const remove=document.createElement("button");remove.type="button";remove.textContent="Delete";
+    remove.setAttribute("aria-label","Delete document "+doc.title);
+    remove.onclick=async()=>{
+      if(!window.confirm("Delete this knowledge document permanently?"))return;
+      try{
+        knowledgeError("");
+        await api("/api/knowledge/documents/"+encodeURIComponent(doc.id),{method:"DELETE"});
+        await loadKnowledge();
+      }catch(e){knowledgeError(e.message);}
+    };
+    item.append(label,remove);list.append(item);
+  }
+}
+async function showKnowledge(){
+  knowledgeError("");
+  byId("knowledge-dialog").showModal();
+  try{await loadKnowledge();}catch(e){knowledgeError(e.message);}
+}
+async function saveKnowledge(event){
+  event.preventDefault();knowledgeError("");
+  const button=byId("knowledge-save");button.disabled=true;
+  try{
+    await api("/api/knowledge/documents",{
+      method:"POST",body:JSON.stringify({
+        title:byId("knowledge-title").value.trim(),
+        content:byId("knowledge-content").value
+      })
+    });
+    byId("knowledge-form").reset();
+    await loadKnowledge();
+  }catch(e){knowledgeError(e.message);}
+  finally{button.disabled=false;}
+}
+
 async function init(){
   byId("composer").addEventListener("submit",submit);
+  byId("stop").addEventListener("click",()=>state.controller?.abort());
+  byId("delete-chat").addEventListener("click",()=>deleteChat().catch(e=>error(e.message)));
+  byId("manage-knowledge").addEventListener("click",showKnowledge);
+  byId("close-knowledge").addEventListener("click",()=>byId("knowledge-dialog").close());
+  byId("knowledge-form").addEventListener("submit",saveKnowledge);
   byId("chat-search").addEventListener("input",()=>loadChats().catch(e=>error(e.message)));
   byId("export-chat").addEventListener("click",()=>exportChat().catch(e=>error(e.message)));
   byId("new-chat").addEventListener("click",()=>newChat().catch(e=>error(e.message)));

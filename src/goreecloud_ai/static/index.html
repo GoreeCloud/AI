@@ -21,7 +21,11 @@
     <main class="main">
       <header class="toolbar">
         <div><div class="eyebrow">LOCAL INTELLIGENCE</div><h1>GoreeCloud AI</h1></div>
-        <button type="button" id="export-chat" class="export-chat" disabled>Export chat</button><label class="model"><span>Model</span><select id="model"><option value="smart">Smart Model</option></select></label>
+        <div class="header-actions">
+          <button type="button" id="manage-knowledge" class="export-chat">Knowledge</button>
+          <button type="button" id="export-chat" class="export-chat" disabled>Export</button>
+          <button type="button" id="delete-chat" class="export-chat" disabled>Delete</button>
+        </div><label class="model"><span>Model</span><select id="model"><option value="smart">Smart Model</option></select></label>
       </header>
       <section id="conversation" class="conversation" aria-label="Messages" aria-live="polite">
         <div class="welcome"><span class="welcome-icon">✦</span><h2>What would you like to explore?</h2><p>Private, local-first AI powered by Ollama, Qwen and Gemma.</p></div>
@@ -30,10 +34,27 @@
       <form id="composer" class="composer">
         <label for="prompt" class="sr-only">Message GoreeCloud AI</label>
         <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question, explore an idea, or write code…" required></textarea>
-        <div class="composer-bottom"><label class="knowledge-toggle"><input type="checkbox" id="use-knowledge"> Use knowledge</label><span id="hint">Smart Model chooses from installed models</span><button type="submit" id="send">Send <span aria-hidden="true">↗</span></button></div>
+        <div class="composer-bottom"><label class="knowledge-toggle"><input type="checkbox" id="use-knowledge"> Use knowledge</label><span id="hint">Smart Model chooses from installed models</span><button type="button" id="stop" disabled>Stop</button><button type="submit" id="send">Send <span aria-hidden="true">↗</span></button></div>
       </form>
       <p class="disclaimer">Local-first AI can make mistakes. Review important answers.</p>
     </main>
   </div>
+  <dialog id="knowledge-dialog" aria-labelledby="knowledge-heading">
+    <div class="dialog-head">
+      <h2 id="knowledge-heading">Knowledge documents</h2>
+      <button type="button" id="close-knowledge" aria-label="Close knowledge manager">Close</button>
+    </div>
+    <p>Store local text and choose “Use knowledge” when chatting. All documents share this single-user database.</p>
+    <form id="knowledge-form">
+      <label for="knowledge-title">Document title</label>
+      <input id="knowledge-title" type="text" required maxlength="120" placeholder="Example: Project notes">
+      <label for="knowledge-content">Document text</label>
+      <textarea id="knowledge-content" required maxlength="50000" rows="5" placeholder="Paste text to save locally."></textarea>
+      <button type="submit" id="knowledge-save">Save document</button>
+    </form>
+    <div id="knowledge-error" role="alert" hidden></div>
+    <h3>Saved documents</h3>
+    <div id="knowledge-list" aria-live="polite"></div>
+  </dialog>
 </body>
 </html>

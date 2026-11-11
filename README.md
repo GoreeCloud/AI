@@ -67,7 +67,7 @@ The local knowledge API accepts **explicitly submitted text** documents (maximum
 - `POST /api/chats/search` with `{"query":"text"}` searches conversation titles and messages without recording queries in URLs.
 - `GET /api/chats/{id}/export` downloads a versioned, portable JSON snapshot of one conversation; protect its plaintext contents.
 - `POST /api/smart/route` with `{"content":"Write Python code","model":"smart"}` shows the installed-model decision without generating a reply or saving the prompt.
-- The browser interface supports conversation search and a working **Export chat** control.
+- The browser interface supports conversation search and working **Export**, **Delete**, and **Knowledge** management controls. The knowledge dialog saves and deletes bounded text documents. Streaming replies have a **Stop** button that aborts the browser request; cancellation may race with upstream completion, so reopen the conversation to inspect what was actually persisted.
 
 ## Configuration
 

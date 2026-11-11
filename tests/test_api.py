@@ -153,3 +153,42 @@ def test_search_and_export_require_auth(tmp_path):
     assert c.post("/api/chats/search", json={"query": "abc"}).status_code == 401
     assert c.get("/api/chats/random/export").status_code == 401
     assert c.post("/api/smart/route", json={"content": "abc"}).status_code == 401
+
+
+
+def test_knowledge_management_api_end_to_end(tmp_path):
+    c, _ = client(tmp_path)
+    document = c.post("/api/knowledge/documents", json={
+        "title": "Project onboarding", "content": "This is a project onboarding guide."
+    }).json()
+    assert any(d["id"] == document["id"] for d in c.get("/api/knowledge/documents").json())
+    assert c.delete("/api/knowledge/documents/" + document["id"]).status_code == 200
+    assert c.get("/api/knowledge/documents").json() == []
+    assert c.delete("/api/knowledge/documents/" + document["id"]).status_code == 404
+
+
+def test_stream_error_does_not_persist_partial_response(tmp_path):
+    class BrokenStream(FakeOllama):
+        async def stream_chat(self, model, messages):
+            yield "partial"
+            raise OllamaError("upstream failed")
+    backend = BrokenStream()
+    app = create_app(Settings(database_path=str(tmp_path / "broken.sqlite")), backend)
+    c = TestClient(app)
+    chat = c.post("/api/chats", json={}).json()
+    response = c.post("/api/chats/" + chat["id"] + "/stream", json={"content": "Hello"})
+    assert response.status_code == 200
+    assert "event: chunk" in response.text
+    assert "event: error" in response.text
+    assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []
+
+
+def test_controls_are_in_browser(tmp_path):
+    c, _ = client(tmp_path)
+    html = c.get("/").text
+    assert 'id="knowledge-dialog"' in html
+    assert 'id="delete-chat"' in html
+    assert 'id="stop"' in html
+    script = c.get("/assets/app.js").text
+    assert "function saveKnowledge" in script
+    assert "new AbortController()" in script

@@ -15,7 +15,7 @@
 - Knowledge grounding is explicit opt-in. Document passages are untrusted; prompt injection mitigations in the model prompt are not a proven security boundary. No agent tools are executed based on document content.
 - Conversation exports contain plaintext messages; downloaded files require the same privacy and backup protections as the database. Search queries are sent as POST request bodies rather than URL query strings to reduce accidental access-log disclosure.
 - SQLite messages are plaintext at rest. Apply operating-system disk encryption, filesystem access controls and encrypted backups if needed. Do not upload private database files into Git.
-- Incomplete or interrupted model response streams are not saved to conversation history; existing messages are preserved.
+- Incomplete or interrupted model response streams are not saved to conversation history by the generator; existing messages are preserved. Browser cancellation is best-effort and can race with successful server completion; verify actual persistence afterward.
 - Model outputs are untrusted. The UI uses `textContent` rather than interpreting model-generated HTML.
 - Ollama may use user-installed third-party model weights with separate licenses and model-level safety considerations. Confirm model provenance before downloading.
 - Prompts and responses are sent to the administrator-configured Ollama server. If remote, treat the remote host as a disclosure destination; use a secure trusted network or TLS transport.
