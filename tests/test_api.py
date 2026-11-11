@@ -94,3 +94,31 @@ def test_first_message_updates_new_conversation_title(tmp_path):
     chat = c.post("/api/chats", json={}).json()
     c.post("/api/chats/" + chat["id"] + "/messages", json={"content": "Explain Smart Model"})
     assert c.get("/api/chats/" + chat["id"]).json()["title"] == "Explain Smart Model"
+
+
+def test_knowledge_api_and_opt_in_context(tmp_path):
+    c, backend = client(tmp_path)
+    document = c.post('/api/knowledge/documents', json={'title':'Workspace guide','content':'Workspace instructions describe safe project setup.'})
+    assert document.status_code == 201
+    item = document.json()
+    assert c.get('/api/knowledge/search?q=workspace').json()[0]['id'] == item['id']
+    chat = c.post('/api/chats', json={}).json()
+    response = c.post('/api/chats/' + chat['id'] + '/messages', json={'content':'Explain workspace setup','use_knowledge':True})
+    assert response.status_code == 200
+    assert response.json()['sources'][0]['id'] == item['id']
+    assert backend.calls[-1][1][0]['role'] == 'system'
+    assert c.delete('/api/knowledge/documents/' + item['id']).status_code == 200
+    assert c.get('/api/knowledge/search?q=workspace').json() == []
+
+
+def test_knowledge_not_shared_without_opt_in(tmp_path):
+    c, backend = client(tmp_path)
+    c.post('/api/knowledge/documents', json={'title':'Secret context','content':'Sensitive content stays isolated by default.'})
+    chat = c.post('/api/chats', json={}).json()
+    c.post('/api/chats/' + chat['id'] + '/messages', json={'content':'Tell me about sensitive content'})
+    assert all(m['role'] != 'system' for m in backend.calls[-1][1])
+
+
+def test_knowledge_rejects_oversized_payload(tmp_path):
+    c, _ = client(tmp_path)
+    assert c.post('/api/knowledge/documents', json={'title':'Oversize','content':'x' * 50001}).status_code == 422

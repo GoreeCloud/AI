@@ -52,6 +52,16 @@ Select **Smart Model** for automatic deterministic routing over the models insta
 - `POST /api/chats/{id}/messages` — nonstreaming response to `{"content":"Hello","model":"smart"}`.
 - `POST /api/chats/{id}/stream` — same payload, text/event-stream events: `chunk`, `done`, `error`. Successful completed exchanges are saved.
 
+## Local knowledge (keyword-based preview)
+
+The local knowledge API accepts **explicitly submitted text** documents (maximum 50,000 characters), indexes them in SQLite, and searches relevant excerpts by keywords. Use the `use_knowledge` checkbox in the composer to include matching passages in a chat request. The model is instructed to treat excerpts as untrusted evidence and cite their source labels, but no prompt can guarantee compliance. This is *not semantic vector RAG*, does not crawl the web or automatically import personal files, and has no per-user document isolation yet.
+
+- `POST /api/knowledge/documents` with JSON `{"title":"My notes","content":"text"}`.
+- `GET /api/knowledge/documents` — list stored document metadata.
+- `GET /api/knowledge/search?q=term` — ranked local keyword excerpts.
+- `DELETE /api/knowledge/documents/{id}` — permanently delete an indexed document.
+- Chat endpoints accept optional `use_knowledge: true`; responses include document source IDs/titles.
+
 ## Configuration
 
 Set environment variables (see `.env.example`):
