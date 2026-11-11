@@ -15,6 +15,8 @@ Browser (HTML/CSS/JS, same origin)
     └── Minimal application status
 ```
 
+Smart Model also exposes an inference-free route-preview API. Conversation search is a bounded SQLite substring query, and JSON exports contain plaintext conversation messages; export does not perform external network requests.
+
 Smart Model is currently an interpretable, deterministic routing policy over installed Qwen/Gemma names. It is not a semantic classifier or benchmark-aware scheduler. User-requested explicit model names are accepted only if Ollama reports them as installed; the manual override can use models outside Qwen/Gemma if deliberately installed and chosen. Automatic routing is restricted to Qwen and Gemma.
 
 **MIPS integration contracts (future)**: GoreeCloud UI for centrally verified tokens and components; Mesh for service integration and events; Identity for users and resource authorization; GoreeShield for privacy policies and retention; Wardveil for cyber defense and sandbox policy. These interfaces have not yet been implemented and must not be presented as operating security controls.

@@ -21,7 +21,8 @@ function message(role,content,model){
 }
 function clearMessages(){byId("conversation").replaceChildren();}
 async function loadChats(){
-  const chats=await api("/api/chats");
+  const term=byId("chat-search").value.trim();
+  const chats=term?await api("/api/chats/search",{method:"POST",body:JSON.stringify({query:term})}):await api("/api/chats");
   byId("chats").replaceChildren();
   for(const chat of chats){
     const button=document.createElement("button");
@@ -32,7 +33,7 @@ async function loadChats(){
 }
 async function openChat(id){
   const chat=await api("/api/chats/"+encodeURIComponent(id));
-  state.chatId=id;clearMessages();
+  state.chatId=id;byId("export-chat").disabled=false;clearMessages();
   for(const item of chat.messages)message(item.role,item.content,item.model);
   await loadChats();
 }
@@ -95,8 +96,24 @@ async function submit(event){
   }catch(e){error(e.message);if(state.chatId){try{await openChat(state.chatId)}catch(_ignore){}}}
   finally{state.busy=false;byId("send").disabled=false;}
 }
+
+async function exportChat(){
+  if(!state.chatId)return;
+  const response=await fetch("/api/chats/"+encodeURIComponent(state.chatId)+"/export",{
+    headers:state.token?{"X-API-Key":state.token}:{}
+  });
+  if(!response.ok)throw new Error("Unable to export conversation");
+  const blob=await response.blob();
+  const link=document.createElement("a"),url=URL.createObjectURL(blob);
+  link.href=url;link.download="goreecloud-ai-chat-"+state.chatId+".json";
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
 async function init(){
   byId("composer").addEventListener("submit",submit);
+  byId("chat-search").addEventListener("input",()=>loadChats().catch(e=>error(e.message)));
+  byId("export-chat").addEventListener("click",()=>exportChat().catch(e=>error(e.message)));
   byId("new-chat").addEventListener("click",()=>newChat().catch(e=>error(e.message)));
   byId("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();byId("composer").requestSubmit();}});
   try{await Promise.all([loadModels(),loadChats()]);}catch(e){error(e.message);}

@@ -62,6 +62,13 @@ The local knowledge API accepts **explicitly submitted text** documents (maximum
 - `DELETE /api/knowledge/documents/{id}` — permanently delete an indexed document.
 - Chat endpoints accept optional `use_knowledge: true`; responses include document source IDs/titles.
 
+## Conversation discovery, export and Smart Model preview
+
+- `POST /api/chats/search` with `{"query":"text"}` searches conversation titles and messages without recording queries in URLs.
+- `GET /api/chats/{id}/export` downloads a versioned, portable JSON snapshot of one conversation; protect its plaintext contents.
+- `POST /api/smart/route` with `{"content":"Write Python code","model":"smart"}` shows the installed-model decision without generating a reply or saving the prompt.
+- The browser interface supports conversation search and a working **Export chat** control.
+
 ## Configuration
 
 Set environment variables (see `.env.example`):

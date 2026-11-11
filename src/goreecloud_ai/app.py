@@ -1,8 +1,9 @@
 """HTTP API and bundled browser client. Localhost by default."""
 from pathlib import Path
+from datetime import datetime, timezone
 import json
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .ollama import OllamaClient, OllamaError
@@ -21,6 +22,15 @@ class ChatMessage(BaseModel):
     model: str = "smart"
     use_knowledge: bool = False
 
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=150)
+
+
+class RoutePreview(BaseModel):
+    content: str = Field(min_length=1, max_length=12000)
+    model: str = "smart"
 
 
 class KnowledgeDocument(BaseModel):
@@ -57,6 +67,21 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
             raise HTTPException(503, str(exc)) from exc
         return {"models": names, "smart_model": "smart", "supported_families": ["qwen", "gemma"]}
 
+
+    @app.post("/api/smart/route", dependencies=[Depends(authenticated)])
+    async def smart_preview(payload: RoutePreview):
+        """Inspect deterministic routing without running inference or saving the prompt."""
+        try:
+            installed = await backend.models()
+            route = select_model(payload.content, installed, payload.model)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except LookupError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except OllamaError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        return {"model": route.model, "mode": route.mode, "reason": route.reason}
+
     @app.get("/api/chats", dependencies=[Depends(authenticated)])
     def chats():
         return store.list_chats()
@@ -65,12 +90,38 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
     def new_chat(payload: NewChat):
         return store.create_chat(payload.title.strip())
 
+
+    @app.post("/api/chats/search", dependencies=[Depends(authenticated)])
+    def search_chats(payload: SearchRequest):
+        return store.search_chats(payload.query.strip())
+
     @app.get("/api/chats/{chat_id}", dependencies=[Depends(authenticated)])
     def get_chat(chat_id: str):
         chat = store.get_chat(chat_id)
         if not chat:
             raise HTTPException(404, "Conversation not found")
         return chat
+
+
+    @app.get("/api/chats/{chat_id}/export", dependencies=[Depends(authenticated)])
+    def export_chat(chat_id: str):
+        chat = store.get_chat(chat_id)
+        if not chat:
+            raise HTTPException(404, "Conversation not found")
+        exported = {
+            "format": "goreecloud-ai-chat",
+            "version": 1,
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "conversation": chat,
+        }
+        return JSONResponse(
+            content=exported,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": 'attachment; filename="goreecloud-ai-chat-' + chat["id"] + '.json"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @app.delete("/api/chats/{chat_id}", dependencies=[Depends(authenticated)])
     def delete_chat(chat_id: str):
