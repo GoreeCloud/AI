@@ -31,6 +31,8 @@ The default Docker Compose configuration is intended for local development only:
 
 Select **Smart Model** for automatic deterministic routing over the models installed in Ollama. Coding requests prefer installed Qwen models with `coder` in the name; reasoning requests prefer Qwen; general conversation prefers Gemma. If the preferred family is unavailable, the router falls back to another installed Qwen/Gemma model. Model selection is transparent in each assistant response. Manual selection is always available. This is a **heuristic baseline**, not proven semantic classification, model benchmarking, automatic capability detection, or multi-agent inference.
 
+The model chooser also supports Fast, Balanced and Quality preference profiles based on *advertised parameter-count labels*, not measured model performance. See [Smart Model profiles](docs/smart-model.md).
+
 ## Features in this baseline
 
 - Local Ollama model discovery (`/api/tags`), chat completions (`/api/chat`) and streaming responses.
@@ -82,6 +84,7 @@ The client prompts for an API token if authentication is enabled and stores it i
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Smart Model profiles](docs/smart-model.md)
 - [Implemented features](docs/implemented-features.md)
 - [Planned features](docs/planned-features.md)
 - [Competitive objectives](docs/competitive-objectives.md)
