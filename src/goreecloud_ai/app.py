@@ -340,13 +340,13 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
         try:
             names = await backend.models()
             route = select_model(payload.content, names, payload.model)
+            messages, sources = await prepare_messages(chat, payload.content, payload.use_knowledge, payload.knowledge_mode, payload.embedding_model, names)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         except LookupError as exc:
             raise HTTPException(503, str(exc)) from exc
         except OllamaError as exc:
             raise HTTPException(502, str(exc)) from exc
-        messages, sources = await prepare_messages(chat, payload.content, payload.use_knowledge, payload.knowledge_mode, payload.embedding_model, names)
 
         async def generate():
             pieces = []

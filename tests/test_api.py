@@ -396,3 +396,24 @@ def test_semantic_index_requires_token(tmp_path):
     assert c.post("/api/knowledge/semantic/search", json={
         "model":"embeddinggemma","query":"abc"
     }).status_code == 401
+
+
+
+def test_semantic_embedding_failure_is_bounded_for_both_chat_paths(tmp_path):
+    class BrokenEmbedding(FakeOllama):
+        async def models(self):
+            return await super().models() + ["embeddinggemma"]
+
+        async def embed(self, model, inputs):
+            raise OllamaError("Embedding backend unavailable")
+
+    c = TestClient(create_app(Settings(database_path=str(tmp_path / "broken-emb.sqlite")), BrokenEmbedding()))
+    chat = c.post("/api/chats", json={}).json()
+    payload = {
+        "content": "Explain project architecture",
+        "use_knowledge": True, "knowledge_mode": "semantic",
+        "embedding_model": "embeddinggemma",
+    }
+    assert c.post("/api/chats/" + chat["id"] + "/messages", json=payload).status_code == 502
+    assert c.post("/api/chats/" + chat["id"] + "/stream", json=payload).status_code == 502
+    assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []
