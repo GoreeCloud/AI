@@ -246,3 +246,68 @@ def test_streaming_reply_limit(tmp_path):
     assert "event: error" in result.text
     assert "event: done" not in result.text
     assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []
+
+
+
+def test_json_export_import_round_trip_uses_new_ids(tmp_path):
+    c, _ = client(tmp_path)
+    chat = c.post("/api/chats", json={"title": "Original research"}).json()
+    c.post("/api/chats/" + chat["id"] + "/messages", json={"content": "Explain Qwen"})
+    data = c.get("/api/chats/" + chat["id"] + "/export").json()
+    result = c.post("/api/chats/import", json=data)
+    assert result.status_code == 201
+    imported = result.json()
+    assert imported["id"] != chat["id"]
+    loaded = c.get("/api/chats/" + imported["id"]).json()
+    assert loaded["title"] == "Original research"
+    assert [item["content"] for item in loaded["messages"]] == [
+        item["content"] for item in data["conversation"]["messages"]
+    ]
+    assert loaded["messages"][0]["id"] != data["conversation"]["messages"][0]["id"]
+    assert c.get("/api/chats/" + chat["id"]).status_code == 200
+
+
+def test_rejects_malformed_import_without_partial_mutation(tmp_path):
+    c, _ = client(tmp_path)
+    envelope = {
+        "format": "goreecloud-ai-chat", "version": 1,
+        "conversation": {"title": "Injected", "messages": [
+            {"role": "assistant", "content": "Wrong first role"}
+        ]},
+    }
+    assert c.post("/api/chats/import", json=envelope).status_code == 422
+    assert c.get("/api/chats").json() == []
+    envelope["conversation"]["messages"] = [
+        {"role": "user", "content": "ok"},
+        {"role": "assistant", "content": "ok"},
+        {"role": "assistant", "content": "extra"},
+        {"role": "user", "content": "invalid"},
+    ]
+    assert c.post("/api/chats/import", json=envelope).status_code == 422
+    assert c.get("/api/chats").json() == []
+
+
+def test_import_version_and_size_limits(tmp_path):
+    c, _ = client(tmp_path)
+    valid = {"format": "goreecloud-ai-chat", "version": 999,
+             "conversation": {"title": "old", "messages": []}}
+    assert c.post("/api/chats/import", json=valid).status_code == 422
+    assert c.post("/api/chats/import", data="x" * 1500001,
+                  headers={"Content-Type": "application/json"}).status_code == 413
+    assert c.get("/api/chats").json() == []
+
+
+def test_import_is_token_protected(tmp_path):
+    c, _ = client(tmp_path, token="test-token-1234567890")
+    payload = {"format": "goreecloud-ai-chat", "version": 1,
+               "conversation": {"title": "safe", "messages": []}}
+    assert c.post("/api/chats/import", json=payload).status_code == 401
+    assert c.post("/api/chats/import", json=payload,
+                  headers={"X-API-Key": "test-token-1234567890"}).status_code == 201
+
+
+def test_import_controls_visible(tmp_path):
+    c, _ = client(tmp_path)
+    assert 'id="import-chat"' in c.get("/").text
+    assert 'id="import-chat-file"' in c.get("/").text
+    assert "async function importChat" in c.get("/assets/app.js").text

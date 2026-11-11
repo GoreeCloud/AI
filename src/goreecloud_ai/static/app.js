@@ -103,6 +103,16 @@ async function submit(event){
   finally{state.busy=false;state.controller=null;byId("send").disabled=false;byId("stop").disabled=true;}
 }
 
+
+async function importChat(file){
+  if(!file)return;
+  if(file.size>1500000)throw new Error("Conversation import is limited to 1.5 MB");
+  const imported=await api("/api/chats/import",{method:"POST",body:await file.text()});
+  await openChat(imported.id);
+  byId("chat-search").value="";
+  await loadChats();
+}
+
 async function exportChat(){
   if(!state.chatId)return;
   const response=await fetch("/api/chats/"+encodeURIComponent(state.chatId)+"/export",{
@@ -188,6 +198,12 @@ async function init(){
   byId("close-knowledge").addEventListener("click",()=>byId("knowledge-dialog").close());
   byId("knowledge-form").addEventListener("submit",saveKnowledge);
   byId("chat-search").addEventListener("input",()=>loadChats().catch(e=>error(e.message)));
+  byId("import-chat").addEventListener("click",()=>byId("import-chat-file").click());
+  byId("import-chat-file").addEventListener("change",async event=>{
+    const file=event.target.files?.[0];
+    try{await importChat(file);error("");}catch(e){error(e.message);}
+    finally{event.target.value="";}
+  });
   byId("export-chat").addEventListener("click",()=>exportChat().catch(e=>error(e.message)));
   byId("new-chat").addEventListener("click",()=>newChat().catch(e=>error(e.message)));
   byId("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();byId("composer").requestSubmit();}});

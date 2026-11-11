@@ -1,11 +1,12 @@
 """HTTP API and bundled browser client. Localhost by default."""
 from pathlib import Path
 from datetime import datetime, timezone
+from typing import Literal
 import json
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from .ollama import OllamaClient, OllamaError
 from .router import select_model
 from .settings import Settings
@@ -36,6 +37,24 @@ class RoutePreview(BaseModel):
 class KnowledgeDocument(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     content: str = Field(min_length=1, max_length=50000)
+
+
+
+class ImportedMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=100000)
+    model: str | None = Field(default=None, max_length=256)
+
+
+class ImportedConversation(BaseModel):
+    title: str = Field(min_length=1, max_length=100)
+    messages: list[ImportedMessage] = Field(default_factory=list, max_length=250)
+
+
+class ImportedChatEnvelope(BaseModel):
+    format: Literal["goreecloud-ai-chat"]
+    version: Literal[1]
+    conversation: ImportedConversation
 
 
 def create_app(settings: Settings | None = None, ollama: OllamaClient | None = None) -> FastAPI:
@@ -90,6 +109,42 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
     def new_chat(payload: NewChat):
         return store.create_chat(payload.title.strip())
 
+
+
+    @app.post("/api/chats/import", status_code=201, dependencies=[Depends(authenticated)])
+    async def import_conversation(request: Request):
+        """Bound JSON export import; all IDs are regenerated to avoid overwrite."""
+        if request.headers.get("content-type", "").split(";", 1)[0].lower() != "application/json":
+            raise HTTPException(415, "A JSON conversation export is required")
+        chunks = []
+        received = 0
+        async for part in request.stream():
+            received += len(part)
+            if received > 1_500_000:
+                raise HTTPException(413, "Conversation export exceeds 1.5 MB")
+            chunks.append(part)
+        try:
+            imported = ImportedChatEnvelope.model_validate_json(b"".join(chunks))
+        except ValidationError as exc:
+            raise HTTPException(422, "Invalid GoreeCloud AI version 1 conversation export") from exc
+        conversation = imported.conversation
+        if not conversation.title.strip():
+            raise HTTPException(422, "Conversation title cannot be blank")
+        messages = conversation.messages
+        if len(messages) % 2:
+            raise HTTPException(422, "A conversation export must contain complete message pairs")
+        for index, item in enumerate(messages):
+            expected = "user" if index % 2 == 0 else "assistant"
+            if item.role != expected:
+                raise HTTPException(422, "Messages must alternate user and assistant roles")
+            if item.role == "user" and (not item.content.strip() or len(item.content) > config.max_message_chars):
+                raise HTTPException(422, "Imported user message exceeds configured limits")
+            if item.role == "assistant" and len(item.content) > config.max_reply_chars:
+                raise HTTPException(422, "Imported assistant message exceeds configured limits")
+        return store.import_chat(
+            conversation.title.strip(),
+            [item.model_dump(include={"role", "content", "model"}) for item in messages],
+        )
 
     @app.post("/api/chats/search", dependencies=[Depends(authenticated)])
     def search_chats(payload: SearchRequest):

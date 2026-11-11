@@ -48,6 +48,20 @@ class Store:
         finally:
             db.close()
 
+
+    def import_chat(self, title: str, messages: list[dict]) -> dict:
+        """Atomically import sanitized text with fresh IDs. Never trust exported IDs."""
+        chat = {"id": str(uuid4()), "title": title, "created_at": utc_now()}
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("INSERT INTO chats (id,title,created_at) VALUES (:id,:title,:created_at)", chat)
+            for msg in messages:
+                db.execute(
+                    "INSERT INTO messages (id,chat_id,role,content,model,created_at) VALUES (?,?,?,?,?,?)",
+                    (str(uuid4()), chat["id"], msg["role"], msg["content"], msg.get("model"), utc_now()),
+                )
+        return chat
+
     def list_chats(self) -> list[dict]:
         with self.connect() as db:
             rows = db.execute("SELECT id,title,created_at FROM chats ORDER BY created_at DESC LIMIT 200").fetchall()

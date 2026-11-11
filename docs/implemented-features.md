@@ -27,3 +27,5 @@
 
 20. Optimistic SQLite conversation write-conflict detection and explicit missing-chat rejection.
 21. Bounded generated response storage, including SSE failure handling; whitespace-only search rejection.
+
+22. Bounded version-1 JSON conversation import with regenerated IDs, complete-message-pair validation and atomic SQLite insertion; browser Import control.
