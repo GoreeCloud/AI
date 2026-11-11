@@ -52,11 +52,23 @@ async function loadModels(){
   ]){const option=document.createElement("option");option.value=value;option.textContent=label;select.append(option);}
 
   for(const name of data.models){const option=document.createElement("option");option.value=name;option.textContent=name;select.append(option);}
+  const embedding=byId("embedding-model");
+  embedding.replaceChildren();
+  const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Choose installed embedding model";embedding.append(placeholder);
+  const names=[...data.models].sort((a,b)=>{
+    const isEmbedding=(name)=>/embed|nomic|mxbai|bge/i.test(name);
+    return Number(isEmbedding(b))-Number(isEmbedding(a))||a.localeCompare(b);
+  });
+  for(const name of names){
+    const option=document.createElement("option");option.value=name;option.textContent=name;embedding.append(option);
+  }
+  const likely=names.find(name=>/embed|nomic|mxbai|bge/i.test(name));
+  if(likely)embedding.value=likely;
 }
 
-async function streamAnswer(path, text, model, useKnowledge, onChunk, signal) {
+async function streamAnswer(path, text, model, useKnowledge, knowledgeMode, embeddingModel, onChunk, signal) {
   const headers={"Content-Type":"application/json",...(state.token?{"X-API-Key":state.token}:{})};
-  const response=await fetch(path,{method:"POST",headers,signal,body:JSON.stringify({content:text,model,use_knowledge:useKnowledge})});
+  const response=await fetch(path,{method:"POST",headers,signal,body:JSON.stringify({content:text,model,use_knowledge:useKnowledge,knowledge_mode:knowledgeMode,embedding_model:embeddingModel})});
   if(!response.ok){let item={};try{item=await response.json()}catch(_e){}throw new Error(typeof item.detail==="string"?item.detail:"Request failed ("+response.status+")");}
   if(!response.body)throw new Error("This browser does not support streaming responses");
   const reader=response.body.getReader(), decoder=new TextDecoder();
@@ -88,12 +100,19 @@ async function streamAnswer(path, text, model, useKnowledge, onChunk, signal) {
 async function submit(event){
   event.preventDefault();if(state.busy)return;
   const text=byId("prompt").value.trim();if(!text)return;
+  const usingKnowledge=byId("use-knowledge").checked;
+  const knowledgeMode=byId("knowledge-mode").value;
+  const embeddingModel=usingKnowledge&&knowledgeMode==="semantic"?byId("embedding-model").value:null;
+  if(usingKnowledge&&knowledgeMode==="semantic"&&!embeddingModel){
+    error("Select an installed embedding model in Knowledge before using semantic chat.");
+    return;
+  }
   state.busy=true;state.controller=new AbortController();byId("send").disabled=true;byId("stop").disabled=false;error("");
   try{
     if(!state.chatId)await newChat();
     message("user",text);
     const output=message("assistant","",null);
-    const result=await streamAnswer("/api/chats/"+encodeURIComponent(state.chatId)+"/stream",text,byId("model").value,byId("use-knowledge").checked,(part)=>{
+    const result=await streamAnswer("/api/chats/"+encodeURIComponent(state.chatId)+"/stream",text,byId("model").value,usingKnowledge,knowledgeMode,embeddingModel,(part)=>{
       output.body.textContent+=part;byId("conversation").scrollTop=byId("conversation").scrollHeight;
     },state.controller.signal);
     output.heading.textContent="AI · "+result.model;byId("prompt").value="";
@@ -145,6 +164,23 @@ function knowledgeError(message){
   element.hidden=!message;
   element.textContent=message||"";
 }
+
+function knowledgeStatus(message){
+  byId("knowledge-status").textContent=message||"";
+}
+function selectedEmbeddingModel(){
+  const model=byId("embedding-model").value;
+  if(!model)throw new Error("Select an installed Ollama embedding model first");
+  return model;
+}
+async function indexDocument(documentId){
+  const model=selectedEmbeddingModel();
+  const data=await api("/api/knowledge/semantic/index",{
+    method:"POST",body:JSON.stringify({document_id:documentId,model})
+  });
+  knowledgeStatus("Indexed "+data.chunks+" chunk(s) with "+data.model+".");
+}
+
 async function loadKnowledge(){
   const list=byId("knowledge-list");
   const documents=await api("/api/knowledge/documents");
@@ -166,7 +202,15 @@ async function loadKnowledge(){
         await loadKnowledge();
       }catch(e){knowledgeError(e.message);}
     };
-    item.append(label,remove);list.append(item);
+    const index=document.createElement("button");index.type="button";index.textContent="Index";
+    index.setAttribute("aria-label","Index document "+doc.title+" for semantic search");
+    index.onclick=async()=>{
+      index.disabled=true;
+      try{knowledgeError("");knowledgeStatus("");await indexDocument(doc.id);}
+      catch(e){knowledgeError(e.message);}
+      finally{index.disabled=false;}
+    };
+    item.append(label,index,remove);list.append(item);
   }
 }
 
@@ -197,7 +241,12 @@ async function searchKnowledge(event){
   if(!query)return;
   try{
     knowledgeError("");
-    const results=await api("/api/knowledge/search",{method:"POST",body:JSON.stringify({query})});
+    const method=byId("knowledge-search-mode").value;
+    const results=method==="semantic"
+      ?await api("/api/knowledge/semantic/search",{
+          method:"POST",body:JSON.stringify({query,model:selectedEmbeddingModel()})
+        })
+      :await api("/api/knowledge/search",{method:"POST",body:JSON.stringify({query})});
     if(!results.length){
       const empty=document.createElement("p");empty.textContent="No matching excerpts.";box.append(empty);
       return;
@@ -238,6 +287,7 @@ async function init(){
   byId("delete-chat").addEventListener("click",()=>deleteChat().catch(e=>error(e.message)));
   byId("manage-knowledge").addEventListener("click",showKnowledge);
   byId("close-knowledge").addEventListener("click",()=>byId("knowledge-dialog").close());
+  byId("use-knowledge").addEventListener("change",()=>{byId("knowledge-mode").disabled=!byId("use-knowledge").checked;});
   byId("knowledge-form").addEventListener("submit",saveKnowledge);
   byId("knowledge-file").addEventListener("change",importKnowledgeFile);
   byId("knowledge-search-form").addEventListener("submit",searchKnowledge);

@@ -36,7 +36,7 @@
       <form id="composer" class="composer">
         <label for="prompt" class="sr-only">Message GoreeCloud AI</label>
         <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question, explore an idea, or write code…" required></textarea>
-        <div class="composer-bottom"><label class="knowledge-toggle"><input type="checkbox" id="use-knowledge"> Use knowledge</label><span id="hint">Smart Model chooses from installed models</span><button type="button" id="stop" disabled>Stop</button><button type="submit" id="send">Send <span aria-hidden="true">↗</span></button></div>
+        <div class="composer-bottom"><label class="knowledge-toggle"><input type="checkbox" id="use-knowledge"> Use knowledge</label><select id="knowledge-mode" aria-label="Knowledge retrieval mode" disabled><option value="keyword">Keyword</option><option value="semantic">Semantic (experimental)</option></select><span id="hint">Smart Model chooses from installed models</span><button type="button" id="stop" disabled>Stop</button><button type="submit" id="send">Send <span aria-hidden="true">↗</span></button></div>
       </form>
       <p class="disclaimer">Local-first AI can make mistakes. Review important answers.</p>
     </main>
@@ -58,10 +58,18 @@
       <label for="knowledge-file">Import a selected local text file (.txt, .md, .csv, .json)</label>
       <input id="knowledge-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json">
       <p>Selected files are handled only as plain text, not executable scripts.</p>
+      <fieldset class="embedding-tools">
+        <legend>Semantic search · experimental</legend>
+        <label for="embedding-model">Installed embedding model</label>
+        <select id="embedding-model" aria-describedby="embedding-help"><option value="">Choose installed embedding model</option></select>
+        <p id="embedding-help">Choose a compatible model already installed in Ollama. Index each document explicitly before semantic search.</p>
+        <div id="knowledge-status" role="status" aria-live="polite"></div>
+      </fieldset>
       <form id="knowledge-search-form">
         <label for="knowledge-search-query">Search saved knowledge</label>
         <div class="knowledge-search-row">
-          <input id="knowledge-search-query" type="search" maxlength="500" placeholder="Find keyword excerpts">
+          <input id="knowledge-search-query" type="search" maxlength="500" placeholder="Find matching excerpts">
+          <select id="knowledge-search-mode" aria-label="Knowledge search method"><option value="keyword">Keyword</option><option value="semantic">Semantic</option></select>
           <button type="submit">Search</button>
         </div>
       </form>

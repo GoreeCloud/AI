@@ -66,7 +66,7 @@ The local knowledge API accepts **explicitly submitted text** documents (maximum
 
 ## Experimental local semantic retrieval
 
-GoreeCloud AI also supports opt-in local document embeddings via Ollama POST /api/embed and SQLite cosine search. The embedding model must already be installed; text is sent only to the configured Ollama server. The default knowledge workflow remains keyword-based. See [Semantic retrieval](docs/semantic-retrieval.md) for explicit indexing, search API and semantic chat parameters; this capability has mock-backed tests, not real-model benchmark evidence.
+GoreeCloud AI also supports opt-in local document embeddings via Ollama POST /api/embed and SQLite cosine search. The embedding model must already be installed; text is sent only to the configured Ollama server. The default knowledge workflow remains keyword-based. The Knowledge dialog now lets users choose an installed embedding model, index documents explicitly, search semantically, and opt in to semantic chat. See [Semantic retrieval](docs/semantic-retrieval.md) for explicit indexing, search API and semantic chat parameters; this capability has mock-backed tests, not real-model benchmark evidence.
 
 ## Conversation discovery, export and Smart Model preview
 
