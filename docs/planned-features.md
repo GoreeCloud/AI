@@ -14,7 +14,7 @@
 - Central GoreeCloud UI components when design tokens are verified
 
 ## Priority 2 — Knowledge and productivity
-- Local embedding models, RAG, document ingestion and source citations
+- Local embedding models, semantic RAG and document parsing beyond current opt-in text/keyword grounding, plus retrieval evaluation
 - Hybrid keyword/vector search and retrieval evaluation
 - Workspaces, project instructions, memory and notes
 - File import/export and conversation search

@@ -19,6 +19,8 @@ Smart Model is currently an interpretable, deterministic routing policy over ins
 
 **MIPS integration contracts (future)**: GoreeCloud UI for centrally verified tokens and components; Mesh for service integration and events; Identity for users and resource authorization; GoreeShield for privacy policies and retention; Wardveil for cyber defense and sandbox policy. These interfaces have not yet been implemented and must not be presented as operating security controls.
 
+Knowledge documents use the same SQLite database but separate tables. Retrieval uses bounded, English-oriented keyword matching and snippets; it is not semantic vector retrieval. Only explicitly submitted text is ingested, and only opted-in conversations receive excerpts as untrusted context.
+
 Data is stored locally under the configured SQLite path. Conversation exchanges are inserted transactionally once Ollama succeeds. Ollama runtime/model state, resumable streaming, multi-user isolation, workflows, RAG, and agents are future milestones. The first stream implementation translates Ollama NDJSON into SSE events and persists only completed exchanges.
 
 The web application is a web deliverable, not a native Linux/Windows/macOS/Android/iOS app. Native clients require separately verified targets and packaging.

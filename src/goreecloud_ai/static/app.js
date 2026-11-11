@@ -47,9 +47,9 @@ async function loadModels(){
   for(const name of data.models){const option=document.createElement("option");option.value=name;option.textContent=name;select.append(option);}
 }
 
-async function streamAnswer(path, text, model, onChunk) {
+async function streamAnswer(path, text, model, useKnowledge, onChunk) {
   const headers={"Content-Type":"application/json",...(state.token?{"X-API-Key":state.token}:{})};
-  const response=await fetch(path,{method:"POST",headers,body:JSON.stringify({content:text,model})});
+  const response=await fetch(path,{method:"POST",headers,body:JSON.stringify({content:text,model,use_knowledge:useKnowledge})});
   if(!response.ok){let item={};try{item=await response.json()}catch(_e){}throw new Error(typeof item.detail==="string"?item.detail:"Request failed ("+response.status+")");}
   if(!response.body)throw new Error("This browser does not support streaming responses");
   const reader=response.body.getReader(), decoder=new TextDecoder();
@@ -86,11 +86,12 @@ async function submit(event){
     if(!state.chatId)await newChat();
     message("user",text);
     const output=message("assistant","",null);
-    const result=await streamAnswer("/api/chats/"+encodeURIComponent(state.chatId)+"/stream",text,byId("model").value,(part)=>{
+    const result=await streamAnswer("/api/chats/"+encodeURIComponent(state.chatId)+"/stream",text,byId("model").value,byId("use-knowledge").checked,(part)=>{
       output.body.textContent+=part;byId("conversation").scrollTop=byId("conversation").scrollHeight;
     });
     output.heading.textContent="AI · "+result.model;byId("prompt").value="";
-    byId("hint").textContent=result.routing.reason;
+    byId("hint").textContent=result.routing.reason+(result.sources&&result.sources.length?" · "+result.sources.map(s=>s.title).join(", "):"");
+    await loadChats();
   }catch(e){error(e.message);if(state.chatId){try{await openChat(state.chatId)}catch(_ignore){}}}
   finally{state.busy=false;byId("send").disabled=false;}
 }

@@ -10,7 +10,9 @@
 - The optional `GOREEAI_API_TOKEN` protects application API endpoints but is a **single shared secret**, not GoreeCloud Identity or true multi-user authorization. It is not a complete internet-facing authentication solution.
 - Browser token storage is session-scoped. The token is not placed in source code. Browser compromise, cross-site scripting, or misconfigured proxying could still expose sessions.
 - The server does not implement CSRF protection, comprehensive rate limits, account-level access controls, or audit-grade logging. Use a trusted same-origin reverse proxy and additional authentication for any multi-user deployment.
-- This baseline does not expose shell, code interpreters, arbitrary HTTP tools, file uploads, agents, or public web-fetch interfaces.
+- This baseline does not expose shell, code interpreters, arbitrary HTTP tools, binary file uploads, agents, or public web-fetch interfaces.
+- Knowledge ingestion accepts bounded text input and stores it in plaintext SQLite. All knowledge documents are currently visible to any holder of the shared API token; multi-user isolation is not implemented.
+- Knowledge grounding is explicit opt-in. Document passages are untrusted; prompt injection mitigations in the model prompt are not a proven security boundary. No agent tools are executed based on document content.
 - SQLite messages are plaintext at rest. Apply operating-system disk encryption, filesystem access controls and encrypted backups if needed. Do not upload private database files into Git.
 - Incomplete or interrupted model response streams are not saved to conversation history; existing messages are preserved.
 - Model outputs are untrusted. The UI uses `textContent` rather than interpreting model-generated HTML.
