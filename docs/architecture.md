@@ -26,3 +26,7 @@ Knowledge documents use the same SQLite database but separate tables. Retrieval 
 Data is stored locally under the configured SQLite path. Conversation exchanges are inserted transactionally once Ollama succeeds. Ollama runtime/model state, resumable streaming, multi-user isolation, workflows, RAG, and agents are future milestones. The first stream implementation translates Ollama NDJSON into SSE events and persists only completed exchanges.
 
 The web application is a web deliverable, not a native Linux/Windows/macOS/Android/iOS app. Native clients require separately verified targets and packaging.
+
+## Semantic index integrity
+
+The optional SQLite semantic index now exposes model-scoped metadata counts, rejects missing-model indexes before embedding query requests, and fails closed on oversized, corrupted or dimension-incompatible embeddings. See [Semantic index integrity](semantic-integrity.md). This is a bounded research feature rather than a production-grade vector store.
