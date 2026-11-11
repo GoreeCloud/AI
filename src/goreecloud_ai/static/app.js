@@ -169,6 +169,48 @@ async function loadKnowledge(){
     item.append(label,remove);list.append(item);
   }
 }
+
+async function importKnowledgeFile(event){
+  const file=event.target.files?.[0];
+  if(!file)return;
+  try{
+    knowledgeError("");
+    const ext=file.name.split(".").pop()?.toLowerCase();
+    if(!["txt","md","csv","json"].includes(ext))throw new Error("Choose a .txt, .md, .csv or .json file");
+    if(file.size>100000)throw new Error("Local file imports are limited to 100 KB");
+    const content=await file.text();
+    if(!content.trim())throw new Error("The selected file is empty");
+    if(content.length>50000)throw new Error("Document text exceeds 50,000 characters");
+    await api("/api/knowledge/documents",{method:"POST",body:JSON.stringify({
+      title:file.name.slice(0,120),content
+    })});
+    await loadKnowledge();
+  }catch(e){knowledgeError(e.message);}
+  finally{event.target.value="";}
+}
+
+async function searchKnowledge(event){
+  event.preventDefault();
+  const box=byId("knowledge-search-results");
+  box.replaceChildren();
+  const query=byId("knowledge-search-query").value.trim();
+  if(!query)return;
+  try{
+    knowledgeError("");
+    const results=await api("/api/knowledge/search",{method:"POST",body:JSON.stringify({query})});
+    if(!results.length){
+      const empty=document.createElement("p");empty.textContent="No matching excerpts.";box.append(empty);
+      return;
+    }
+    for(const result of results){
+      const item=document.createElement("article");item.className="knowledge-result";
+      const title=document.createElement("strong");title.textContent=result.title;
+      const excerpt=document.createElement("p");excerpt.textContent=result.excerpt;
+      item.append(title,excerpt);box.append(item);
+    }
+  }catch(e){knowledgeError(e.message);}
+}
+
 async function showKnowledge(){
   knowledgeError("");
   byId("knowledge-dialog").showModal();
@@ -197,6 +239,8 @@ async function init(){
   byId("manage-knowledge").addEventListener("click",showKnowledge);
   byId("close-knowledge").addEventListener("click",()=>byId("knowledge-dialog").close());
   byId("knowledge-form").addEventListener("submit",saveKnowledge);
+  byId("knowledge-file").addEventListener("change",importKnowledgeFile);
+  byId("knowledge-search-form").addEventListener("submit",searchKnowledge);
   byId("chat-search").addEventListener("input",()=>loadChats().catch(e=>error(e.message)));
   byId("import-chat").addEventListener("click",()=>byId("import-chat-file").click());
   byId("import-chat-file").addEventListener("change",async event=>{
