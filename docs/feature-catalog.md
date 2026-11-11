@@ -28,9 +28,9 @@
 
 ## 4. Document intelligence and retrieval
 
-**Source implemented / CI tested:** Explicitly submitted local text documents, browser-assisted import of bounded .txt/.md/.csv/.json files as inert text, document listing/deletion, bounded keyword search/excerpts (including authenticated POST search), opt-in document context in chat, source ID/title metadata. This is **not semantic RAG**.
+**Source implemented / CI tested:** Explicitly submitted local text documents, browser-assisted import of bounded .txt/.md/.csv/.json files as inert text, document listing/deletion, bounded keyword search/excerpts (including authenticated POST search), opt-in document context in chat, source ID/title metadata. An additional opt-in experimental Ollama embedding index and cosine semantic retrieval API now exists; it has mock-backed CI tests but no real-model quality verification. Keyword retrieval remains the default.
 
-**Planned:** PDF/Word extraction, OCR, document chunking, local embeddings, vector search, hybrid retrieval, BM25, reranking, source-grounded citations, retrieval evaluation, document sync with consent, metadata filtering, full-document context, classification/extraction and multi-document synthesis.
+**Planned:** PDF/Word extraction, OCR, semantic retrieval benchmark evaluation, hybrid retrieval, BM25, reranking, source-grounded citations, retrieval evaluation, document sync with consent, metadata filtering, full-document context, classification/extraction and multi-document synthesis.
 
 ## 5. Agents and workflows
 

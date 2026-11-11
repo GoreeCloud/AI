@@ -12,6 +12,7 @@ from .router import select_model
 from .settings import Settings
 from .store import Store, ConversationConflict
 from .knowledge import KnowledgeStore
+from .semantic import SemanticIndex, chunk_text
 
 
 class NewChat(BaseModel):
@@ -22,6 +23,8 @@ class ChatMessage(BaseModel):
     content: str = Field(min_length=1, max_length=12000)
     model: str = "smart"
     use_knowledge: bool = False
+    knowledge_mode: Literal["keyword", "semantic"] = "keyword"
+    embedding_model: str | None = Field(default=None, max_length=180)
 
 
 
@@ -38,6 +41,17 @@ class KnowledgeDocument(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     content: str = Field(min_length=1, max_length=50000)
 
+
+
+
+class EmbeddingIndexRequest(BaseModel):
+    document_id: str = Field(min_length=1, max_length=100)
+    model: str = Field(min_length=1, max_length=180)
+
+
+class SemanticSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+    model: str = Field(min_length=1, max_length=180)
 
 
 class KnowledgeSearchRequest(BaseModel):
@@ -65,6 +79,7 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
     config = settings or Settings.from_env()
     store = Store(config.database_path)
     knowledge = KnowledgeStore(config.database_path)
+    semantic = SemanticIndex(config.database_path)
     backend = ollama or OllamaClient(config.ollama_url)
     app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -220,8 +235,55 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
             raise HTTPException(422, "Knowledge search query cannot be blank")
         return knowledge.search(query)
 
-    def prepare_messages(chat: dict, prompt: str, use_knowledge: bool) -> tuple[list[dict[str, str]], list[dict]]:
-        sources = knowledge.search(prompt) if use_knowledge else []
+
+    @app.post("/api/knowledge/semantic/index", dependencies=[Depends(authenticated)])
+    async def index_document(payload: EmbeddingIndexRequest):
+        """Explicitly embed one existing local text document; no automatic downloads."""
+        document = knowledge.get_document(payload.document_id)
+        if document is None:
+            raise HTTPException(404, "Knowledge document not found")
+        try:
+            installed = await backend.models()
+            if payload.model not in installed:
+                raise HTTPException(422, "Embedding model is not installed in Ollama")
+            chunks = chunk_text(document["body"])
+            vectors = await backend.embed(payload.model, chunks)
+            indexed = semantic.save(payload.document_id, payload.model, chunks, vectors)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except OllamaError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        return {"document_id": payload.document_id, "model": payload.model, "chunks": indexed}
+
+    @app.post("/api/knowledge/semantic/search", dependencies=[Depends(authenticated)])
+    async def semantic_search(payload: SemanticSearchRequest):
+        if not payload.query.strip():
+            raise HTTPException(422, "Semantic query cannot be blank")
+        try:
+            installed = await backend.models()
+            if payload.model not in installed:
+                raise HTTPException(422, "Embedding model is not installed in Ollama")
+            vectors = await backend.embed(payload.model, [payload.query])
+            return semantic.search(vectors[0], payload.model)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except OllamaError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    async def prepare_messages(
+        chat: dict, prompt: str, use_knowledge: bool,
+        knowledge_mode: str, embedding_model: str | None, installed: list[str],
+    ) -> tuple[list[dict[str, str]], list[dict]]:
+        sources = []
+        if use_knowledge and knowledge_mode == "keyword":
+            sources = knowledge.search(prompt)
+        elif use_knowledge and knowledge_mode == "semantic":
+            if not embedding_model or embedding_model not in installed:
+                raise HTTPException(422, "Choose an installed embedding model for semantic knowledge")
+            query_vectors = await backend.embed(embedding_model, [prompt])
+            sources = semantic.search(query_vectors[0], embedding_model)
         messages = [
             {"role": msg["role"], "content": msg["content"]}
             for msg in chat["messages"][-config.max_history_messages:]
@@ -238,7 +300,7 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
                 "cite relevant passages as [Source 1], [Source 2], etc. "
                 "If the excerpts do not answer the question, say so.\n\n" + excerpts})
         messages.append({"role": "user", "content": prompt})
-        return messages, [{"id": x["id"], "title": x["title"]} for x in sources]
+        return messages, [{"id": x["id"], "title": x["title"], "retrieval": x.get("retrieval", "keyword"), "score": x.get("score")} for x in sources]
 
     @app.post("/api/chats/{chat_id}/messages", dependencies=[Depends(authenticated)])
     async def send(chat_id: str, payload: ChatMessage):
@@ -250,7 +312,7 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
         try:
             names = await backend.models()
             route = select_model(payload.content, names, payload.model)
-            messages, sources = prepare_messages(chat, payload.content, payload.use_knowledge)
+            messages, sources = await prepare_messages(chat, payload.content, payload.use_knowledge, payload.knowledge_mode, payload.embedding_model, names)
             reply = await backend.chat(route.model, messages)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -284,7 +346,7 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
             raise HTTPException(503, str(exc)) from exc
         except OllamaError as exc:
             raise HTTPException(502, str(exc)) from exc
-        messages, sources = prepare_messages(chat, payload.content, payload.use_knowledge)
+        messages, sources = await prepare_messages(chat, payload.content, payload.use_knowledge, payload.knowledge_mode, payload.embedding_model, names)
 
         async def generate():
             pieces = []

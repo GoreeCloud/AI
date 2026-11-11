@@ -40,3 +40,7 @@ Only explicit, versioned GoreeCloud AI JSON conversation exports are accepted. T
 ## Local file and knowledge search boundary
 
 The Knowledge dialog imports only a user-selected, bounded text file. CSV/JSON content is stored as text and not interpreted as executable code. The new POST knowledge-search route keeps queries out of URLs, but legacy GET queries can still appear in access logs. Both features retain the existing single-user/plaintext storage limitations.
+
+## Experimental semantic index and embedding disclosure
+
+Semantic indexing and search are opt-in and require an already installed Ollama embedding model; no model downloads are performed. A selected document is divided into limited chunks and sent to the administrator-configured Ollama endpoint, which can be remote. Embeddings and excerpts are retained in plaintext SQLite; deleting a document cascades its semantic chunks. Vectors are dimension/finite-number checked and saved transactionally. This path has no worker queue, per-user permissions, real-model validation or retrieval-quality guarantees and is not approved for public deployment.

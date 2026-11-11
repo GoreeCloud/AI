@@ -1,0 +1,115 @@
+"""Explicit local semantic retrieval using bounded Ollama embeddings and SQLite.
+
+This is a small-document reference backend, not a production vector database.
+"""
+from contextlib import contextmanager
+import json
+import math
+from pathlib import Path
+import sqlite3
+
+
+def chunk_text(text: str, width: int = 800, overlap: int = 80) -> list[str]:
+    """Bound chunks with deterministic overlap; never silently truncate content."""
+    if not 0 < overlap < width or width > 1600:
+        raise ValueError("Invalid chunk parameters")
+    chunks = [text[i:i + width] for i in range(0, len(text), width - overlap)]
+    chunks = [part for part in chunks if part.strip()]
+    if not chunks or len(chunks) > 80:
+        raise ValueError("Document is empty or exceeds 80 embedding chunks")
+    return chunks
+
+
+def clean_vector(values: list[float]) -> list[float]:
+    if not isinstance(values, list) or not 1 <= len(values) <= 4096:
+        raise ValueError("Embedding vector has invalid dimensions")
+    if any(isinstance(item, bool) or not isinstance(item, (int, float)) for item in values):
+        raise ValueError("Embedding vector contains nonnumeric elements")
+    vector = [float(v) for v in values]
+    if not all(math.isfinite(v) for v in vector) or not any(v != 0 for v in vector):
+        raise ValueError("Embedding vector is not finite and nonzero")
+    return vector
+
+
+def cosine(left: list[float], right: list[float]) -> float | None:
+    if len(left) != len(right):
+        return None
+    norm_left = math.sqrt(sum(v * v for v in left))
+    norm_right = math.sqrt(sum(v * v for v in right))
+    if norm_left == 0 or norm_right == 0:
+        return None
+    return sum(a * b for a, b in zip(left, right)) / (norm_left * norm_right)
+
+
+class SemanticIndex:
+    def __init__(self, database_path: str):
+        self.path = str(Path(database_path).expanduser())
+        with self.connect() as db:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS semantic_chunks (
+                    document_id TEXT NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+                    model TEXT NOT NULL,
+                    chunk_index INTEGER NOT NULL,
+                    excerpt TEXT NOT NULL,
+                    vector_json TEXT NOT NULL,
+                    PRIMARY KEY (document_id, model, chunk_index)
+                )
+            """)
+            db.execute("CREATE INDEX IF NOT EXISTS idx_semantic_model ON semantic_chunks(model)")
+
+    @contextmanager
+    def connect(self):
+        db = sqlite3.connect(self.path, timeout=5)
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA busy_timeout=5000")
+        try:
+            yield db
+            db.commit()
+        finally:
+            db.close()
+
+    def save(self, document_id: str, model: str, chunks: list[str], vectors: list[list[float]]) -> int:
+        if not chunks or len(chunks) > 80 or len(chunks) != len(vectors):
+            raise ValueError("Embedding batch count mismatch")
+        clean = [clean_vector(v) for v in vectors]
+        if len({len(v) for v in clean}) != 1:
+            raise ValueError("Embedding vectors have inconsistent dimensions")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT 1 FROM knowledge_documents WHERE id=?", (document_id,)).fetchone() is None:
+                raise KeyError("Document was deleted before indexing completed")
+            db.execute("DELETE FROM semantic_chunks WHERE document_id=? AND model=?", (document_id, model))
+            for index, (chunk, vector) in enumerate(zip(chunks, clean)):
+                db.execute(
+                    "INSERT INTO semantic_chunks (document_id,model,chunk_index,excerpt,vector_json) VALUES (?,?,?,?,?)",
+                    (document_id, model, index, chunk, json.dumps(vector, separators=(",", ":"))),
+                )
+        return len(chunks)
+
+    def search(self, query_vector: list[float], model: str, limit: int = 3) -> list[dict]:
+        query = clean_vector(query_vector)
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT s.document_id, d.title, s.excerpt, s.vector_json
+                   FROM semantic_chunks AS s
+                   JOIN knowledge_documents AS d ON d.id = s.document_id
+                   WHERE s.model=? LIMIT 4096""",
+                (model,),
+            ).fetchall()
+        best: dict[str, dict] = {}
+        for row in rows:
+            try:
+                score = cosine(query, clean_vector(json.loads(row["vector_json"])))
+            except (ValueError, TypeError):
+                continue
+            if score is None or score <= 0:
+                continue
+            match = {
+                "id": row["document_id"], "title": row["title"],
+                "excerpt": row["excerpt"][:700], "score": round(score, 6),
+                "retrieval": "semantic", "model": model,
+            }
+            if match["id"] not in best or score > best[match["id"]]["score"]:
+                best[match["id"]] = match
+        return sorted(best.values(), key=lambda row: (-row["score"], row["title"], row["id"]))[:max(0, min(limit, 10))]
