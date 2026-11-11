@@ -29,3 +29,12 @@
 #knowledge-search-results{margin:12px 0;max-height:210px;overflow:auto}
 .knowledge-result{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
 .knowledge-result p{font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+
+.embedding-tools{border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0}
+.embedding-tools legend{color:var(--muted);font-size:12px;font-weight:600}
+#embedding-model,#knowledge-search-mode,#knowledge-mode{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;max-width:100%}
+#knowledge-mode:disabled{opacity:.45;cursor:not-allowed}
+#embedding-help{line-height:1.5}
+#knowledge-status{color:#9cdbc5;font-size:12px;line-height:1.4;margin-top:8px}
+#knowledge-search-mode{max-width:120px}
+@media(max-width:580px){.knowledge-search-row{flex-wrap:wrap}.knowledge-search-row input{min-width:100%}#knowledge-mode{max-width:160px}}

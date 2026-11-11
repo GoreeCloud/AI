@@ -18,7 +18,7 @@ One explicit indexing request operates on one local document. There is no automa
 
 POST /api/knowledge/semantic/search with query and model to embed a question and compare it with indexed chunks using cosine similarity. The API returns relevant document titles, excerpts, scores and retrieval method.
 
-For optional grounded chat send use_knowledge=true, knowledge_mode=semantic and embedding_model equal to the indexed Ollama embedding model. Ordinary Use knowledge UI remains keyword-based by default. Semantic search is available through the API; no new in-dialog semantic controls are claimed here.
+For optional grounded chat send use_knowledge=true, knowledge_mode=semantic and embedding_model equal to the indexed Ollama embedding model. Ordinary Use knowledge remains keyword-based by default. In the Knowledge dialog select an installed embedding-capable Ollama model, explicitly index each document using Index, and choose Semantic in the search method. In chat enable Use knowledge and select Semantic (experimental) as the knowledge mode; the same Knowledge-selected embedding model is used. Backend API access remains available. Choosing a model name does not verify that the model actually supports embeddings.
 
 ## Privacy, security, and limits
 

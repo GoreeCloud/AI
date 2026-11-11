@@ -33,3 +33,4 @@
 24. Authenticated body-based POST knowledge-search API and in-dialog excerpt search.
 25. Explicit local Ollama embeddings for one selected document; bounded chunking, SQLite vector storage and cosine retrieval.
 26. Opt-in semantic grounded chat through API with an installed embedding model; real-model retrieval quality remains unverified.
+27. Explicit browser controls for choosing an installed embedding model, indexing selected documents and opt-in semantic search/chat.

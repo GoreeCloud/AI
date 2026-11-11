@@ -417,3 +417,16 @@ def test_semantic_embedding_failure_is_bounded_for_both_chat_paths(tmp_path):
     assert c.post("/api/chats/" + chat["id"] + "/messages", json=payload).status_code == 502
     assert c.post("/api/chats/" + chat["id"] + "/stream", json=payload).status_code == 502
     assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []
+
+
+
+def test_semantic_controls_are_user_visible(tmp_path):
+    c, _ = client(tmp_path)
+    html = c.get("/").text
+    assert 'id="embedding-model"' in html
+    assert 'id="knowledge-search-mode"' in html
+    assert 'id="knowledge-mode"' in html
+    script = c.get("/assets/app.js").text
+    assert "async function indexDocument" in script
+    assert "selectedEmbeddingModel()" in script
+    assert "knowledge_mode:knowledgeMode" in script
