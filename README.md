@@ -73,6 +73,10 @@ The local knowledge API accepts **explicitly submitted text** documents (maximum
 
 Concurrent chat writes are checked against the source conversation revision, and model outputs are bounded to 100,000 characters in the application by default. A stale request returns a conflict rather than silently saving inconsistent history; this does not constitute a global request queue or model-side resource limit.
 
+## JSON conversation import
+
+Use the **Import** button to restore a GoreeCloud AI version-1 conversation export. Imports validate file size and message structure, generate fresh IDs and timestamps, and never overwrite another conversation. See [Conversation portability](docs/conversation-portability.md).
+
 ## Configuration
 
 Set environment variables (see `.env.example`):
@@ -87,6 +91,7 @@ The client prompts for an API token if authentication is enabled and stores it i
 
 - [Architecture](docs/architecture.md)
 - [Smart Model profiles](docs/smart-model.md)
+- [Conversation portability](docs/conversation-portability.md)
 - [Implemented features](docs/implemented-features.md)
 - [Planned features](docs/planned-features.md)
 - [Competitive objectives](docs/competitive-objectives.md)

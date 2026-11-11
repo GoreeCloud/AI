@@ -19,3 +19,5 @@
 .knowledge-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:10px 0;font-size:13px}
 .knowledge-item span{overflow-wrap:anywhere}
 @media(max-width:720px){.toolbar{flex-wrap:wrap}.header-actions{margin-left:auto}.header-actions button{font-size:11px;padding:7px}}
+
+#import-chat-file.sr-only{position:absolute;width:1px;height:1px;padding:0;opacity:0;pointer-events:none}

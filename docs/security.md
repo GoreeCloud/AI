@@ -32,3 +32,7 @@ Every implementation change should be introduced through a reviewed branch. SQLi
 ## Concurrent requests and resource bounds
 
 Chat writes now use a SQLite immediate transaction and compare the current message count to the history snapshot that inference used. A stale or deleted conversation refuses the late result instead of appending an out-of-context exchange (HTTP 409 for nonstreaming, SSE `error` for streaming). This is a storage consistency guard, not a per-user lock, tool sandbox, or distributed inference scheduler. Model replies have a configurable application limit of 100,000 characters by default; the streaming path discards excess generated output instead of persisting it. This does **not** cap provider-side generation, model memory use, or all request/body sizes. Empty whitespace search queries are rejected.
+
+## User-supplied JSON conversation imports
+
+Only explicit, versioned GoreeCloud AI JSON conversation exports are accepted. The import route reads the request stream with a strict 1.5 MB limit, validates message roles/pair structure, creates new UUIDs and timestamps, and commits atomically. It does not interpret Markdown/HTML, open archive files, follow URLs, run tools, or overwrite original conversation IDs. Imports are limited to the local single-user authentication boundary; they are not proof that imported text or model labels are trustworthy.
