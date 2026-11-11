@@ -40,7 +40,7 @@ def cosine(left: list[float], right: list[float]) -> float | None:
     norm_right = math.hypot(*right)
     if not math.isfinite(norm_left) or not math.isfinite(norm_right) or norm_left == 0 or norm_right == 0:
         return None
-    return sum(a * b for a, b in zip(left, right)) / (norm_left * norm_right)
+    return math.fsum((a / norm_left) * (b / norm_right) for a, b in zip(left, right))
 
 
 class SemanticIndex:
