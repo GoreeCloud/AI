@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12141b">
+  <title>GoreeCloud AI</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Conversations">
+      <div class="brand"><span class="mark" aria-hidden="true">G</span><span>GoreeCloud <strong>AI</strong></span></div>
+      <button id="new-chat" type="button" class="new">+ New conversation</button>
+      <h2>Conversations</h2>
+      <nav id="chats" aria-label="Conversation list"></nav>
+      <div class="side-foot"><span id="health-dot" class="health-dot" aria-hidden="true"></span><span id="health">Checking Ollama…</span></div>
+    </aside>
+    <main class="main">
+      <header class="toolbar">
+        <div><div class="eyebrow">LOCAL INTELLIGENCE</div><h1>GoreeCloud AI</h1></div>
+        <label class="model"><span>Model</span><select id="model"><option value="smart">Smart Model</option></select></label>
+      </header>
+      <section id="conversation" class="conversation" aria-label="Messages" aria-live="polite">
+        <div class="welcome"><span class="welcome-icon">✦</span><h2>What would you like to explore?</h2><p>Private, local-first AI powered by Ollama, Qwen and Gemma.</p></div>
+      </section>
+      <div id="error" class="error" role="alert" hidden></div>
+      <form id="composer" class="composer">
+        <label for="prompt" class="sr-only">Message GoreeCloud AI</label>
+        <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question, explore an idea, or write code…" required></textarea>
+        <div class="composer-bottom"><span id="hint">Smart Model chooses from installed models</span><button type="submit" id="send">Send <span aria-hidden="true">↗</span></button></div>
+      </form>
+      <p class="disclaimer">Local-first AI can make mistakes. Review important answers.</p>
+    </main>
+  </div>
+</body>
+</html>
