@@ -30,7 +30,7 @@
 
 **Source implemented / CI tested:** Explicitly submitted local text documents, browser-assisted import of bounded .txt/.md/.csv/.json files as inert text, document listing/deletion, bounded keyword search/excerpts (including authenticated POST search), opt-in document context in chat, source ID/title metadata. An additional opt-in experimental Ollama embedding index and cosine semantic retrieval API now exists; it has mock-backed CI tests but no real-model quality verification. Keyword retrieval remains the default.
 
-**Planned:** PDF/Word extraction, OCR, semantic retrieval benchmark evaluation, hybrid retrieval, BM25, reranking, source-grounded citations, retrieval evaluation, document sync with consent, metadata filtering, full-document context, classification/extraction and multi-document synthesis.
+**Planned:** PDF/Word extraction, OCR, real-world semantic retrieval benchmarking, hybrid retrieval, BM25, reranking, source-grounded citations, retrieval evaluation, document sync with consent, metadata filtering, full-document context, classification/extraction and multi-document synthesis.
 
 ## 5. Agents and workflows
 
@@ -102,7 +102,9 @@
 
 ## 18. Analytics, observability and evaluation
 
-**Planned:** Token usage, latency/throughput measurements, real-model benchmarking, response quality evaluations, routing statistics, operational dashboards, metrics/logging/tracing, error analysis and privacy-limited diagnostics.
+**Source implemented / CI tested:** Local offline evaluator for judged retrieval rankings, computing Hit@K, Precision@K, Recall@K, MRR@K, MAP@K and nDCG@K from bounded JSON fixtures. Its included fixture is synthetic and does not prove real-model quality.
+
+**Planned:** Real Ollama retrieval corpus evaluation, token usage, latency/throughput measurements, real-model benchmarking, response quality evaluations, routing statistics, operational dashboards, metrics/logging/tracing, error analysis and privacy-limited diagnostics.
 
 ## 19. Packaging, deployment and durability
 
@@ -118,6 +120,6 @@ Always distinguish: vision → planned → implemented source → CI tested → 
 
 ## Evidence and next milestones
 
-See [Implemented Features](implemented-features.md), [Planned Features](planned-features.md), [Architecture](architecture.md), [Security](security.md), [Smart Model](smart-model.md) and [Conversation Portability](conversation-portability.md).
+See [Implemented Features](implemented-features.md), [Planned Features](planned-features.md), [Architecture](architecture.md), [Security](security.md), [Smart Model](smart-model.md), [Conversation Portability](conversation-portability.md), and [Offline Retrieval Evaluation](retrieval-evaluation.md).
 
 Priority engineering milestones: (1) real-model/local-host tests and recovery, (2) GoreeCloud Identity/GoreeShield/Wardveil integration gates, (3) evaluated local semantic RAG, (4) scoped workspaces and agent tool permissions, (5) native clients and production acceptance checks.
