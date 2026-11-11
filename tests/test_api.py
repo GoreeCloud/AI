@@ -192,3 +192,57 @@ def test_controls_are_in_browser(tmp_path):
     script = c.get("/assets/app.js").text
     assert "function saveKnowledge" in script
     assert "new AbortController()" in script
+
+
+
+def test_whitespace_search_rejected(tmp_path):
+    c, _ = client(tmp_path)
+    c.post("/api/chats", json={"title": "private"})
+    assert c.post("/api/chats/search", json={"query": "   "}).status_code == 422
+
+
+def test_stale_chat_write_is_rejected_atomically(tmp_path):
+    import pytest
+    from goreecloud_ai.store import Store, ConversationConflict
+    store = Store(str(tmp_path / "concurrent.sqlite"))
+    chat = store.create_chat("New conversation")
+    store.add_exchange(chat["id"], "first", "answer", "gemma3:4b", expected_count=0)
+    with pytest.raises(ConversationConflict):
+        store.add_exchange(chat["id"], "stale", "second", "gemma3:4b", expected_count=0)
+    saved = store.get_chat(chat["id"])
+    assert len(saved["messages"]) == 2
+    assert saved["title"] == "first"
+
+
+def test_deleted_chat_cannot_be_recreated_by_late_result(tmp_path):
+    import pytest
+    from goreecloud_ai.store import Store, ConversationConflict
+    store = Store(str(tmp_path / "deleted.sqlite"))
+    chat = store.create_chat("New conversation")
+    assert store.delete_chat(chat["id"])
+    with pytest.raises(ConversationConflict):
+        store.add_exchange(chat["id"], "late", "should not save", "gemma3:4b", expected_count=0)
+    assert store.get_chat(chat["id"]) is None
+
+
+def test_nonstreaming_reply_limit(tmp_path):
+    class HugeReply(FakeOllama):
+        async def chat(self, model, messages):
+            return "x" * 11
+    c = TestClient(create_app(Settings(database_path=str(tmp_path / "limit.sqlite"), max_reply_chars=10), HugeReply()))
+    chat = c.post("/api/chats", json={}).json()
+    assert c.post("/api/chats/" + chat["id"] + "/messages", json={"content": "hello"}).status_code == 502
+    assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []
+
+
+def test_streaming_reply_limit(tmp_path):
+    class HugeStream(FakeOllama):
+        async def stream_chat(self, model, messages):
+            yield "123456789"
+            yield "too long"
+    c = TestClient(create_app(Settings(database_path=str(tmp_path / "stream-limit.sqlite"), max_reply_chars=10), HugeStream()))
+    chat = c.post("/api/chats", json={}).json()
+    result = c.post("/api/chats/" + chat["id"] + "/stream", json={"content": "hello"})
+    assert "event: error" in result.text
+    assert "event: done" not in result.text
+    assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []

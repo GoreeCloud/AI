@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from .ollama import OllamaClient, OllamaError
 from .router import select_model
 from .settings import Settings
-from .store import Store
+from .store import Store, ConversationConflict
 from .knowledge import KnowledgeStore
 
 
@@ -93,7 +93,10 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
 
     @app.post("/api/chats/search", dependencies=[Depends(authenticated)])
     def search_chats(payload: SearchRequest):
-        return store.search_chats(payload.query.strip())
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(422, "Search query cannot be blank")
+        return store.search_chats(query)
 
     @app.get("/api/chats/{chat_id}", dependencies=[Depends(authenticated)])
     def get_chat(chat_id: str):
@@ -188,7 +191,12 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
             raise HTTPException(503, str(exc)) from exc
         except OllamaError as exc:
             raise HTTPException(502, str(exc)) from exc
-        store.add_exchange(chat_id, payload.content, reply, route.model)
+        if len(reply) > config.max_reply_chars:
+            raise HTTPException(502, "Model response exceeded the configured output limit")
+        try:
+            store.add_exchange(chat_id, payload.content, reply, route.model, expected_count=len(chat["messages"]))
+        except ConversationConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
         return {"message": {"role": "assistant", "content": reply, "model": route.model}, "routing": {"mode": route.mode, "reason": route.reason}, "sources": sources}
 
 
@@ -213,15 +221,22 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
 
         async def generate():
             pieces = []
+            reply_chars = 0
             try:
                 async for part in backend.stream_chat(route.model, messages):
+                    reply_chars += len(part)
+                    if reply_chars > config.max_reply_chars:
+                        raise OllamaError("Model response exceeded the configured output limit")
                     pieces.append(part)
                     yield "event: chunk\ndata: " + json.dumps({"content": part}) + "\n\n"
-                store.add_exchange(chat_id, payload.content, "".join(pieces), route.model)
+                store.add_exchange(
+                    chat_id, payload.content, "".join(pieces), route.model,
+                    expected_count=len(chat["messages"]),
+                )
                 yield "event: done\ndata: " + json.dumps({
                     "model": route.model, "routing": {"mode": route.mode, "reason": route.reason}, "sources": sources
                 }) + "\n\n"
-            except OllamaError as exc:
+            except (OllamaError, ConversationConflict) as exc:
                 yield "event: error\ndata: " + json.dumps({"detail": str(exc)}) + "\n\n"
 
         return StreamingResponse(generate(), media_type="text/event-stream",
