@@ -407,7 +407,13 @@ def test_semantic_embedding_failure_is_bounded_for_both_chat_paths(tmp_path):
         async def embed(self, model, inputs):
             raise OllamaError("Embedding backend unavailable")
 
-    c = TestClient(create_app(Settings(database_path=str(tmp_path / "broken-emb.sqlite")), BrokenEmbedding()))
+    from goreecloud_ai.knowledge import KnowledgeStore
+    from goreecloud_ai.semantic import SemanticIndex
+    path = str(tmp_path / "broken-emb.sqlite")
+    c = TestClient(create_app(Settings(database_path=path), BrokenEmbedding()))
+    # Seed a valid index so the request reaches the simulated upstream failure.
+    source = KnowledgeStore(path).add("Reference", "Project architecture reference")
+    SemanticIndex(path).save(source["id"], "embeddinggemma", ["Project architecture"], [[1.0, 0.0]])
     chat = c.post("/api/chats", json={}).json()
     payload = {
         "content": "Explain project architecture",
