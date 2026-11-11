@@ -28,3 +28,7 @@ Before any public or multi-user deployment: implement GoreeCloud Identity, scope
 ## Rollback
 
 Every implementation change should be introduced through a reviewed branch. SQLite backups should be taken before migrations; the initial schema is created if missing, without destructive migration. Restore previous application version and verified database backup for rollback. No production deployment was performed by creation of this repository.
+
+## Concurrent requests and resource bounds
+
+Chat writes now use a SQLite immediate transaction and compare the current message count to the history snapshot that inference used. A stale or deleted conversation refuses the late result instead of appending an out-of-context exchange (HTTP 409 for nonstreaming, SSE `error` for streaming). This is a storage consistency guard, not a per-user lock, tool sandbox, or distributed inference scheduler. Model replies have a configurable application limit of 100,000 characters by default; the streaming path discards excess generated output instead of persisting it. This does **not** cap provider-side generation, model memory use, or all request/body sizes. Empty whitespace search queries are rejected.

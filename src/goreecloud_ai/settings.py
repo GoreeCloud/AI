@@ -11,12 +11,13 @@ class Settings:
     api_token: str | None = None
     max_message_chars: int = 12000
     max_history_messages: int = 30
+    max_reply_chars: int = 100000
 
     def __post_init__(self) -> None:
         p = urlsplit(self.ollama_url)
         if p.scheme not in ("http", "https") or not p.hostname or p.username or p.password or p.query or p.fragment or p.path not in ("", "/"):
             raise ValueError("Ollama URL must be a bare http(s) origin without credentials, path, or query")
-        if self.max_message_chars < 1 or self.max_history_messages < 1:
+        if self.max_message_chars < 1 or self.max_history_messages < 1 or self.max_reply_chars < 1:
             raise ValueError("Message limits must be positive")
         if self.api_token is not None and len(self.api_token) < 16:
             raise ValueError("Configured API token must contain at least 16 characters")

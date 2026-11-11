@@ -10,6 +10,10 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class ConversationConflict(Exception):
+    """The chat changed or was deleted while inference was running."""
+
+
 class Store:
     def __init__(self, path: str):
         self.path = str(Path(path).expanduser())
@@ -86,9 +90,16 @@ class Store:
             result = db.execute("DELETE FROM chats WHERE id=?", (chat_id,))
             return result.rowcount > 0
 
-    def add_exchange(self, chat_id: str, user_text: str, assistant_text: str, model: str) -> None:
+    def add_exchange(self, chat_id: str, user_text: str, assistant_text: str, model: str, expected_count: int | None = None) -> None:
         now = utc_now()
         with self.connect() as db:
+            # Serialize writers across processes and reject stale conversation snapshots.
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT 1 FROM chats WHERE id=?", (chat_id,)).fetchone() is None:
+                raise ConversationConflict("Conversation was deleted during generation")
+            count = db.execute("SELECT COUNT(*) FROM messages WHERE chat_id=?", (chat_id,)).fetchone()[0]
+            if expected_count is not None and count != expected_count:
+                raise ConversationConflict("Conversation changed during generation")
             db.execute("UPDATE chats SET title=? WHERE id=? AND title='New conversation'", (user_text[:72], chat_id))
             db.execute(
                 "INSERT INTO messages (id,chat_id,role,content,model,created_at) VALUES (?,?,?,?,?,?)",
