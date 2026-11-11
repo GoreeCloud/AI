@@ -74,6 +74,7 @@ class Store:
     def add_exchange(self, chat_id: str, user_text: str, assistant_text: str, model: str) -> None:
         now = utc_now()
         with self.connect() as db:
+            db.execute("UPDATE chats SET title=? WHERE id=? AND title='New conversation'", (user_text[:72], chat_id))
             db.execute(
                 "INSERT INTO messages (id,chat_id,role,content,model,created_at) VALUES (?,?,?,?,?,?)",
                 (str(uuid4()), chat_id, "user", user_text, None, now),

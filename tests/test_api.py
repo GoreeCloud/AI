@@ -87,3 +87,10 @@ def test_browser_assets_are_served(tmp_path):
     c, _ = client(tmp_path)
     assert "GoreeCloud AI" in c.get("/").text
     assert "streamAnswer" in c.get("/assets/app.js").text
+
+
+def test_first_message_updates_new_conversation_title(tmp_path):
+    c, _ = client(tmp_path)
+    chat = c.post("/api/chats", json={}).json()
+    c.post("/api/chats/" + chat["id"] + "/messages", json={"content": "Explain Smart Model"})
+    assert c.get("/api/chats/" + chat["id"]).json()["title"] == "Explain Smart Model"

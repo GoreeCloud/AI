@@ -21,6 +21,12 @@ GoreeCloud AI is a new, independently written foundation for GoreeCloud's privat
 
 Run `pytest -q` for the API/router tests. The tests use a fake Ollama backend and require no model downloads.
 
+## Docker Compose (self-contained local services)
+
+Run `docker compose up -d --build` to start GoreeCloud AI and Ollama on a private Compose network. Then install a model inside the Ollama service, e.g. `docker compose exec ollama ollama pull gemma3:4b` or `docker compose exec ollama ollama pull qwen3:8b`. Open `http://127.0.0.1:8765`.
+
+The default Docker Compose configuration is intended for local development only: it does not expose Ollama directly, and the UI port is loopback-bound. It uses the official moving `ollama/ollama:latest` container image; review and pin a trusted digest before reproducible or sensitive deployments. CPU-only inference can be slow, and GPU passthrough is deployment-specific. Ollama and Qwen/Gemma model files are downloaded only after the operator explicitly runs the commands.
+
 ## Smart Model
 
 Select **Smart Model** for automatic deterministic routing over the models installed in Ollama. Coding requests prefer installed Qwen models with `coder` in the name; reasoning requests prefer Qwen; general conversation prefers Gemma. If the preferred family is unavailable, the router falls back to another installed Qwen/Gemma model. Model selection is transparent in each assistant response. Manual selection is always available. This is a **heuristic baseline**, not proven semantic classification, model benchmarking, automatic capability detection, or multi-agent inference.
@@ -29,7 +35,7 @@ Select **Smart Model** for automatic deterministic routing over the models insta
 
 - Local Ollama model discovery (`/api/tags`), chat completions (`/api/chat`) and streaming responses.
 - Qwen and Gemma Smart Model routing with manual override and safe fallback.
-- Persistent SQLite conversation creation/list/detail/delete and two-message exchanges.
+- Persistent SQLite conversation creation/list/detail/delete with automatic first-message titles and two-message exchanges.
 - Minimal responsive streaming web client with safe text rendering, a model selector and Ollama connectivity indicator.
 - Optional shared API token for `/api/*` endpoints (except health).
 - Loopback-bound development server and loopback port in the included Compose example.

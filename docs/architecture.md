@@ -2,7 +2,7 @@
 
 **Status:** initial implementation, development preview, November 10, 2026.
 
-The first implementation uses a Python FastAPI application, SQLite, static browser UI, and the Ollama HTTP API. No external SaaS or model download is performed by the service. Model requests are directed to the configured Ollama origin only.
+The first implementation uses a Python FastAPI application, SQLite, static browser UI, and the Ollama HTTP API. The Compose template includes a separate Ollama service on the private Compose network. No external SaaS or model download is performed by the service. Model requests are directed to the configured Ollama origin only.
 
 ```text
 Browser (HTML/CSS/JS, same origin)

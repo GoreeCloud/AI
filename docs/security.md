@@ -4,7 +4,8 @@
 
 ## Boundary and known limitations
 
-- Default local server binds to 127.0.0.1. Docker Compose publishes only 127.0.0.1:8765. Do not directly expose it on the public internet.
+- Default local server binds to 127.0.0.1. Docker Compose publishes only 127.0.0.1:8765 and keeps Ollama on a private container network. Do not directly expose the app on the public internet.
+- The Compose example uses `ollama/ollama:latest`. An operator must assess and pin a trusted image digest for reproducible deployments; installing unfamiliar images/models on sensitive hosts requires separate review.
 - The configured Ollama origin is an administrator-controlled environment variable, not accepted from chat requests. Treat endpoint changes as a privileged operation.
 - The optional `GOREEAI_API_TOKEN` protects application API endpoints but is a **single shared secret**, not GoreeCloud Identity or true multi-user authorization. It is not a complete internet-facing authentication solution.
 - Browser token storage is session-scoped. The token is not placed in source code. Browser compromise, cross-site scripting, or misconfigured proxying could still expose sessions.
