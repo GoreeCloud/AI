@@ -21,3 +21,11 @@
 @media(max-width:720px){.toolbar{flex-wrap:wrap}.header-actions{margin-left:auto}.header-actions button{font-size:11px;padding:7px}}
 
 #import-chat-file.sr-only{position:absolute;width:1px;height:1px;padding:0;opacity:0;pointer-events:none}
+
+.knowledge-extra{margin-top:20px;border-top:1px solid var(--line);padding-top:10px}
+#knowledge-file{font-size:13px;padding:10px;margin-bottom:6px;max-width:100%}
+.knowledge-search-row{display:flex;gap:8px}
+.knowledge-search-row input{flex:1;min-width:0}
+#knowledge-search-results{margin:12px 0;max-height:210px;overflow:auto}
+.knowledge-result{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.knowledge-result p{font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
