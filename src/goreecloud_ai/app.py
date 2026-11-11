@@ -236,6 +236,10 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
         return knowledge.search(query)
 
 
+    @app.get("/api/knowledge/semantic/status", dependencies=[Depends(authenticated)])
+    def semantic_status():
+        return semantic.status()
+
     @app.post("/api/knowledge/semantic/index", dependencies=[Depends(authenticated)])
     async def index_document(payload: EmbeddingIndexRequest):
         """Explicitly embed one existing local text document; no automatic downloads."""
@@ -265,6 +269,8 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
             installed = await backend.models()
             if payload.model not in installed:
                 raise HTTPException(422, "Embedding model is not installed in Ollama")
+            if not semantic.indexed_count(payload.model):
+                raise HTTPException(409, "Index a document with this embedding model before searching")
             vectors = await backend.embed(payload.model, [payload.query])
             return semantic.search(vectors[0], payload.model)
         except ValueError as exc:
@@ -282,6 +288,8 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
         elif use_knowledge and knowledge_mode == "semantic":
             if not embedding_model or embedding_model not in installed:
                 raise HTTPException(422, "Choose an installed embedding model for semantic knowledge")
+            if not semantic.indexed_count(embedding_model):
+                raise HTTPException(409, "Index a document with this embedding model before chatting")
             query_vectors = await backend.embed(embedding_model, [prompt])
             sources = semantic.search(query_vectors[0], embedding_model)
         messages = [
