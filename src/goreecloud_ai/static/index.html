@@ -54,6 +54,19 @@
       <textarea id="knowledge-content" required maxlength="50000" rows="5" placeholder="Paste text to save locally."></textarea>
       <button type="submit" id="knowledge-save">Save document</button>
     </form>
+    <div class="knowledge-extra">
+      <label for="knowledge-file">Import a selected local text file (.txt, .md, .csv, .json)</label>
+      <input id="knowledge-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json">
+      <p>Selected files are handled only as plain text, not executable scripts.</p>
+      <form id="knowledge-search-form">
+        <label for="knowledge-search-query">Search saved knowledge</label>
+        <div class="knowledge-search-row">
+          <input id="knowledge-search-query" type="search" maxlength="500" placeholder="Find keyword excerpts">
+          <button type="submit">Search</button>
+        </div>
+      </form>
+      <div id="knowledge-search-results" aria-live="polite"></div>
+    </div>
     <div id="knowledge-error" role="alert" hidden></div>
     <h3>Saved documents</h3>
     <div id="knowledge-list" aria-live="polite"></div>

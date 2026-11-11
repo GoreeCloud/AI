@@ -56,7 +56,7 @@ The model chooser also supports Fast, Balanced and Quality preference profiles b
 
 ## Local knowledge (keyword-based preview)
 
-The local knowledge API accepts **explicitly submitted text** documents (maximum 50,000 characters), indexes them in SQLite, and searches relevant excerpts by keywords. Use the `use_knowledge` checkbox in the composer to include matching passages in a chat request. The model is instructed to treat excerpts as untrusted evidence and cite their source labels, but no prompt can guarantee compliance. This is *not semantic vector RAG*, does not crawl the web or automatically import personal files, and has no per-user document isolation yet.
+The local knowledge API accepts **explicitly submitted text** documents (maximum 50,000 characters), indexes them in SQLite, and searches relevant excerpts by keywords. Use the `use_knowledge` checkbox in the composer to include matching passages in a chat request. The model is instructed to treat excerpts as untrusted evidence and cite their source labels, but no prompt can guarantee compliance. This is *not semantic vector RAG*, does not crawl the web or automatically scan personal files, and has no per-user document isolation yet. The Knowledge dialog supports explicitly selected .txt/.md/.csv/.json text files and authenticated keyword search; see [Local knowledge workflows](docs/knowledge-workflows.md).
 
 - `POST /api/knowledge/documents` with JSON `{"title":"My notes","content":"text"}`.
 - `GET /api/knowledge/documents` — list stored document metadata.
@@ -90,8 +90,10 @@ The client prompts for an API token if authentication is enabled and stores it i
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Complete feature catalog](docs/feature-catalog.md)
 - [Smart Model profiles](docs/smart-model.md)
 - [Conversation portability](docs/conversation-portability.md)
+- [Local knowledge workflows](docs/knowledge-workflows.md)
 - [Implemented features](docs/implemented-features.md)
 - [Planned features](docs/planned-features.md)
 - [Competitive objectives](docs/competitive-objectives.md)

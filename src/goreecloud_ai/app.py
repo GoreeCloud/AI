@@ -40,6 +40,10 @@ class KnowledgeDocument(BaseModel):
 
 
 
+class KnowledgeSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+
+
 class ImportedMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(max_length=100000)
@@ -207,6 +211,14 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
         if not q.strip() or len(q) > 500:
             raise HTTPException(422, "Provide a search query containing 1 to 500 characters")
         return knowledge.search(q)
+
+
+    @app.post("/api/knowledge/search", dependencies=[Depends(authenticated)])
+    def search_knowledge_private(payload: KnowledgeSearchRequest):
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(422, "Knowledge search query cannot be blank")
+        return knowledge.search(query)
 
     def prepare_messages(chat: dict, prompt: str, use_knowledge: bool) -> tuple[list[dict[str, str]], list[dict]]:
         sources = knowledge.search(prompt) if use_knowledge else []

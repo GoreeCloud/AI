@@ -311,3 +311,31 @@ def test_import_controls_visible(tmp_path):
     assert 'id="import-chat"' in c.get("/").text
     assert 'id="import-chat-file"' in c.get("/").text
     assert "async function importChat" in c.get("/assets/app.js").text
+
+
+
+def test_knowledge_private_search_post(tmp_path):
+    c, _ = client(tmp_path)
+    document = c.post("/api/knowledge/documents", json={
+        "title": "Notes", "content": "Ollama Qwen inference runs locally."
+    }).json()
+    result = c.post("/api/knowledge/search", json={"query": "qwen"})
+    assert result.status_code == 200
+    assert result.json()[0]["id"] == document["id"]
+    assert c.post("/api/knowledge/search", json={"query": "  "}).status_code == 422
+    assert c.post("/api/knowledge/search", json={"query": "x"*501}).status_code == 422
+
+
+def test_knowledge_private_search_requires_token(tmp_path):
+    c, _ = client(tmp_path, token="test-token-1234567890")
+    assert c.post("/api/knowledge/search", json={"query": "secret"}).status_code == 401
+
+
+def test_knowledge_explicit_file_controls_exist(tmp_path):
+    c, _ = client(tmp_path)
+    assert 'id="knowledge-file"' in c.get("/").text
+    assert 'id="knowledge-search-form"' in c.get("/").text
+    script = c.get("/assets/app.js").text
+    assert "async function importKnowledgeFile" in script
+    assert "await file.text()" in script
+    assert '"/api/knowledge/search"' in script

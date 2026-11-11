@@ -36,3 +36,7 @@ Chat writes now use a SQLite immediate transaction and compare the current messa
 ## User-supplied JSON conversation imports
 
 Only explicit, versioned GoreeCloud AI JSON conversation exports are accepted. The import route reads the request stream with a strict 1.5 MB limit, validates message roles/pair structure, creates new UUIDs and timestamps, and commits atomically. It does not interpret Markdown/HTML, open archive files, follow URLs, run tools, or overwrite original conversation IDs. Imports are limited to the local single-user authentication boundary; they are not proof that imported text or model labels are trustworthy.
+
+## Local file and knowledge search boundary
+
+The Knowledge dialog imports only a user-selected, bounded text file. CSV/JSON content is stored as text and not interpreted as executable code. The new POST knowledge-search route keeps queries out of URLs, but legacy GET queries can still appear in access logs. Both features retain the existing single-user/plaintext storage limitations.
