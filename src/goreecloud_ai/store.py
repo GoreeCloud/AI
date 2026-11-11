@@ -29,8 +29,8 @@ class Store:
                     model TEXT,
                     created_at TEXT NOT NULL
                 );
-                CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at, rowid);
-            """.replace(", rowid", ""))
+                CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at);
+            """)
 
     @contextmanager
     def connect(self):

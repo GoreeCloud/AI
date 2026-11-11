@@ -14,44 +14,45 @@ GoreeCloud AI is a new, independently written foundation for GoreeCloud's privat
 ## Quick start
 
 1. Install and start [Ollama](https://ollama.com).
-2. Download a compatible model with Ollama, e.g. \`ollama pull gemma3:4b\` or \`ollama pull qwen3:8b\` (check local RAM and Ollama's available catalog).
-3. In a virtual environment, run \`python -m pip install -e ".[test]"\`.
-4. Run \`uvicorn goreecloud_ai.app:app --host 127.0.0.1 --port 8765\`.
-5. Visit \`http://127.0.0.1:8765\`.
+2. Download a compatible model with Ollama, e.g. `ollama pull gemma3:4b` or `ollama pull qwen3:8b` (check local RAM and Ollama's available catalog).
+3. In a virtual environment, run `python -m pip install -e ".[test]"`.
+4. Run `uvicorn goreecloud_ai.app:app --host 127.0.0.1 --port 8765`.
+5. Visit `http://127.0.0.1:8765`.
 
-Run \`pytest -q\` for the API/router tests. The tests use a fake Ollama backend and require no model downloads.
+Run `pytest -q` for the API/router tests. The tests use a fake Ollama backend and require no model downloads.
 
 ## Smart Model
 
-Select **Smart Model** for automatic deterministic routing over the models installed in Ollama. Coding requests prefer installed Qwen models with \`coder\` in the name; reasoning requests prefer Qwen; general conversation prefers Gemma. If the preferred family is unavailable, the router falls back to another installed Qwen/Gemma model. Model selection is transparent in each assistant response. Manual selection is always available. This is a **heuristic baseline**, not proven semantic classification, model benchmarking, automatic capability detection, or multi-agent inference.
+Select **Smart Model** for automatic deterministic routing over the models installed in Ollama. Coding requests prefer installed Qwen models with `coder` in the name; reasoning requests prefer Qwen; general conversation prefers Gemma. If the preferred family is unavailable, the router falls back to another installed Qwen/Gemma model. Model selection is transparent in each assistant response. Manual selection is always available. This is a **heuristic baseline**, not proven semantic classification, model benchmarking, automatic capability detection, or multi-agent inference.
 
 ## Features in this baseline
 
-- Local Ollama model discovery (\`/api/tags\`) and chat completions (\`/api/chat\`).
+- Local Ollama model discovery (`/api/tags`), chat completions (`/api/chat`) and streaming responses.
 - Qwen and Gemma Smart Model routing with manual override and safe fallback.
 - Persistent SQLite conversation creation/list/detail/delete and two-message exchanges.
-- Minimal responsive web client with safe text rendering, a model selector and Ollama connectivity indicator.
-- Optional shared API token for \`/api/*\` endpoints (except health).
+- Minimal responsive streaming web client with safe text rendering, a model selector and Ollama connectivity indicator.
+- Optional shared API token for `/api/*` endpoints (except health).
 - Loopback-bound development server and loopback port in the included Compose example.
 - Offline fake-backend API and routing tests.
 
 ## API
 
-- \`GET /api/health\` — shallow service and Ollama health.
-- \`GET /api/models\` — installed model names.
-- \`GET /api/chats\` — list conversations.
-- \`POST /api/chats\` — create conversation (optional \`{"title":"..."}\`).
-- \`GET /api/chats/{id}\` — conversation and messages.
-- \`DELETE /api/chats/{id}\` — delete conversation.
-- \`POST /api/chats/{id}/messages\` — \`{"content":"Hello","model":"smart"}\`.
+- `GET /api/health` — shallow service and Ollama health.
+- `GET /api/models` — installed model names.
+- `GET /api/chats` — list conversations.
+- `POST /api/chats` — create conversation (optional `{"title":"..."}`).
+- `GET /api/chats/{id}` — conversation and messages.
+- `DELETE /api/chats/{id}` — delete conversation.
+- `POST /api/chats/{id}/messages` — nonstreaming response to `{"content":"Hello","model":"smart"}`.
+- `POST /api/chats/{id}/stream` — same payload, text/event-stream events: `chunk`, `done`, `error`. Successful completed exchanges are saved.
 
 ## Configuration
 
-Set environment variables (see \`.env.example\`):
+Set environment variables (see `.env.example`):
 
-- \`GOREEAI_OLLAMA_URL\` default \`http://127.0.0.1:11434\`
-- \`GOREEAI_DATABASE_PATH\` default \`./data/ai.sqlite\`
-- \`GOREEAI_API_TOKEN\` optional; **required before exposing outside a trusted localhost network**.
+- `GOREEAI_OLLAMA_URL` default `http://127.0.0.1:11434`
+- `GOREEAI_DATABASE_PATH` default `./data/ai.sqlite`
+- `GOREEAI_API_TOKEN` optional; **required before exposing outside a trusted localhost network**.
 
 The client prompts for an API token if authentication is enabled and stores it in session storage, not in source control. Do not expose this prototype directly on the public internet; see [security](docs/security.md).
 

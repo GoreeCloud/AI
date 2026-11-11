@@ -11,6 +11,11 @@ class FakeOllama:
     async def models(self):
         return ["gemma3:4b", "qwen2.5-coder:7b"]
 
+    async def stream_chat(self, model, messages):
+        self.calls.append((model, messages))
+        for part in ("hello", " world"):
+            yield part
+
     async def chat(self, model, messages):
         self.calls.append((model, messages))
         return "Response from " + model
@@ -64,3 +69,21 @@ def test_input_limit(tmp_path):
 def test_health(tmp_path):
     c, _ = client(tmp_path)
     assert c.get("/api/health").json()["ollama"] == "online"
+
+
+
+def test_stream_and_persistence(tmp_path):
+    c, backend = client(tmp_path)
+    chat = c.post("/api/chats", json={}).json()
+    r = c.post("/api/chats/" + chat["id"] + "/stream", json={"content": "Write Python code"})
+    assert r.status_code == 200
+    assert "event: chunk" in r.text
+    assert "event: done" in r.text
+    assert c.get("/api/chats/" + chat["id"]).json()["messages"][-1]["content"] == "hello world"
+    assert backend.calls[-1][0] == "qwen2.5-coder:7b"
+
+
+def test_browser_assets_are_served(tmp_path):
+    c, _ = client(tmp_path)
+    assert "GoreeCloud AI" in c.get("/").text
+    assert "streamAnswer" in c.get("/assets/app.js").text

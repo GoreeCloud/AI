@@ -17,7 +17,7 @@ function message(role,content,model){
   element.className="message "+(role==="user"?"user":"assistant");
   const heading=document.createElement("div");heading.className="role";heading.textContent=role==="user"?"You":model?"AI · "+model:"GoreeCloud AI";
   const body=document.createElement("div");body.textContent=content;
-  element.append(heading,body);byId("conversation").append(element);byId("conversation").scrollTop=byId("conversation").scrollHeight;
+  element.append(heading,body);byId("conversation").append(element);byId("conversation").scrollTop=byId("conversation").scrollHeight;return {element,heading,body};
 }
 function clearMessages(){byId("conversation").replaceChildren();}
 async function loadChats(){
@@ -46,15 +46,52 @@ async function loadModels(){
   const smart=document.createElement("option");smart.value="smart";smart.textContent="✦ Smart Model";select.append(smart);
   for(const name of data.models){const option=document.createElement("option");option.value=name;option.textContent=name;select.append(option);}
 }
+
+async function streamAnswer(path, text, model, onChunk) {
+  const headers={"Content-Type":"application/json",...(state.token?{"X-API-Key":state.token}:{})};
+  const response=await fetch(path,{method:"POST",headers,body:JSON.stringify({content:text,model})});
+  if(!response.ok){let item={};try{item=await response.json()}catch(_e){}throw new Error(typeof item.detail==="string"?item.detail:"Request failed ("+response.status+")");}
+  if(!response.body)throw new Error("This browser does not support streaming responses");
+  const reader=response.body.getReader(), decoder=new TextDecoder();
+  let buffer="", finished=false, info=null;
+  async function consume(block){
+    const lines=block.split("\n");
+    let eventName="", payload="";
+    for(const line of lines){if(line.startsWith("event:"))eventName=line.slice(6).trim();if(line.startsWith("data:"))payload+=line.slice(5).trim();}
+    if(!payload)return;
+    const data=JSON.parse(payload);
+    if(eventName==="chunk")onChunk(data.content);
+    else if(eventName==="done"){finished=true;info=data;}
+    else if(eventName==="error")throw new Error(data.detail||"Generation failed");
+  }
+  try{
+    while(true){
+      const next=await reader.read();
+      if(next.done)break;
+      buffer+=decoder.decode(next.value,{stream:true}).replace(/\r/g,"");
+      let offset;
+      while((offset=buffer.indexOf("\n\n"))>=0){const part=buffer.slice(0,offset);buffer=buffer.slice(offset+2);await consume(part);}
+    }
+    if(buffer.trim())await consume(buffer);
+    if(!finished)throw new Error("Generation ended unexpectedly");
+    return info;
+  }finally{reader.releaseLock();}
+}
+
 async function submit(event){
   event.preventDefault();if(state.busy)return;
   const text=byId("prompt").value.trim();if(!text)return;
   state.busy=true;byId("send").disabled=true;error("");
   try{
     if(!state.chatId)await newChat();
-    const result=await api("/api/chats/"+encodeURIComponent(state.chatId)+"/messages",{method:"POST",body:JSON.stringify({content:text,model:byId("model").value})});
-    byId("prompt").value="";message("user",text);message("assistant",result.message.content,result.message.model);byId("hint").textContent=result.routing.reason;
-  }catch(e){error(e.message);}
+    message("user",text);
+    const output=message("assistant","",null);
+    const result=await streamAnswer("/api/chats/"+encodeURIComponent(state.chatId)+"/stream",text,byId("model").value,(part)=>{
+      output.body.textContent+=part;byId("conversation").scrollTop=byId("conversation").scrollHeight;
+    });
+    output.heading.textContent="AI · "+result.model;byId("prompt").value="";
+    byId("hint").textContent=result.routing.reason;
+  }catch(e){error(e.message);if(state.chatId){try{await openChat(state.chatId)}catch(_ignore){}}}
   finally{state.busy=false;byId("send").disabled=false;}
 }
 async function init(){

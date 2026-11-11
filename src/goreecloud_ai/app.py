@@ -1,7 +1,8 @@
 """HTTP API and bundled browser client. Localhost by default."""
 from pathlib import Path
+import json
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .ollama import OllamaClient, OllamaError
@@ -91,6 +92,45 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
             raise HTTPException(502, str(exc)) from exc
         store.add_exchange(chat_id, payload.content, reply, route.model)
         return {"message": {"role": "assistant", "content": reply, "model": route.model}, "routing": {"mode": route.mode, "reason": route.reason}}
+
+
+    @app.post("/api/chats/{chat_id}/stream", dependencies=[Depends(authenticated)])
+    async def stream(chat_id: str, payload: ChatMessage):
+        """Stream assistant response as SSE; only commit a completed exchange."""
+        chat = store.get_chat(chat_id)
+        if not chat:
+            raise HTTPException(404, "Conversation not found")
+        if len(payload.content) > config.max_message_chars:
+            raise HTTPException(422, "Message exceeds configured limit")
+        try:
+            names = await backend.models()
+            route = select_model(payload.content, names, payload.model)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except LookupError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except OllamaError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        history = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in chat["messages"][-config.max_history_messages:]
+        ]
+
+        async def generate():
+            pieces = []
+            try:
+                async for part in backend.stream_chat(route.model, history + [{"role": "user", "content": payload.content}]):
+                    pieces.append(part)
+                    yield "event: chunk\ndata: " + json.dumps({"content": part}) + "\n\n"
+                store.add_exchange(chat_id, payload.content, "".join(pieces), route.model)
+                yield "event: done\ndata: " + json.dumps({
+                    "model": route.model, "routing": {"mode": route.mode, "reason": route.reason}
+                }) + "\n\n"
+            except OllamaError as exc:
+                yield "event: error\ndata: " + json.dumps({"detail": str(exc)}) + "\n\n"
+
+        return StreamingResponse(generate(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
     static = Path(__file__).parent / "static"
     app.mount("/assets", StaticFiles(directory=str(static)), name="assets")

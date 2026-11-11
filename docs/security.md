@@ -6,12 +6,13 @@
 
 - Default local server binds to 127.0.0.1. Docker Compose publishes only 127.0.0.1:8765. Do not directly expose it on the public internet.
 - The configured Ollama origin is an administrator-controlled environment variable, not accepted from chat requests. Treat endpoint changes as a privileged operation.
-- The optional \`GOREEAI_API_TOKEN\` protects application API endpoints but is a **single shared secret**, not GoreeCloud Identity or true multi-user authorization. It is not a complete internet-facing authentication solution.
+- The optional `GOREEAI_API_TOKEN` protects application API endpoints but is a **single shared secret**, not GoreeCloud Identity or true multi-user authorization. It is not a complete internet-facing authentication solution.
 - Browser token storage is session-scoped. The token is not placed in source code. Browser compromise, cross-site scripting, or misconfigured proxying could still expose sessions.
 - The server does not implement CSRF protection, comprehensive rate limits, account-level access controls, or audit-grade logging. Use a trusted same-origin reverse proxy and additional authentication for any multi-user deployment.
 - This baseline does not expose shell, code interpreters, arbitrary HTTP tools, file uploads, agents, or public web-fetch interfaces.
 - SQLite messages are plaintext at rest. Apply operating-system disk encryption, filesystem access controls and encrypted backups if needed. Do not upload private database files into Git.
-- Model outputs are untrusted. The UI uses \`textContent\` rather than interpreting model-generated HTML.
+- Incomplete or interrupted model response streams are not saved to conversation history; existing messages are preserved.
+- Model outputs are untrusted. The UI uses `textContent` rather than interpreting model-generated HTML.
 - Ollama may use user-installed third-party model weights with separate licenses and model-level safety considerations. Confirm model provenance before downloading.
 - Prompts and responses are sent to the administrator-configured Ollama server. If remote, treat the remote host as a disclosure destination; use a secure trusted network or TLS transport.
 - Health is public to permit low-detail health checks; it returns only status and model count.

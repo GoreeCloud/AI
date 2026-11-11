@@ -34,3 +34,37 @@ class OllamaClient:
                 return content
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             raise OllamaError("Ollama chat request failed") from exc
+
+
+    async def stream_chat(self, model: str, messages: list[dict[str, str]]):
+        """Yield complete text fragments from Ollama's NDJSON stream."""
+        import json
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=180, write=10, pool=10)) as client:
+                async with client.stream(
+                    "POST", self.base_url + "/api/chat",
+                    json={"model": model, "messages": messages, "stream": True},
+                ) as response:
+                    response.raise_for_status()
+                    completed = False
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            event = json.loads(line)
+                        except (ValueError, TypeError) as exc:
+                            raise OllamaError("Malformed Ollama stream event") from exc
+                        if event.get("error"):
+                            raise OllamaError("Ollama stream failed")
+                        text = event.get("message", {}).get("content", "")
+                        if not isinstance(text, str):
+                            raise OllamaError("Invalid text fragment from Ollama")
+                        if text:
+                            yield text
+                        if event.get("done"):
+                            completed = True
+                            break
+                    if not completed:
+                        raise OllamaError("Ollama stream ended before completion")
+        except httpx.HTTPError as exc:
+            raise OllamaError("Ollama stream request failed") from exc

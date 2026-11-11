@@ -3,7 +3,7 @@
 **Product vision:** A unified private AI environment with Ollama inference, Qwen/Gemma models, Smart Model orchestration, agents, knowledge intelligence, multimodal processing, automation and integrated GoreeCloud services. This is a roadmap, NOT an implemented feature list.
 
 ## Priority 1 — Reliability and security
-- Streaming Ollama responses with cancellation and recovery
+- Resumable Ollama streaming, explicit cancellation, partial-output recovery and concurrency limits
 - Multi-conversation safety and concurrency guards
 - Model capability inventory, deterministic profile configuration and benchmarking
 - Per-user authentication through GoreeCloud Identity

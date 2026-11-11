@@ -3,12 +3,12 @@
 **Scope:** Features represented in the initial source baseline; runtime availability requires Ollama and installed models. Automated fake-backend tests validate selected paths, not real model quality or production deployment.
 
 1. FastAPI HTTP application and bundled browser UI.
-2. Ollama model discovery via official \`GET /api/tags\`.
-3. Ollama non-streaming chat completions via official \`POST /api/chat\`.
+2. Ollama model discovery via official `GET /api/tags`.
+3. Ollama non-streaming completions and NDJSON-to-SSE streaming via official `POST /api/chat`.
 4. Smart Model deterministic keyword/family routing for installed Qwen/Gemma; explainable reason.
 5. Manual model selection with installed-model validation.
 6. Local SQLite chat history: create, list, retrieve, delete.
-7. Persist complete user/assistant exchanges after successful upstream response.
+7. Persist complete user/assistant exchanges after successful upstream response, including completed streams only.
 8. Bounded message length and retained conversation-context window.
 9. Optional shared API token; local-only listener instructions.
 10. Service status indicating Ollama availability.
