@@ -13,6 +13,7 @@
 - This baseline does not expose shell, code interpreters, arbitrary HTTP tools, binary file uploads, agents, or public web-fetch interfaces.
 - Knowledge ingestion accepts bounded text input and stores it in plaintext SQLite. All knowledge documents are currently visible to any holder of the shared API token; multi-user isolation is not implemented.
 - Knowledge grounding is explicit opt-in. Document passages are untrusted; prompt injection mitigations in the model prompt are not a proven security boundary. No agent tools are executed based on document content.
+- Conversation exports contain plaintext messages; downloaded files require the same privacy and backup protections as the database. Search queries are sent as POST request bodies rather than URL query strings to reduce accidental access-log disclosure.
 - SQLite messages are plaintext at rest. Apply operating-system disk encryption, filesystem access controls and encrypted backups if needed. Do not upload private database files into Git.
 - Incomplete or interrupted model response streams are not saved to conversation history; existing messages are preserved.
 - Model outputs are untrusted. The UI uses `textContent` rather than interpreting model-generated HTML.

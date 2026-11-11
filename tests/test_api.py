@@ -122,3 +122,34 @@ def test_knowledge_not_shared_without_opt_in(tmp_path):
 def test_knowledge_rejects_oversized_payload(tmp_path):
     c, _ = client(tmp_path)
     assert c.post('/api/knowledge/documents', json={'title':'Oversize','content':'x' * 50001}).status_code == 422
+
+
+
+def test_conversation_search_and_portable_json_export(tmp_path):
+    c, _ = client(tmp_path)
+    chat = c.post("/api/chats", json={"title": "Research notes"}).json()
+    c.post("/api/chats/" + chat["id"] + "/messages", json={"content": "Explaining Qwen models"})
+    found = c.post("/api/chats/search", json={"query": "Qwen"}).json()
+    assert found and found[0]["id"] == chat["id"]
+    assert c.post("/api/chats/search", json={"query": "not-present"}).json() == []
+    exported = c.get("/api/chats/" + chat["id"] + "/export")
+    assert exported.status_code == 200
+    assert exported.headers["cache-control"] == "no-store"
+    assert exported.json()["format"] == "goreecloud-ai-chat"
+    assert exported.json()["conversation"]["messages"][-1]["role"] == "assistant"
+
+
+def test_smart_route_preview_does_not_infer_or_save(tmp_path):
+    c, backend = client(tmp_path)
+    result = c.post("/api/smart/route", json={"content": "Debug this Python code"})
+    assert result.status_code == 200
+    assert result.json()["model"] == "qwen2.5-coder:7b"
+    assert backend.calls == []
+    assert c.get("/api/chats").json() == []
+
+
+def test_search_and_export_require_auth(tmp_path):
+    c, _ = client(tmp_path, token="test-token-1234567890")
+    assert c.post("/api/chats/search", json={"query": "abc"}).status_code == 401
+    assert c.get("/api/chats/random/export").status_code == 401
+    assert c.post("/api/smart/route", json={"content": "abc"}).status_code == 401

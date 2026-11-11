@@ -20,3 +20,5 @@
 **Not yet verified:** live Qwen/Gemma inference, GPU performance, installed Docker image, CI success, external deployments, complete security gates, and fully native application packaging. Update this document only when tested evidence exists.
 
 15. Opt-in local knowledge document ingestion, listing, keyword excerpt search, deletion, and chat grounding; not semantic RAG.
+16. Conversation title/message substring search and per-conversation versioned JSON export.
+17. Smart Model route-preview API without inference or chat persistence.

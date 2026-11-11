@@ -49,6 +49,21 @@ class Store:
             rows = db.execute("SELECT id,title,created_at FROM chats ORDER BY created_at DESC LIMIT 200").fetchall()
             return [dict(row) for row in rows]
 
+
+    def search_chats(self, query: str) -> list[dict]:
+        """Case-insensitive substring search without SQL wildcard expansion."""
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT c.id,c.title,c.created_at FROM chats AS c
+                   WHERE instr(lower(c.title),lower(?)) > 0 OR EXISTS (
+                     SELECT 1 FROM messages AS m
+                     WHERE m.chat_id=c.id AND instr(lower(m.content),lower(?)) > 0
+                   )
+                   ORDER BY c.created_at DESC LIMIT 100""",
+                (query, query),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def create_chat(self, title: str) -> dict:
         chat = {"id": str(uuid4()), "title": title, "created_at": utc_now()}
         with self.connect() as db:
