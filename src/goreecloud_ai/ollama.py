@@ -36,6 +36,26 @@ class OllamaClient:
             raise OllamaError("Ollama chat request failed") from exc
 
 
+
+    async def embed(self, model: str, inputs: list[str]) -> list[list[float]]:
+        """Use Ollama POST /api/embed with explicit input and no silent truncation."""
+        if not inputs or len(inputs) > 80:
+            raise OllamaError("Embedding batch must contain 1–80 text chunks")
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=240, write=30, pool=10)) as client:
+                response = await client.post(
+                    self.base_url + "/api/embed",
+                    json={"model": model, "input": inputs, "truncate": False},
+                )
+                response.raise_for_status()
+                payload = response.json()
+                vectors = payload.get("embeddings")
+                if not isinstance(vectors, list) or len(vectors) != len(inputs):
+                    raise OllamaError("Ollama returned an invalid embedding batch")
+                return vectors
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            raise OllamaError("Ollama embedding request failed") from exc
+
     async def stream_chat(self, model: str, messages: list[dict[str, str]]):
         """Yield complete text fragments from Ollama's NDJSON stream."""
         import json

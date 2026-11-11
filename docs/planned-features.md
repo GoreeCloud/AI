@@ -16,7 +16,7 @@ For the complete organized capability specification, see [Unified Feature and Ca
 - Central GoreeCloud UI components when design tokens are verified
 
 ## Priority 2 — Knowledge and productivity
-- Local embedding models, semantic RAG and document parsing beyond current opt-in text/keyword grounding, plus retrieval evaluation
+- Real-model validation and evaluation of the new experimental local embedding/vector retrieval API; document parsing, hybrid RAG, OCR, citations and multi-user permissions remain planned
 - Hybrid keyword/vector search and retrieval evaluation
 - Workspaces, project instructions, memory and notes
 - File import/export and conversation search

@@ -27,6 +27,7 @@ class KnowledgeStore:
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=5000")
         try:
             yield db
@@ -49,6 +50,12 @@ class KnowledgeStore:
         with self.connect() as db:
             rows = db.execute("SELECT id,title,created_at FROM knowledge_documents ORDER BY created_at DESC LIMIT 200").fetchall()
         return [dict(row) for row in rows]
+
+
+    def get_document(self, document_id: str) -> dict | None:
+        with self.connect() as db:
+            row = db.execute("SELECT id,title,body,created_at FROM knowledge_documents WHERE id=?", (document_id,)).fetchone()
+        return dict(row) if row else None
 
     def delete(self, document_id: str) -> bool:
         with self.connect() as db:

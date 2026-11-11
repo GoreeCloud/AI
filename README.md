@@ -64,6 +64,10 @@ The local knowledge API accepts **explicitly submitted text** documents (maximum
 - `DELETE /api/knowledge/documents/{id}` — permanently delete an indexed document.
 - Chat endpoints accept optional `use_knowledge: true`; responses include document source IDs/titles.
 
+## Experimental local semantic retrieval
+
+GoreeCloud AI also supports opt-in local document embeddings via Ollama POST /api/embed and SQLite cosine search. The embedding model must already be installed; text is sent only to the configured Ollama server. The default knowledge workflow remains keyword-based. See [Semantic retrieval](docs/semantic-retrieval.md) for explicit indexing, search API and semantic chat parameters; this capability has mock-backed tests, not real-model benchmark evidence.
+
 ## Conversation discovery, export and Smart Model preview
 
 - `POST /api/chats/search` with `{"query":"text"}` searches conversation titles and messages without recording queries in URLs.
@@ -94,6 +98,7 @@ The client prompts for an API token if authentication is enabled and stores it i
 - [Smart Model profiles](docs/smart-model.md)
 - [Conversation portability](docs/conversation-portability.md)
 - [Local knowledge workflows](docs/knowledge-workflows.md)
+- [Semantic retrieval (experimental)](docs/semantic-retrieval.md)
 - [Implemented features](docs/implemented-features.md)
 - [Planned features](docs/planned-features.md)
 - [Competitive objectives](docs/competitive-objectives.md)

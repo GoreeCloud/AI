@@ -339,3 +339,81 @@ def test_knowledge_explicit_file_controls_exist(tmp_path):
     assert "async function importKnowledgeFile" in script
     assert "await file.text()" in script
     assert '"/api/knowledge/search"' in script
+
+
+
+def test_explicit_local_semantic_index_search_and_chat(tmp_path):
+    class FakeEmbeddingOllama(FakeOllama):
+        async def models(self):
+            return await super().models() + ["embeddinggemma"]
+
+        async def embed(self, model, inputs):
+            assert model == "embeddinggemma"
+            vectors = []
+            for text in inputs:
+                lower = text.lower()
+                if "cats" in lower or "feline" in lower:
+                    vectors.append([1.0, 0.0])
+                elif "dogs" in lower:
+                    vectors.append([0.0, 1.0])
+                else:
+                    vectors.append([0.4, 0.4])
+            return vectors
+
+    backend = FakeEmbeddingOllama()
+    c = TestClient(create_app(Settings(database_path=str(tmp_path / "rag.sqlite")), backend))
+    first = c.post("/api/knowledge/documents", json={"title":"Cats","content":"Cats purr and sleep."}).json()
+    second = c.post("/api/knowledge/documents", json={"title":"Dogs","content":"Dogs are playful."}).json()
+    assert c.post("/api/knowledge/semantic/index", json={"document_id":first["id"],"model":"embeddinggemma"}).json()["chunks"] == 1
+    assert c.post("/api/knowledge/semantic/index", json={"document_id":second["id"],"model":"embeddinggemma"}).status_code == 200
+    result = c.post("/api/knowledge/semantic/search", json={"model":"embeddinggemma","query":"feline pets"})
+    assert result.status_code == 200
+    assert result.json()[0]["id"] == first["id"]
+    chat = c.post("/api/chats", json={}).json()
+    response = c.post("/api/chats/" + chat["id"] + "/messages", json={
+        "content":"Tell me about feline pets", "use_knowledge":True,
+        "knowledge_mode":"semantic", "embedding_model":"embeddinggemma",
+    })
+    assert response.status_code == 200
+    assert response.json()["sources"][0]["id"] == first["id"]
+    assert response.json()["sources"][0]["retrieval"] == "semantic"
+    assert "[Source 1]" in backend.calls[-1][1][0]["content"]
+
+
+def test_semantic_requires_installed_embedding_model(tmp_path):
+    c, _ = client(tmp_path)
+    doc = c.post("/api/knowledge/documents", json={"title":"Example","content":"Local text"}).json()
+    assert c.post("/api/knowledge/semantic/index", json={
+        "document_id":doc["id"],"model":"nonexistent:latest"
+    }).status_code == 422
+    assert c.post("/api/knowledge/semantic/search", json={
+        "model":"nonexistent:latest","query":"local"
+    }).status_code == 422
+
+
+def test_semantic_index_requires_token(tmp_path):
+    c, _ = client(tmp_path, token="test-token-1234567890")
+    assert c.post("/api/knowledge/semantic/search", json={
+        "model":"embeddinggemma","query":"abc"
+    }).status_code == 401
+
+
+
+def test_semantic_embedding_failure_is_bounded_for_both_chat_paths(tmp_path):
+    class BrokenEmbedding(FakeOllama):
+        async def models(self):
+            return await super().models() + ["embeddinggemma"]
+
+        async def embed(self, model, inputs):
+            raise OllamaError("Embedding backend unavailable")
+
+    c = TestClient(create_app(Settings(database_path=str(tmp_path / "broken-emb.sqlite")), BrokenEmbedding()))
+    chat = c.post("/api/chats", json={}).json()
+    payload = {
+        "content": "Explain project architecture",
+        "use_knowledge": True, "knowledge_mode": "semantic",
+        "embedding_model": "embeddinggemma",
+    }
+    assert c.post("/api/chats/" + chat["id"] + "/messages", json=payload).status_code == 502
+    assert c.post("/api/chats/" + chat["id"] + "/stream", json=payload).status_code == 502
+    assert c.get("/api/chats/" + chat["id"]).json()["messages"] == []

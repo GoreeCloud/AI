@@ -31,3 +31,5 @@
 22. Bounded version-1 JSON conversation import with regenerated IDs, complete-message-pair validation and atomic SQLite insertion; browser Import control.
 23. Explicit browser import of bounded .txt/.md/.csv/.json files as local inert text.
 24. Authenticated body-based POST knowledge-search API and in-dialog excerpt search.
+25. Explicit local Ollama embeddings for one selected document; bounded chunking, SQLite vector storage and cosine retrieval.
+26. Opt-in semantic grounded chat through API with an installed embedding model; real-model retrieval quality remains unverified.
