@@ -17,7 +17,7 @@ For the complete organized capability specification, see [Unified Feature and Ca
 
 ## Priority 2 — Knowledge and productivity
 - Real-model validation and evaluation of the new experimental local embedding/vector retrieval API; document parsing, hybrid RAG, OCR, citations and multi-user permissions remain planned
-- Hybrid keyword/vector search and retrieval evaluation
+- Hybrid keyword/vector search and evaluated real-document retrieval; synthetic offline metric calculations are implemented but do not establish live-model quality
 - Workspaces, project instructions, memory and notes
 - File import/export and conversation search
 - Voice transcription, synthesis and vision through supported models
