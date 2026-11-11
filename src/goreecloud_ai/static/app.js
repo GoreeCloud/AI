@@ -45,6 +45,12 @@ async function loadModels(){
   const data=await api("/api/models");
   const select=byId("model");select.replaceChildren();
   const smart=document.createElement("option");smart.value="smart";smart.textContent="✦ Smart Model";select.append(smart);
+  for(const [value,label] of [
+    ["smart:fast","✦ Smart Model · Fast"],
+    ["smart:balanced","✦ Smart Model · Balanced"],
+    ["smart:quality","✦ Smart Model · Quality preference"],
+  ]){const option=document.createElement("option");option.value=value;option.textContent=label;select.append(option);}
+
   for(const name of data.models){const option=document.createElement("option");option.value=name;option.textContent=name;select.append(option);}
 }
 
