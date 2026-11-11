@@ -99,6 +99,8 @@ The client prompts for an API token if authentication is enabled and stores it i
 - [Conversation portability](docs/conversation-portability.md)
 - [Local knowledge workflows](docs/knowledge-workflows.md)
 - [Semantic retrieval (experimental)](docs/semantic-retrieval.md)
+- [Offline retrieval evaluation](docs/retrieval-evaluation.md)
+- [Semantic index integrity](docs/semantic-integrity.md)
 - [Implemented features](docs/implemented-features.md)
 - [Planned features](docs/planned-features.md)
 - [Competitive objectives](docs/competitive-objectives.md)
