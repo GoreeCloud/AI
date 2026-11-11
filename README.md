@@ -82,6 +82,7 @@ The client prompts for an API token if authentication is enabled and stores it i
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Unified capability catalog](docs/capability-catalog.md)
 - [Implemented features](docs/implemented-features.md)
 - [Planned features](docs/planned-features.md)
 - [Competitive objectives](docs/competitive-objectives.md)
