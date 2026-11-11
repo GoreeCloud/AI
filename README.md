@@ -90,6 +90,7 @@ The client prompts for an API token if authentication is enabled and stores it i
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Complete feature catalog](docs/feature-catalog.md)
 - [Smart Model profiles](docs/smart-model.md)
 - [Conversation portability](docs/conversation-portability.md)
 - [Local knowledge workflows](docs/knowledge-workflows.md)

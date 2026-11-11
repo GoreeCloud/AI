@@ -1,5 +1,7 @@
 # GoreeCloud AI — Planned Features
 
+For the complete organized capability specification, see [Unified Feature and Capability Catalog](feature-catalog.md). This catalog distinguishes merged source from planned functionality.
+
 **Product vision:** A unified private AI environment with Ollama inference, Qwen/Gemma models, Smart Model orchestration, agents, knowledge intelligence, multimodal processing, automation and integrated GoreeCloud services. This is a roadmap, NOT an implemented feature list.
 
 ## Priority 1 — Reliability and security
