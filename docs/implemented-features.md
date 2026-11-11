@@ -22,3 +22,5 @@
 15. Opt-in local knowledge document ingestion, listing, keyword excerpt search, deletion, and chat grounding; not semantic RAG.
 16. Conversation title/message substring search and per-conversation versioned JSON export.
 17. Smart Model route-preview API without inference or chat persistence.
+18. Web UI knowledge-document create/list/delete dialog and conversation deletion controls.
+19. Web UI streaming Stop button with abort behavior and partial-stream failure regression coverage.
