@@ -35,3 +35,6 @@
 26. Opt-in semantic grounded chat through API with an installed embedding model; real-model retrieval quality remains unverified.
 27. Explicit browser controls for choosing an installed embedding model, indexing selected documents and opt-in semantic search/chat.
 28. Mock HTTP wire-contract tests for Ollama model discovery, chat, streaming NDJSON, embedding batches, and configuration validation.
+
+28. Local semantic index integrity reporting and explicit overflow/corruption/mismatch errors; missing-index preflight (CI tested with synthetic vectors).
+29. Offline ranking evaluation CLI for Hit@K, Precision@K, Recall@K, MRR@K, MAP@K, nDCG@K with bounded synthetic JSON fixture (not real-model quality evidence).
