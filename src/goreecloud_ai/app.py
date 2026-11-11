@@ -83,6 +83,27 @@ def create_app(settings: Settings | None = None, ollama: OllamaClient | None = N
     backend = ollama or OllamaClient(config.ollama_url)
     app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
 
+
+    @app.middleware("http")
+    async def apply_browser_security_headers(request: Request, call_next):
+        """Local-preview browser isolation and no-cache policy (not complete auth)."""
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; style-src 'self'; "
+            "connect-src 'self'; img-src 'self' data:; "
+            "font-src 'self'; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        )
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
     def authenticated(x_api_key: str | None = Header(default=None)):
         if config.api_token:
             import secrets
