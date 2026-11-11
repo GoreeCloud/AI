@@ -69,6 +69,8 @@ The local knowledge API accepts **explicitly submitted text** documents (maximum
 - `POST /api/smart/route` with `{"content":"Write Python code","model":"smart"}` shows the installed-model decision without generating a reply or saving the prompt.
 - The browser interface supports conversation search and working **Export**, **Delete**, and **Knowledge** management controls. The knowledge dialog saves and deletes bounded text documents. Streaming replies have a **Stop** button that aborts the browser request; cancellation may race with upstream completion, so reopen the conversation to inspect what was actually persisted.
 
+Concurrent chat writes are checked against the source conversation revision, and model outputs are bounded to 100,000 characters in the application by default. A stale request returns a conflict rather than silently saving inconsistent history; this does not constitute a global request queue or model-side resource limit.
+
 ## Configuration
 
 Set environment variables (see `.env.example`):

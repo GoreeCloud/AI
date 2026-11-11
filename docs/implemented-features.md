@@ -17,10 +17,13 @@
 13. Dockerfile/Compose templates with loopback-published port.
 14. MIT license for original source; architecture, feature and security documentation.
 
-**Not yet verified:** live Qwen/Gemma inference, GPU performance, installed Docker image, CI success, external deployments, complete security gates, and fully native application packaging. Update this document only when tested evidence exists.
+**Validation distinction:** Prior GitHub CI unit checks passed; live Qwen/Gemma inference, GPU performance, running container image, external deployments, complete security gates, and fully native application packaging remain unverified. Update this document only when tested evidence exists.
 
 15. Opt-in local knowledge document ingestion, listing, keyword excerpt search, deletion, and chat grounding; not semantic RAG.
 16. Conversation title/message substring search and per-conversation versioned JSON export.
 17. Smart Model route-preview API without inference or chat persistence.
 18. Web UI knowledge-document create/list/delete dialog and conversation deletion controls.
 19. Web UI streaming Stop button with abort behavior and partial-stream failure regression coverage.
+
+20. Optimistic SQLite conversation write-conflict detection and explicit missing-chat rejection.
+21. Bounded generated response storage, including SSE failure handling; whitespace-only search rejection.
