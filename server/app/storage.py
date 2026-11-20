@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 def _connection():
-    path = Path(os.getenv("GOREeCLOUD_AI_DB_PATH", "./data/ai.sqlite3")).expanduser()
+    path = Path(os.getenv("GOREECLOUD_AI_DB_PATH", "./data/ai.sqlite3")).expanduser()
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path), timeout=10)
     conn.row_factory = sqlite3.Row

@@ -8,7 +8,7 @@ bearer = HTTPBearer(auto_error=False)
 
 
 def require_owner(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> None:
-    expected = os.getenv("GOREeCLOUD_AI_TOKEN", "").strip()
+    expected = os.getenv("GOREECLOUD_AI_TOKEN", "").strip()
     if not expected:
         raise HTTPException(503, "Owner API token is not configured")
     if not credentials or not hmac.compare_digest(credentials.credentials, expected):

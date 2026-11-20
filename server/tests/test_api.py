@@ -1,6 +1,6 @@
 import os
 
-os.environ["GOREeCLOUD_AI_TOKEN"] = "test-owner-token"
+os.environ["GOREECLOUD_AI_TOKEN"] = "test-owner-token"
 
 from fastapi.testclient import TestClient
 from app.main import app, checked_reference
@@ -19,7 +19,7 @@ def test_protected():
 
 
 def test_document_round_trip(tmp_path, monkeypatch):
-    monkeypatch.setenv("GOREeCLOUD_AI_DB_PATH", str(tmp_path / "docs.sqlite"))
+    monkeypatch.setenv("GOREECLOUD_AI_DB_PATH", str(tmp_path / "docs.sqlite"))
     created = client.post("/api/v1/documents",
                           headers=HEADERS, json={"title": "Test", "body": "# Safe"} )
     assert created.status_code == 201

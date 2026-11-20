@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 
 def configured_endpoint() -> str:
-    url = os.getenv("GOREeCLOUD_AI_MCP_URL", "").strip()
+    url = os.getenv("GOREECLOUD_AI_MCP_URL", "").strip()
     if not url:
         raise HTTPException(503, "MCP is not configured")
     parsed = urlparse(url)
@@ -27,8 +27,8 @@ async def access_mcp(tool: str | None = None, arguments: dict | None = None) -> 
         raise HTTPException(503, "MCP Python SDK is not installed") from exc
 
     headers = {}
-    if os.getenv("GOREeCLOUD_AI_MCP_TOKEN"):
-        headers["Authorization"] = "Bearer " + os.environ["GOREeCLOUD_AI_MCP_TOKEN"]
+    if os.getenv("GOREECLOUD_AI_MCP_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["GOREECLOUD_AI_MCP_TOKEN"]
     try:
         async with streamablehttp_client(configured_endpoint(), headers=headers, timeout=30) as transport:
             read_stream, write_stream, _ = transport
@@ -38,7 +38,7 @@ async def access_mcp(tool: str | None = None, arguments: dict | None = None) -> 
                 names = [x.name for x in listed.tools]
                 if tool is None:
                     return {"tools": names, "execution": "requires per-call user approval"}
-                allowed = [x.strip() for x in os.getenv("GOREeCLOUD_AI_MCP_ALLOWED_TOOLS", "").split(",") if x.strip()]
+                allowed = [x.strip() for x in os.getenv("GOREECLOUD_AI_MCP_ALLOWED_TOOLS", "").split(",") if x.strip()]
                 if tool not in names or tool not in allowed:
                     raise HTTPException(403, "MCP tool is not in the operator allowlist")
                 outcome = await session.call_tool(tool, arguments=arguments or {})

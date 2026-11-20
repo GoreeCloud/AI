@@ -34,7 +34,7 @@ def local_url() -> str:
     # A deployment operator controls this setting, never an HTTP request or MCP tool.
     endpoint = os.getenv("OLLAMA_BASE_URL", OLLAMA_DEFAULT).rstrip("/")
     if not endpoint.startswith(("http://127.0.0.1:", "http://localhost:")):
-        if os.getenv("GOREeCLOUD_AI_ALLOW_REMOTE_OLLAMA") != "true":
+        if os.getenv("GOREECLOUD_AI_ALLOW_REMOTE_OLLAMA") != "true":
             raise HTTPException(503, "Remote Ollama requires explicit operator authorization")
     return endpoint
 

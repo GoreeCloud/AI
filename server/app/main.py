@@ -19,7 +19,7 @@ from .security import require_owner
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
               openapi_url="/api/openapi.json")
 
-origins = [x.strip() for x in os.getenv("GOREeCLOUD_AI_CORS_ORIGINS", "").split(",") if x.strip()]
+origins = [x.strip() for x in os.getenv("GOREECLOUD_AI_CORS_ORIGINS", "").split(",") if x.strip()]
 if origins:
     app.add_middleware(CORSMiddleware, allow_origins=origins,
                        allow_methods=["GET", "POST", "PUT"], allow_headers=["Authorization", "Content-Type"])
