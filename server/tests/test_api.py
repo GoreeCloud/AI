@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 os.environ["GOREECLOUD_AI_TOKEN"] = "test-owner-token"
 
 from fastapi.testclient import TestClient
@@ -55,11 +57,9 @@ def test_agent_gate():
 
 def test_reference_validation():
     from fastapi import HTTPException
-    try:
+    with pytest.raises(HTTPException) as captured:
         checked_reference("https://remote.site/example.png")
-        assert False
-    except HTTPException as exc:
-        assert exc.status_code == 422
+    assert captured.value.status_code == 422
 
 
 def test_chat_validation():
