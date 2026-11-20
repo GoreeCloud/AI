@@ -13,7 +13,11 @@ node_modules/
 dist/
 build/
 .gradle/
+.kotlin/
 .idea/
+.upstream-gc-ui/
+*.log
+*.egg-info/
 *.iml
 *.apk
 *.aab

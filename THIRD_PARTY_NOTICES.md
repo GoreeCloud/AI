@@ -1,20 +1,29 @@
-# Third-party attribution and licensing
+# Third-party notices and provenance
 
-GoreeCloud AI's original source is MIT licensed. The following are upstream
-dependencies or source snapshots. Package distributions must include the notices
-required by each bundled upstream license.
+Original GoreeCloud AI code: MIT (see repository root LICENSE).
 
-- **GoreeCloud UI** (MIT): design/gc.tokens.json and web/src/gc-tokens.css are
-  source snapshots from https://github.com/GoreeCloud/gc-ui. These values are
-  provisional alpha tokens, not a founder-approved Stable palette.
-- **FastAPI**, **httpx**, **pypdf**, **python-docx**, **MCP Python SDK**,
-  **React**, **Vite**, **Qt/PySide6**, **Kotlin**, **Jetpack Compose/Material3**:
-  package dependencies. Final redistribution needs license/SBOM checks.
-- **OpenRouter**: paid model-routing and image API; external provider, not source.
-- **Ollama**: external local model runtime; model weight licenses vary.
-- **Open WebUI, AnythingLLM and LibreChat**: researched as feature references.
-  No application source was imported. Newer Open WebUI source has restrictions
-  on rebranding and is not treated as standard OSI-open-source source code.
+- GoreeCloud UI, MIT: design/gc.tokens.json and web/src/gc-tokens.css are
+  attributed snapshots from https://github.com/GoreeCloud/gc-ui.
+  The source-included Android gc-ui-compose files derive from immutable
+  upstream commit 5625121316230d78dd40a6e41a0671a250cb873b; see
+  android/gc-ui-compose/UPSTREAM.md. Original files are copied, not rewritten.
+  This is an alpha adapter, not a published SDK.
+- FastAPI, Starlette, httpx, Python-Multipart, pypdf, python-docx and MCP SDK:
+  Python package dependencies governed by their upstream licenses.
+- React, React DOM, Vite and TypeScript: JavaScript package dependencies,
+  governed by upstream licenses and web/package-lock.json.
+- PySide6/Qt Quick: LGPL/commercial Qt licensing and redistributed Qt plugin
+  notices must be evaluated before building distribution packages.
+- Kotlin, AndroidX, Jetpack Compose and Material3: upstream license/Android
+  redistribution rules apply. Android SDK license requirements apply.
+- OpenRouter: externally hosted API and model marketplace, not rehosted source;
+  model licenses, pricing, privacy and availability must be evaluated.
+- Ollama: optional independently installed runtime. Model weights and
+  licenses are never bundled by GoreeCloud AI.
+- Open WebUI, AnythingLLM, LibreChat: comparison references only. Their
+  application code is not copied or redistributed. Newer Open WebUI uses
+  branding restrictions and is not assumed standard OSI-open-source code.
 
-No secret keys, user content, model weights, or third-party assets are licensed
-for public redistribution by this file.
+No dependency security or legal compliance claim follows from this notice;
+maintain a current SBOM/license audit before release. Never place paid keys,
+private user content or model weights in the public repo.

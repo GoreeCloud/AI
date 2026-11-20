@@ -19,12 +19,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install API dependencies
-        run: python -m pip install -e "./server[dev]"
+      - name: Install locked Python dependencies
+        run: |
+          python -m pip install "uv==0.13.7"
+          cd server && uv sync --locked --extra dev --python 3.12
       - name: Lint Python
-        run: python -m ruff check server/app server/tests
+        run: cd server && uv run --locked --extra dev ruff check app tests
       - name: Run API tests
-        run: cd server && python -m pytest -q
+        run: cd server && uv run --locked --extra dev pytest -q
       - name: Compile Python
         run: python -m compileall -q server/app linux
 
@@ -36,8 +38,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Install web dependencies
-        run: cd web && npm install --ignore-scripts --no-audit --no-fund
+      - name: Install locked web dependencies
+        run: cd web && npm ci --ignore-scripts --no-audit --no-fund
       - name: Typecheck and bundle
         run: cd web && npm run build
 

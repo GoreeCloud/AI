@@ -1,47 +1,68 @@
-# Architecture and security boundaries
+# GoreeCloud AI — architecture and security boundary
 
-## Components
-Web React / Native Qt Quick Linux / Native Kotlin Compose Android
-  → authenticated FastAPI /api/v1
-  → OpenRouter chat and image APIs (preferred)
-  → optional loopback Ollama runtime (local)
-  → SQLite Markdown documents
-  → explicit, allowlisted MCP Streamable HTTP client
+**Single-owner developer preview.** This is source and tests, not a certified
+production deployment.
 
-The API host, rather than client apps, stores provider secrets. Prompts are kept
-in client memory until sent; saved documents persist unencrypted in the configured
-SQLite file. Images are not saved by the server. The service is **single owner**
-and not a general-purpose hosted multi-user system.
+## Components and data
 
-## Privacy & payments
-An OpenRouter request transmits user-selected content to external providers.
-Use OpenRouter privacy settings and independent spending limits; a local
-checkbox is not a global billing budget. Requested local-only inference must
-not silently route back to OpenRouter. A transient cloud error may fall back
-to a separately configured local model only when the request opts in.
+- React web, Qt Quick 6.12 Linux and Kotlin Compose Android use an authenticated
+  versioned FastAPI API, with server-only OpenRouter keys and local Ollama.
+- Chat history stays in client memory unless saved as an explicit local snapshot.
+- Documents and conversation snapshots remain plaintext in owner-controlled
+  SQLite. Local FTS5 search indexes title/body; no embeddings or external
+  service is used for search.
+- Retrieval question-answering selects bounded local excerpts and source IDs.
+  Sources are untrusted reference material, not executable instructions.
+  Excerpts are sent to OpenRouter only when expressly consented, else Ollama.
+- MCP tools require server-configured HTTPS/loopback endpoint, name allowlist,
+  authenticated owner request and explicit per-call approval. Model-produced
+  text never automatically invokes MCP.
 
-## MCP and agents
-MCP URL is pinned by the server operator, HTTPS or loopback required, and tools
-must appear in GOREECLOUD_AI_MCP_ALLOWED_TOOLS. Every tool call requires an
-explicit approved flag from the authenticated owner. This does not yet provide
-full per-user delegated authorization or sandboxing. Agent plans do not run;
-the only built-in action in the preview is local read-document.
+## Implemented controls
 
-## MIPS integration
-- GoreeCloud UI owns design language and source tokens.
-- GoreeShield owns consent, minimization, retention, sharing and privacy policy.
-- Wardveil owns cybersecurity assessment, scanning and runtime defense.
-- GoreeCloud Mesh owns inter-product API discovery, routing and data exchange.
-- GoreeCloud Identity owns real user authentication, authorization and scopes.
+- Cloud-processing consent defaults false for chat, streaming, research
+  and agent plans. Auto uses OpenRouter only with consent and configured key,
+  otherwise local Ollama or fail closed. Paid image requests require their
+  own approval and also transmit data to a cloud provider.
+- SQLite-atomic daily external-provider request admissions default to 20
+  (GOREECLOUD_AI_DAILY_CLOUD_REQUEST_LIMIT). This is **not** a currency cap:
+  provider pricing, token bills and charge reconciliation are independent.
+  Failed requests may still consume an admission slot.
+- Owner shared-token check, no prompt logging, fixed upstream OpenRouter URL,
+  disabled redirects, bounded requests, reference validation and PDF/DOCX
+  file limits. DOCX decompression metadata limit is not a sandbox.
+- Sensitive HTTP responses have Cache-Control no-store, nosniff and
+  no-referrer headers. Web and Linux clients permit only HTTPS or loopback HTTP.
+  Android release is HTTPS-only; emulator HTTP is debug-only.
+- Owner-only deletion removes live document rows/FTS terms and conversation
+  snapshots. SQLite freelist pages/backups are not securely wiped.
 
-Current code documents these integration boundaries; it does not claim they are
-deployed or enforced by remote GoreeCloud MIPS services.
+## Missing production gates
 
-## Main operational risks
-- The preview bearer token is a shared secret, not delegated Identity auth.
-- SQLite is not encrypted at rest, and backups/retention are not configured.
-- No rate limiting, independent model spend cap, or full tool sandbox exists.
-- Imported PDFs and DOCX are untrusted; parse only trusted files in preview.
-- Native device tests, CI, live model and MCP compatibility still need evidence.
-- Public Internet exposure is forbidden until identity, TLS, rate limits, privacy,
-  security, audit, recovery, licensing and operations gates are verified.
+- **GoreeCloud Identity:** no verified OIDC issuer/claims contract, MFA,
+  delegated token scopes, tenant isolation or per-user session policy.
+- **GoreeShield:** no production policy engine, encrypted storage, fine-grained
+  consent record, private-data retention schedule or cryptographic erasure.
+- **Wardveil:** no runtime tool sandbox, credential broker, malware inspection,
+  import parser isolation, threat monitoring or independent security acceptance.
+- **GoreeCloud Mesh:** no production capability registry, service-to-service
+  authentication adapter or resource policy propagation.
+- **GoreeCloud UI:** web tokens and pinned MIT-licensed Android Material 3
+  Expressive source adapter integrated; interactive/native visual acceptance open.
+- No monetary spend cap, provider pricing reconciliation, vector RAG, autonomous
+  tool agents, MCP OAuth, production backups or restore evidence.
+
+## Database upgrade and privacy
+
+Before upgrading an existing SQLite database, privately back it up and test
+restore in isolation. The first new connection creates FTS5 index tables,
+snapshot/message tables and admission counters, using PRAGMA user_version 1
+for the indexed migration. File mode 0600 and directory mode 0700 are applied,
+but encryption/OS backups and secure deletion are still the operator's duty.
+
+## Sources
+
+- OpenRouter image API: https://openrouter.ai/blog/tutorials/image-generation/
+- OpenRouter unified media: https://openrouter.ai/blog/insights/every-modality-one-api/
+- FastAPI streaming: https://fastapi.tiangolo.com/advanced/stream-data/
+- Ollama API: https://docs.ollama.com/api/chat

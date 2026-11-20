@@ -1,5 +1,7 @@
 """Outgoing model calls never use user-supplied endpoints or log prompt content."""
+import json
 import os
+from collections.abc import AsyncIterator
 
 import httpx
 from fastapi import HTTPException
@@ -23,6 +25,8 @@ async def _post(url: str, body: dict, key: str | None = None, timeout: float = 9
             response = await client.post(url, json=body, headers=headers)
     except httpx.RequestError as exc:
         raise UpstreamFailure("provider", 502, transient=True) from exc
+    if len(response.content) > 24_000_000:
+        raise UpstreamFailure("provider", 413)
     if response.status_code != 200:
         raise UpstreamFailure("provider", response.status_code, transient=response.status_code in (429, 502, 503, 504))
     try:
@@ -112,3 +116,81 @@ async def image_request(prompt: str, model: str, reference: str | None) -> dict:
         "image": f"data:{media_type};base64,{data[0]['b64_json']}",
         "cost": (result.get("usage") or {}).get("cost")
     }
+
+
+async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncIterator[dict]:
+    """Stream bounded structured events; caller authenticates and authorizes cloud access.
+
+    This request does not retry or switch providers mid-stream. Cancellation of the
+    consuming request closes the upstream connection and stops further generation.
+    """
+    if provider == "openrouter":
+        key = os.getenv("OPENROUTER_API_KEY")
+        if not key:
+            yield {"type": "error", "message": "Cloud model is not configured"}
+            return
+        url = OPENROUTER + "/chat/completions"
+        body = {"model": model if model != "local" else "openrouter/auto",
+                "messages": messages, "max_tokens": 2048, "stream": True}
+        headers = {"Authorization": "Bearer " + key}
+    elif provider == "ollama":
+        selected = model if model not in ("openrouter/auto", "local") else os.getenv("OLLAMA_MODEL", "")
+        if not selected:
+            yield {"type": "error", "message": "Local model is not configured"}
+            return
+        url = local_url() + "/api/chat"
+        body = {"model": selected, "messages": messages, "stream": True}
+        headers = {}
+    else:
+        yield {"type": "error", "message": "Invalid selected provider"}
+        return
+
+    produced = 0
+    final_model = body["model"]
+    try:
+        async with httpx.AsyncClient(timeout=90, follow_redirects=False) as client:  # noqa: SIM117
+            async with client.stream("POST", url, json=body, headers=headers) as response:
+                if response.status_code != 200:
+                    yield {"type": "error", "message": "Inference provider returned an error"}
+                    return
+                async for line in response.aiter_lines():
+                    if len(line) > 100_000:
+                        yield {"type": "error", "message": "Upstream response exceeded limit"}
+                        return
+                    if provider == "openrouter":
+                        if not line.startswith("data: "):
+                            continue
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                    else:
+                        data = line
+                    if not data:
+                        continue
+                    try:
+                        event = json.loads(data)
+                    except (ValueError, TypeError):
+                        continue
+                    if isinstance(event, dict) and event.get("error"):
+                        yield {"type": "error", "message": "Inference provider reported an error"}
+                        return
+                    if not isinstance(event, dict):
+                        continue
+                    final_model = str(event.get("model") or final_model)[:128]
+                    if provider == "openrouter":
+                        choices = event.get("choices") or []
+                        delta = (choices[0].get("delta") or {}).get("content") if choices else None
+                    else:
+                        delta = (event.get("message") or {}).get("content")
+                    if isinstance(delta, str) and delta:
+                        produced += len(delta)
+                        if produced > 120_000:
+                            yield {"type": "error", "message": "Response text limit reached"}
+                            return
+                        yield {"type": "delta", "content": delta}
+                    if provider == "ollama" and event.get("done") is True:
+                        break
+    except httpx.RequestError:
+        yield {"type": "error", "message": "Inference provider is unreachable"}
+        return
+    yield {"type": "done", "provider": provider, "model": final_model}

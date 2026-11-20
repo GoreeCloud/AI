@@ -1,92 +1,114 @@
 # GoreeCloud AI
 
-**Developer preview — source foundation, not a deployed or certified product**
+**Open-source development preview (MIT), not a deployed or released service.**
 
-GoreeCloud AI is an original MIT-licensed hybrid AI workspace and API designed
-for integration with GoreeCloud products. It combines an **OpenRouter-first**
-model gateway, optional Ollama inference, and explicitly approved tools.
-It does not copy or reskin the competing Open WebUI, AnythingLLM or LibreChat apps.
+GoreeCloud AI is a local-first, hybrid AI workspace with an original
+FastAPI gateway, OpenRouter cloud routing (preferred only after explicit
+consent), optional Ollama inference, documents, images, source-linked local
+retrieval and human-approved tool operations. This is not a source fork of
+Open WebUI, AnythingLLM or LibreChat.
 
-## Included source
+## Current source coverage
 
-| Component | Scope |
-| --- | --- |
-| FastAPI gateway | Authenticated chat API, OpenRouter Auto, configured Ollama and opt-in transient fallback |
-| Image studio | OpenRouter unified Images API with optional reference image for supported editing models |
-| Documents | Local SQLite Markdown editor, PDF/DOCX/text extract, MD/DOCX export |
-| Agents | AI planning and explicitly approved local read-only document action |
-| MCP | Streamable HTTP MCP Python SDK discovery and manually approved operator-allowlisted tool invocation |
-| Web | React + TypeScript workspace |
-| Linux | Native Qt Quick 6 interface |
-| Android | Native Kotlin + Jetpack Compose Material 3 interface |
-| Integration | REST/OpenAPI contract for future GoreeCloud Mesh consumers |
+| Surface | Implemented in source | Still missing |
+|---|---|---|
+| Shared API | Owner-only FastAPI, OpenRouter/Ollama, chat streaming, SSE, image creation/edit endpoint | Identity/OIDC, billing-dollar caps, provider acceptance |
+| Web | React/TypeScript chat stream/cancel, consent, local conversation snapshots, documents, search/RAG, images, agents, MCP | Cross-browser/visual qualification |
+| Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
+| Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
+| Documents | SQLite CRUD, PDF/DOCX/text extraction, Markdown/DOCX export, local FTS5 retrieval, source IDs | Full sandbox, encryption, semantic embeddings |
+| Agents & MCP | Plans without automatic execution, read-only approved document action, operator allowlisted manual Streamable HTTP MCP | Multi-step autonomous agents, OAuth, worker sandbox |
+| Privacy | Cloud opt-in, local snapshots, delete APIs, server-side request count quota | GoreeShield/Identity/Wardveil/Mesh enforcement |
 
-**Limits:** Single-owner proof of concept, no Identity integration, hard billing
-caps, streaming, RAG, encrypted storage, multi-user permissions, tool sandbox, or
-production security approval. App builds, supported browsers, real devices and
-remote MCP interoperability require verification; a code commit is not a release.
+OpenRouter is an external model provider and may charge per request, token, image
+or other unit. The daily request admission limit is **not a money limit**.
+Do not use real sensitive data or expose the preview server publicly.
 
-## Run the API locally
+## Local server
 
-Use Python 3.11 or later.
+Python 3.11+ with an operator-controlled non-public working directory:
 
     cd server
     python3 -m venv .venv
     . .venv/bin/activate
-    pip install -e ".[dev]"
+    python -m pip install -e ".[dev]"
     export GOREECLOUD_AI_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-    export OPENROUTER_API_KEY="YOUR_PRIVATE_KEY"
+    export OPENROUTER_API_KEY="YOUR_PRIVATE_SERVER_KEY"
+    export GOREECLOUD_AI_DAILY_CLOUD_REQUEST_LIMIT=20
     uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-The key stays on the server, not in browser or mobile sources. For optional local
-inference, install Ollama and download a compatible model, then set OLLAMA_MODEL.
-The API uses OpenRouter when a key is present; selecting Ollama is explicit.
-Fallback from OpenRouter is off unless opted in, and not triggered by payment errors.
+Ollama remains optional:
 
     export OLLAMA_MODEL="YOUR_INSTALLED_MODEL"
     export OLLAMA_BASE_URL="http://127.0.0.1:11434"
 
-Run the web client from another terminal:
+**Consent:** Cloud inference requires allow_cloud_processing=true in each
+authenticated chat, stream, agent plan or research request. If auto routing
+has no cloud consent, a configured Ollama is used; otherwise inference is
+refused. Image calls require approve_paid_generation=true. No provider key
+is stored in any browser/Linux/Android source.
+
+## Browser
 
     cd web
-    npm install
+    npm ci
     npm run dev
 
-Set GOREECLOUD_AI_CORS_ORIGINS=http://127.0.0.1:5173 on the API for
-local dev. Open http://127.0.0.1:5173 and enter the API URL and owner token.
-The browser does not persist the owner token to localStorage.
+For local development set GOREECLOUD_AI_CORS_ORIGINS=http://127.0.0.1:5173
+on the API. Open http://127.0.0.1:5173, enter the server URL and owner token
+(managed in memory only). Browser requests to non-loopback HTTP endpoints
+are refused. Chat streams are cancellable; opt-in saved chats stay in SQLite.
 
-Run server checks: cd server && python -m pytest -q
-Build web: cd web && npm run build
+## Linux / Android
 
-Linux and Android build instructions are in their respective READMEs.
-Never expose this preview to the public Internet.
+See linux/README.md and android/README.md. Android uses the pinned MIT-licensed
+gc-ui source module; it is not a published or verified SDK release. Build
+source does not establish real-device, browser, visual or accessibility
+acceptance. Neither native client has its own provider/API key.
 
-## HTTP contract
+## Privacy-first API contract
 
-Each protected call requires Authorization: Bearer YOUR_OWNER_TOKEN.
-- GET /api/health — public minimal health status
-- GET /api/v1/models — configured model choices
-- POST /api/v1/chat — provider routing and selected model reply
-- POST /api/v1/images — paid generation/edits with consent flag
-- GET/POST /api/v1/documents — list and create documents
-- GET/PUT /api/v1/documents/{uuid} — retrieve and edit
-- GET /api/v1/documents/{uuid}/export?format=md|docx
-- POST /api/v1/documents/extract — PDF, DOCX, Markdown or text ingestion
-- POST /api/v1/agents/plan and /api/v1/agents/run
-- GET /api/v1/mcp/tools and POST /api/v1/mcp/call
-- GET /api/openapi.json and GET /api/docs — developer reference
+Protected routes require Authorization: Bearer OWNER_TOKEN.
 
-OpenRouter is a paid external service; model prices and capabilities can change.
-Configure privacy controls and limits in your OpenRouter account. No secrets,
-private user documents, model weights or third-party applications are stored here.
+- POST /api/v1/chat — text response; consent is required for cloud.
+- POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
+- POST /api/v1/images — paid generation/compatible reference edits.
+- GET /api/v1/models — configured routes.
+- GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
+- GET/POST /api/v1/documents and GET/PUT/DELETE /api/v1/documents/{uuid}.
+- GET /api/v1/search/documents?q=... — owner-only local FTS5 search.
+- POST /api/v1/research/answer — retrieved local source references with
+  explicit cloud consent if a cloud provider is selected.
+- GET/POST /api/v1/conversations, GET/DELETE /api/v1/conversations/{uuid}
+  — opt-in local snapshots.
+- POST /api/v1/documents/extract — bounded PDF/DOCX/TXT/MD extraction.
+- GET /api/v1/documents/{uuid}/export?format=md|docx.
+- POST /api/v1/agents/plan and /api/v1/agents/run.
+- GET /api/v1/mcp/tools and POST /api/v1/mcp/call.
+- GET /api/health is public, /api/docs and /api/openapi.json are developer
+  references. Bind the server to loopback only in this preview.
 
-## Developer governance
+SQLite files, FTS5 content and saved snapshots are **unencrypted**. Deletion
+removes live rows/index entries but is not verified secure erasure of pages
+or backups. Before migrating existing data, back up privately and test
+recovery. See docs/ARCHITECTURE.md for exact boundaries and risks.
 
-- Original code licensed under [MIT](LICENSE); see [third-party notices](THIRD_PARTY_NOTICES.md).
-- Integration and threat model: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-- Remaining engineering priorities: [docs/ROADMAP.md](docs/ROADMAP.md).
-- GoreeCloud UI colors and tokens are copied from the existing alpha design-source
-  repository with attribution; no unapproved brand specifications are introduced.
-- Security claims require separate GoreeShield, Wardveil, Identity, Mesh and UI
-  acceptance before any production exposure.
+## Source, tests and governance
+
+    cd server && python -m ruff check app tests && python -m pytest -q
+    cd web && npm ci && npm run build
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python linux/smoke.py
+    cd android && gradle :app:assembleDebug
+
+GitHub Actions checks all four tracks. See docs/RELEASE_GATES.md and
+docs/ROADMAP.md for production blockers. Keep all changes reviewable via
+pull requests with passing CI and protected main settings.
+
+License: MIT for original source (LICENSE). Dependency and pinned
+gc-ui adapter attribution: THIRD_PARTY_NOTICES.md and
+android/gc-ui-compose/UPSTREAM.md. Do not vendor model weights or credentials.
+
+GoreeCloud MIPS retains distinct responsibilities: GoreeCloud UI design,
+GoreeCloud Mesh integration, GoreeCloud Identity authentication,
+GoreeShield privacy and Wardveil cybersecurity. None of their production
+acceptance gates is implied by this preview.

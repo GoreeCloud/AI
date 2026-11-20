@@ -11,7 +11,10 @@ On a Linux machine with Python 3.11+ and a supported desktop environment:
     pip install -r requirements.txt
     python main.py
 
-Run the FastAPI server separately and configure a token. The Qt Quick interface
+Run the FastAPI server separately and configure a token. The native UI now
+requires explicit cloud-processing approval before OpenRouter inference;
+without consent, Auto may use the configured Ollama model. Remote API
+endpoints must use HTTPS, with HTTP limited to 127.0.0.1/localhost. The Qt Quick interface
 supports chat, model routing, image generation preview, Markdown document CRUD,
 agent planning and MCP tool discovery/explicit invocation. It is a native
 preview, not a packaged binary or fully feature-parity product. It does not yet
