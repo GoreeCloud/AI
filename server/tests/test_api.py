@@ -3,6 +3,7 @@ import os
 os.environ["GOREECLOUD_AI_TOKEN"] = "test-owner-token"
 
 from fastapi.testclient import TestClient
+
 from app.main import app, checked_reference
 
 client = TestClient(app)

@@ -2,8 +2,9 @@
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 
 def _connection():
     path = Path(os.getenv("GOREECLOUD_AI_DB_PATH", "./data/ai.sqlite3")).expanduser()
@@ -22,7 +23,7 @@ def list_documents() -> list[dict]:
 
 def create_document(title: str, body: str) -> dict:
     item = {"id": str(uuid.uuid4()), "title": title, "body": body,
-            "updated_at": datetime.now(timezone.utc).isoformat()}
+            "updated_at": datetime.now(UTC).isoformat()}
     with _connection() as db:
         db.execute("INSERT INTO documents VALUES (:id,:title,:body,:updated_at)", item)
         db.commit()
@@ -36,6 +37,6 @@ def get_document(doc_id: str) -> dict | None:
 def update_document(doc_id: str, title: str, body: str) -> dict | None:
     with _connection() as db:
         db.execute("UPDATE documents SET title=?,body=?,updated_at=? WHERE id=?",
-                   (title, body, datetime.now(timezone.utc).isoformat(), doc_id))
+                   (title, body, datetime.now(UTC).isoformat(), doc_id))
         db.commit()
     return get_document(doc_id)
