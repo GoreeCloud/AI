@@ -1,6 +1,20 @@
-import os
 import pytest
 from app import providers
+
+
+@pytest.mark.asyncio
+async def test_explicit_ollama_with_default_model(monkeypatch):
+    async def stub(url, body, key=None, timeout=90.0):
+        assert url == "http://127.0.0.1:11434/api/chat"
+        assert body["model"] == "qwen3:4b"
+        return {"model": "qwen3:4b", "message": {"content": "hello from local"}}
+
+    monkeypatch.setattr(providers, "_post", stub)
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:4b")
+    result = await providers.chat([{"role": "user", "content": "hi"}],
+                                  "openrouter/auto", "ollama", False)
+    assert result["provider"] == "ollama"
+    assert result["content"] == "hello from local"
 
 
 @pytest.mark.asyncio

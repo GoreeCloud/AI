@@ -223,10 +223,20 @@ private fun AiWorkspace() {
                             }
                         }) { Text("Save") }
                         Button(onClick = {
-                            invoke("/api/v1/documents") { docIndex = it.optJSONArray("documents") ?: JSONArray() }
+                            invoke("/api/v1/documents") { docIndex = it.optJSONArray("items") ?: JSONArray() }
                         }) { Text("Refresh") }
                     }
-                    Text("Document listing is available via API; Android list uses the list-response adapter.")
+                    for (i in 0 until docIndex.length()) {
+                        val doc = docIndex.optJSONObject(i) ?: continue
+                        Button(onClick = {
+                            invoke("/api/v1/documents/" + doc.optString("id")) {
+                                docId = it.optString("id")
+                                docTitle = it.optString("title")
+                                docBody = it.optString("body")
+                                status = "Opened saved document"
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text(doc.optString("title")) }
+                    }
                     Text("Document ID: " + if (docId.isBlank()) "Unsaved" else docId)
                 }
                 3 -> Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),

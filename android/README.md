@@ -16,7 +16,7 @@ Do not distribute this preview or connect it to sensitive production accounts.
 
 Current screens: hybrid model chat, image generation previews, Markdown
 document editing, approved agent planning and MCP discovery/calls.
-Native document list/PUT parity, import/export file pickers, reference-image
+Native import/export file pickers, reference-image
 edits, and fully integrated GoreeCloud UI source adapter are not complete.
 See ../docs/ROADMAP.md for acceptance and security work.
 

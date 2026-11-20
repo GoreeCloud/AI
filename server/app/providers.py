@@ -61,7 +61,7 @@ async def chat(messages: list[dict], model: str, provider: str, allow_local_fall
                 raise HTTPException(502, "OpenRouter request failed (see upstream service)") from exc
             selected = "ollama"
     if selected == "ollama":
-        local_model = model if provider == "ollama" and model != "local" else os.getenv("OLLAMA_MODEL", "")
+        local_model = (model if provider == "ollama" and model not in ("local", "openrouter/auto") else os.getenv("OLLAMA_MODEL", ""))
         if not local_model:
             raise HTTPException(503, "Configure OLLAMA_MODEL for local inference")
         try:

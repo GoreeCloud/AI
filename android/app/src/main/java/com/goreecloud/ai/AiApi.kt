@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -34,7 +35,7 @@ internal object AiApi {
             connection.readTimeout = 90_000
             connection.setRequestProperty("Authorization", "Bearer " + ownerToken)
             connection.setRequestProperty("Accept", "application/json")
-            connection.requestMethod = if (body != null) "POST" else "GET"
+            connection.requestMethod = if (body == null) "GET" else if (path.startsWith("/api/v1/documents/")) "PUT" else "POST"
             if (body != null) {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
@@ -51,7 +52,11 @@ internal object AiApi {
                     it.readNBytes(16_000_001)
                 }
                 require(data.size <= 16_000_000) { "Response too large" }
-                val parsed = JSONObject(data.toString(Charsets.UTF_8))
+                val parsed = when (val value = JSONTokener(data.toString(Charsets.UTF_8)).nextValue()) {
+                    is JSONObject -> value
+                    is JSONArray -> JSONObject().put("items", value)
+                    else -> throw IllegalStateException("Unsupported API response")
+                }
                 if (status !in 200..299) {
                     throw IllegalStateException(parsed.optString("detail", "Request failed (HTTP " + status + ")"))
                 }
