@@ -24,13 +24,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -39,27 +36,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-
-private val gcScheme = darkColorScheme(
-    primary = Color(0xFFBFB8FF), onPrimary = Color(0xFF272057),
-    primaryContainer = Color(0xFF413974), onPrimaryContainer = Color(0xFFE8E5FF),
-    background = Color(0xFF0D121D), onBackground = Color(0xFFF2F4FB),
-    surface = Color(0xFF171D2A), onSurface = Color(0xFFF2F4FB),
-    surfaceVariant = Color(0xFF252D3D), onSurfaceVariant = Color(0xFFCED5E5),
-    outline = Color(0xFF9CA8BC)
-)
+import com.goreecloud.ui.material3.GoreeCloudExpressiveTheme
+import com.goreecloud.ui.material3.GoreeAccent
+import com.goreecloud.ui.material3.GoreeDestination
+import com.goreecloud.ui.material3.GoreeFloatingNavigationBar
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme(colorScheme = gcScheme) { AiWorkspace() } }
+        setContent { GoreeCloudExpressiveTheme(accent = GoreeAccent.Iris) { AiWorkspace() } }
     }
 }
 
@@ -74,6 +65,7 @@ private fun AiWorkspace() {
     var model by remember { mutableStateOf("openrouter/auto") }
     var provider by remember { mutableStateOf("auto") }
     var fallback by remember { mutableStateOf(false) }
+    var cloudConsent by remember { mutableStateOf(false) }
     val chat = remember { mutableStateListOf<Pair<String, String>>() }
     var prompt by remember { mutableStateOf("") }
     var imagePrompt by remember { mutableStateOf("") }
@@ -109,16 +101,20 @@ private fun AiWorkspace() {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                tabs.forEachIndexed { i, name ->
-                    NavigationBarItem(
-                        selected = current == i,
-                        onClick = { current = i },
-                        icon = { Text(listOf("✦", "◈", "▤", "✳", "⌘")[i]) },
-                        label = { Text(name) }
+            GoreeFloatingNavigationBar(
+                destinations = tabs.mapIndexed { i, name ->
+                    GoreeDestination(
+                        id = name,
+                        label = name,
+                        icon = { Text(listOf("✦", "◈", "▤", "✳", "⌘")[i]) }
                     )
+                },
+                selectedId = tabs[current],
+                onDestinationSelected = { selected ->
+                    val index = tabs.indexOf(selected)
+                    if (index >= 0) current = index
                 }
-            }
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -163,6 +159,10 @@ private fun AiWorkspace() {
                     OutlinedTextField(value = model, onValueChange = { model = it },
                         label = { Text("Model ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Checkbox(checked = cloudConsent, onCheckedChange = { cloudConsent = it })
+                        Text("Allow cloud processing via OpenRouter", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Checkbox(checked = fallback, onCheckedChange = { fallback = it })
                         Text("Allow local fallback", style = MaterialTheme.typography.bodySmall)
                     }
@@ -172,7 +172,7 @@ private fun AiWorkspace() {
                     Button(enabled = !busy && prompt.isNotBlank(), onClick = {
                         val text = prompt.trim(); prompt = ""
                         chat.add("user" to text)
-                        invoke("/api/v1/chat", AiApi.chatBody(chat.toList(), provider, model, fallback)) {
+                        invoke("/api/v1/chat", AiApi.chatBody(chat.toList(), provider, model, fallback, cloudConsent)) {
                             chat.add("assistant" to it.optString("content"))
                             status = "Answered via " + it.optString("provider")
                         }
@@ -245,7 +245,8 @@ private fun AiWorkspace() {
                     OutlinedTextField(value = goal, onValueChange = { goal = it },
                         label = { Text("Describe a goal") }, minLines = 4, modifier = Modifier.fillMaxWidth())
                     Button(enabled = goal.isNotBlank() && !busy, onClick = {
-                        invoke("/api/v1/agents/plan", JSONObject().put("goal", goal).put("provider", provider)) {
+                        invoke("/api/v1/agents/plan", JSONObject().put("goal", goal).put("provider", provider)
+                            .put("allow_cloud_processing", cloudConsent)) {
                             plan = it.optString("plan"); status = "Planning only · no action executed"
                         }
                     }) { Text("Generate plan") }

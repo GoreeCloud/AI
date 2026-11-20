@@ -76,3 +76,11 @@ button.secondary{background:var(--gc-surface-tonal)!important;color:var(--gc-tex
   .controls{max-width:none;width:100%;border-left:0;border-top:1px solid var(--gc-outline-soft)}
   .thread{max-height:none;min-height:250px}.notice{margin:12px 16px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.01ms!important}}
+
+/* No standalone palette: all colors are controlled by GoreeCloud UI variables. */
+.saved-chat{display:flex;gap:8px;align-items:flex-start}
+.saved-chat .doc-link{flex:1;min-width:0}
+.saved-chat button.secondary{padding:10px!important}
+.research-answer{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
+.controls section[aria-label="Document answer"]{border-top:1px solid var(--gc-outline-soft);padding-top:14px}
+.controls section[aria-label="Document answer"] .doc-link{display:block;width:100%;margin-top:8px}

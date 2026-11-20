@@ -18,6 +18,7 @@ ApplicationWindow {
     property string provider: "auto"
     property string model: "openrouter/auto"
     property bool allowFallback: false
+    property bool cloudConsent: false
     property bool busy: false
     property string feedback: ""
     property string documentId: ""
@@ -30,8 +31,10 @@ ApplicationWindow {
             feedback = "Enter an owner token before sending a request."
             return
         }
-        if (!/^https?:\/\/[^ ]+$/.test(endpoint)) {
-            feedback = "Enter a valid API endpoint."
+        var hostOk = /^https:\/\/[^ ]+$/.test(endpoint) ||
+                     /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(endpoint)
+        if (!hostOk) {
+            feedback = "Use HTTPS or local loopback HTTP only."
             return
         }
         busy = true
@@ -78,7 +81,8 @@ ApplicationWindow {
             messages: chain,
             model: model,
             provider: provider,
-            allow_local_fallback: allowFallback
+            allow_local_fallback: allowFallback,
+            allow_cloud_processing: cloudConsent
         }, function(reply) {
             threadModel.append({role: "GoreeCloud AI", text: reply.content})
             feedback = "Answered via " + reply.provider + " · " + reply.model
@@ -199,6 +203,12 @@ ApplicationWindow {
                             Layout.fillWidth: true; text: window.model
                             onTextChanged: window.model = text
                             Accessible.name: "Model identifier"
+                        }
+                        CheckBox {
+                            text: "Approve sending text to OpenRouter"
+                            checked: window.cloudConsent
+                            onToggled: window.cloudConsent = checked
+                            Accessible.name: "Allow cloud processing"
                         }
                         CheckBox {
                             text: "Allow local fallback"
@@ -348,7 +358,8 @@ ApplicationWindow {
                         Button {
                             text: "Create plan"; enabled: !window.busy && agentGoal.text.trim().length > 0
                             onClicked: window.request("POST", "/api/v1/agents/plan",
-                                {goal: agentGoal.text, provider: window.provider}, function(reply) {
+                                {goal: agentGoal.text, provider: window.provider,
+                                 allow_cloud_processing: window.cloudConsent}, function(reply) {
                                     agentPlan.text = reply.plan
                                     window.feedback = "Plan created; no actions were executed."
                                 })

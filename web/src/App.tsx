@@ -1,9 +1,21 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
 type Tab = 'Chat' | 'Images' | 'Documents' | 'Agents' | 'MCP'
 type Message = { role: 'user' | 'assistant'; content: string }
 type SavedDoc = { id: string; title: string; body?: string; updated_at: string }
+type SavedConversation = { id: string; title: string; messages?: Message[]; message_count?: number }
+type SearchHit = { id: string; title: string; excerpt: string }
+
+function apiOrigin(value: string): string {
+  const url = new URL(value)
+  const loopback = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)
+  if (!loopback && url.protocol !== 'https:')
+    throw Error('Use HTTPS for remote servers, or HTTP on local loopback only.')
+  if (url.username || url.password || url.hash || url.search || url.pathname !== '/')
+    throw Error('Enter the server origin without credentials, path or query.')
+  return url.origin
+}
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Chat')
@@ -12,6 +24,14 @@ export default function App() {
   const [provider, setProvider] = useState('auto')
   const [model, setModel] = useState('openrouter/auto')
   const [fallback, setFallback] = useState(false)
+  const [cloudConsent, setCloudConsent] = useState(false)
+  const [streaming, setStreaming] = useState(true)
+  const streamAbort = useRef<AbortController | null>(null)
+  const [savedChats, setSavedChats] = useState<SavedConversation[]>([])
+  const [searchText, setSearchText] = useState('')
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([])
+  const [researchAnswer, setResearchAnswer] = useState('')
+  const [researchSources, setResearchSources] = useState<Array<{ id: string; title: string }>>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [prompt, setPrompt] = useState('')
   const [imagePrompt, setImagePrompt] = useState('')
@@ -37,7 +57,7 @@ export default function App() {
 
   async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
     if (!token.trim()) throw Error('Set an owner token first.')
-    const result = await fetch(endpoint.replace(/\/+$/, '') + path, {
+    const result = await fetch(apiOrigin(endpoint) + path, {
       method,
       headers: { 'Authorization': 'Bearer ' + token,
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
@@ -50,6 +70,7 @@ export default function App() {
         ? String(details.detail) : ''
       throw Error(detail || 'Request failed: ' + result.status)
     }
+    if (result.status === 204) return undefined as T
     return await result.json() as T
   }
 
@@ -57,21 +78,73 @@ export default function App() {
     if (busy) return
     setBusy(true); setAlert(''); setNotice('')
     try { await task() }
-    catch (e) { setAlert(e instanceof Error ? e.message : 'Unexpected failure') }
+    catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') setNotice('Stream cancelled by user.')
+      else setAlert(e instanceof Error ? e.message : 'Unexpected failure')
+    }
     finally { setBusy(false) }
   }
 
   function send(e: FormEvent) {
     e.preventDefault()
-    if (!prompt.trim()) return
+    if (!prompt.trim() || busy) return
     const next: Message[] = [...messages, { role: 'user', content: prompt.trim() }]
     setMessages(next); setPrompt('')
     void action(async () => {
-      const reply = await api<{ content: string; provider: string; model: string }>(
-        '/api/v1/chat', 'POST',
-        { messages: next, provider, model, allow_local_fallback: fallback })
-      setMessages([...next, { role: 'assistant', content: reply.content }])
-      setNotice('Response via ' + reply.provider + ' · ' + reply.model)
+      const payload = { messages: next, provider, model,
+        allow_local_fallback: fallback, allow_cloud_processing: cloudConsent }
+      if (!streaming) {
+        const reply = await api<{ content: string; provider: string; model: string }>(
+          '/api/v1/chat', 'POST', payload)
+        setMessages([...next, { role: 'assistant', content: reply.content }])
+        setNotice('Response via ' + reply.provider + ' · ' + reply.model)
+        return
+      }
+      const controller = new AbortController()
+      streamAbort.current = controller
+      try {
+        const response = await fetch(apiOrigin(endpoint) + '/api/v1/chat/stream', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+          referrerPolicy: 'no-referrer', cache: 'no-store'
+        })
+        if (!response.ok) {
+          const details = await response.json().catch(() => ({})) as { detail?: string }
+          throw Error(details.detail || 'Streaming request failed (' + response.status + ')')
+        }
+        if (!response.body) throw Error('Streaming unavailable in this browser')
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let pending = ''
+        let output = ''
+        let complete = false
+        while (true) {
+          const part = await reader.read()
+          if (part.done) break
+          pending += decoder.decode(part.value, { stream: true })
+          if (pending.length > 250000) throw Error('Stream event exceeded buffer limit')
+          const records = pending.split('\n\n')
+          pending = records.pop() || ''
+          for (const record of records) {
+            if (!record.startsWith('data: ')) continue
+            const event = JSON.parse(record.slice(6)) as
+              { type: string; content?: string; message?: string; provider?: string; model?: string }
+            if (event.type === 'error') throw Error(event.message || 'Upstream stream error')
+            if (event.type === 'delta' && event.content) {
+              output += event.content
+              if (output.length > 120000) throw Error('Response text limit reached')
+              setMessages([...next, { role: 'assistant', content: output }])
+            }
+            if (event.type === 'done') {
+              complete = true
+              setNotice('Stream complete · ' + event.provider + ' · ' + event.model)
+            }
+          }
+        }
+        if (!complete) throw Error('Model stream stopped before completion')
+      } finally { streamAbort.current = null }
     })
   }
 
@@ -97,6 +170,76 @@ export default function App() {
     const reader = new FileReader()
     reader.onload = () => setReference(String(reader.result || ''))
     reader.readAsDataURL(file)
+  }
+
+  async function saveCurrentChat() {
+    if (!messages.length) return
+    await action(async () => {
+      const first = messages.find(m => m.role === 'user')?.content || 'Saved conversation'
+      await api<SavedConversation>('/api/v1/conversations', 'POST',
+        { title: first.slice(0, 100), messages })
+      setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
+      setNotice('Conversation snapshot saved locally. No cloud request was made.')
+    })
+  }
+
+  async function refreshChats() {
+    await action(async () => setSavedChats(await api<SavedConversation[]>('/api/v1/conversations')))
+  }
+
+  async function openChat(id: string) {
+    await action(async () => {
+      const saved = await api<SavedConversation>('/api/v1/conversations/' + id)
+      setMessages(saved.messages || [])
+      setNotice('Loaded local conversation snapshot.')
+    })
+  }
+
+  async function deleteChat(id: string) {
+    if (!window.confirm('Permanently delete this locally saved conversation?')) return
+    await action(async () => {
+      await api<void>('/api/v1/conversations/' + id, 'DELETE')
+      setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
+      setNotice('Saved conversation deleted.')
+    })
+  }
+
+  async function findDocs() {
+    if (!searchText.trim()) return
+    await action(async () => {
+      const result = await api<{ results: SearchHit[] }>(
+        '/api/v1/search/documents?q=' + encodeURIComponent(searchText.trim()))
+      setSearchHits(result.results)
+      setResearchAnswer(''); setResearchSources([])
+      setNotice(result.results.length + ' local matches. No cloud request was made.')
+    })
+  }
+
+  async function askDocuments() {
+    if (!searchText.trim()) return
+    await action(async () => {
+      const result = await api<{
+        answer: string; sources: Array<{ id: string; title: string }>; sent_to_cloud: boolean
+      }>('/api/v1/research/answer', 'POST', {
+        question: searchText.trim(), provider, allow_cloud_processing: cloudConsent
+      })
+      setResearchAnswer(result.answer)
+      setResearchSources(result.sources)
+      setNotice(result.sent_to_cloud
+        ? 'Selected local excerpts were sent to OpenRouter with your consent.'
+        : 'Answer used local inference or no inference.')
+    })
+  }
+
+  async function deleteDoc() {
+    if (!docId || !window.confirm('Permanently delete this document and its search index?')) return
+    await action(async () => {
+      await api<void>('/api/v1/documents/' + docId, 'DELETE')
+      setDocId(''); setDocTitle(''); setDocBody('')
+      setDocs(await api<SavedDoc[]>('/api/v1/documents'))
+      setSearchHits([])
+      setNotice('Document permanently removed from the local database.')
+    })
   }
 
   async function refreshDocs() {
@@ -125,7 +268,7 @@ export default function App() {
     if (!file) return
     await action(async () => {
       const form = new FormData(); form.append('file', file)
-      const reply = await fetch(endpoint.replace(/\/+$/, '') + '/api/v1/documents/extract', {
+      const reply = await fetch(apiOrigin(endpoint) + '/api/v1/documents/extract', {
         method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form
       })
       if (!reply.ok) throw Error('Document import failed (' + reply.status + ')')
@@ -137,7 +280,7 @@ export default function App() {
 
   async function exportDoc(format: 'md' | 'docx') {
     await action(async () => {
-      const reply = await fetch(endpoint.replace(/\/+$/, '') +
+      const reply = await fetch(apiOrigin(endpoint) +
         '/api/v1/documents/' + docId + '/export?format=' + format,
         { headers: { Authorization: 'Bearer ' + token } })
       if (!reply.ok) throw Error('Export failed')
@@ -152,7 +295,7 @@ export default function App() {
   function planAgent(e: FormEvent) {
     e.preventDefault()
     void action(async () => {
-      const response = await api<{ plan: string }>('/api/v1/agents/plan', 'POST', { goal, provider })
+      const response = await api<{ plan: string }>('/api/v1/agents/plan', 'POST', { goal, provider, allow_cloud_processing: cloudConsent })
       setPlan(response.plan); setNotice('The agent plan was created. No tool executed.')
     })
   }
@@ -221,7 +364,9 @@ export default function App() {
           <form className="composer" onSubmit={send}>
             <label className="sr-only" htmlFor="chat-prompt">Chat prompt</label>
             <textarea id="chat-prompt" value={prompt} rows={3} placeholder="Ask anything…" onChange={e => setPrompt(e.target.value)} />
-            <div className="actions"><small>Requests may incur OpenRouter charges.</small>
+            <div className="actions"><small>Cloud processing requires separate consent.</small>
+              {busy && streaming && <button type="button" className="secondary"
+                onClick={() => streamAbort.current?.abort()}>Stop stream</button>}
               <button disabled={busy || !prompt.trim()}>Send message</button></div>
           </form>
         </div>
@@ -232,10 +377,25 @@ export default function App() {
             <option value="ollama">Ollama local</option>
           </select></label>
           <label>Model ID<input value={model} onChange={e => setModel(e.target.value)} /></label>
-          <label className="check"><input type="checkbox" checked={fallback}
-            onChange={e => setFallback(e.target.checked)} /> Allow local fallback on transient OpenRouter errors</label>
-          <p>Local fallback is never enabled without your choice.</p>
-          <button type="button" className="secondary" onClick={() => setMessages([])}>New conversation</button>
+          <label className="check"><input type="checkbox" checked={cloudConsent}
+            onChange={e => setCloudConsent(e.target.checked)} /> Allow selected text to leave this server for OpenRouter inference</label>
+          <label className="check"><input type="checkbox" checked={fallback} disabled={streaming}
+            onChange={e => setFallback(e.target.checked)} /> Allow local fallback on transient OpenRouter errors (non-stream mode)</label>
+          <label className="check"><input type="checkbox" checked={streaming}
+            onChange={e => { setStreaming(e.target.checked); if (e.target.checked) setFallback(false) }} /> Stream responses with cancel control</label>
+          <p>Without cloud consent, Auto uses a configured local model or refuses the request. Paid calls consume a daily request slot.</p>
+          <div className="actions">
+            <button type="button" className="secondary" disabled={busy} onClick={() => setMessages([])}>New chat</button>
+            <button type="button" disabled={busy || messages.length === 0} onClick={() => void saveCurrentChat()}>Save locally</button>
+          </div>
+          <div className="heading"><h2>Saved conversations</h2>
+            <button className="secondary" type="button" onClick={() => void refreshChats()}>Refresh</button></div>
+          {savedChats.map(chat => <div className="saved-chat" key={chat.id}>
+            <button type="button" className="doc-link" onClick={() => void openChat(chat.id)}>
+              {chat.title}<small>{chat.message_count} messages</small></button>
+            <button type="button" className="secondary" aria-label={'Delete ' + chat.title}
+              onClick={() => void deleteChat(chat.id)}>Delete</button>
+          </div>)}
         </aside>
       </div>}
 
@@ -270,14 +430,35 @@ export default function App() {
               placeholder="Write in Markdown…" rows={14} />
             <div className="actions"><button disabled={busy || !docTitle.trim()}>Save</button>
               <button type="button" className="secondary" disabled={!docId || busy} onClick={() => void exportDoc('md')}>Export MD</button>
-              <button type="button" className="secondary" disabled={!docId || busy} onClick={() => void exportDoc('docx')}>Export DOCX</button></div>
+              <button type="button" className="secondary" disabled={!docId || busy} onClick={() => void exportDoc('docx')}>Export DOCX</button>
+              <button type="button" className="secondary danger" disabled={!docId || busy}
+                onClick={() => void deleteDoc()}>Delete document</button></div>
           </form>
         </section>
         <aside className="controls"><h2>Library</h2><button className="secondary" onClick={() => void refreshDocs()}>Refresh library</button>
           <label>Import document<input type="file" accept=".pdf,.docx,.md,.txt" onChange={e => void importFile(e)} /></label>
           {docs.map(doc => <button type="button" key={doc.id} className="doc-link"
             onClick={() => void openDoc(doc.id)}>{doc.title}<small>{doc.updated_at.slice(0, 10)}</small></button>)}
-          <p>Saved documents live in local SQLite, unencrypted in this preview.</p>
+          <h2>Private document search</h2>
+          <label>Search or question<input value={searchText} onChange={e => setSearchText(e.target.value)}
+            placeholder="Search saved documents…" /></label>
+          <div className="actions">
+            <button type="button" className="secondary" disabled={busy || !searchText.trim()}
+              onClick={() => void findDocs()}>Find locally</button>
+            <button type="button" disabled={busy || !searchText.trim()}
+              onClick={() => void askDocuments()}>Ask documents</button>
+          </div>
+          <label className="check"><input type="checkbox" checked={cloudConsent}
+            onChange={e => setCloudConsent(e.target.checked)} />
+            Allow selected snippets to be sent to OpenRouter if chosen</label>
+          {searchHits.map(hit => <button className="doc-link" key={hit.id}
+            onClick={() => void openDoc(hit.id)}>{hit.title}<small>{hit.excerpt}</small></button>)}
+          {researchAnswer && <section aria-label="Document answer">
+            <h2>Answer · source-linked</h2><p className="research-answer">{researchAnswer}</p>
+            {researchSources.map(source => <button key={source.id} className="doc-link"
+              onClick={() => void openDoc(source.id)}>{source.title}</button>)}
+          </section>}
+          <p>Saved documents live in local SQLite, unencrypted in this preview. Retrieval uses local full-text search, not an embedding model.</p>
         </aside>
       </div>}
 

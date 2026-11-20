@@ -78,8 +78,10 @@ internal object AiApi {
         } catch (_: IllegalArgumentException) { null }
     }
 
-    fun chatBody(history: List<Pair<String, String>>, provider: String, model: String, fallback: Boolean) =
+    fun chatBody(history: List<Pair<String, String>>, provider: String, model: String,
+                 fallback: Boolean, cloudConsent: Boolean) =
         JSONObject().put("messages", JSONArray().apply {
             history.forEach { (role, content) -> put(JSONObject().put("role", role).put("content", content)) }
         }).put("provider", provider).put("model", model).put("allow_local_fallback", fallback)
+          .put("allow_cloud_processing", cloudConsent)
 }
