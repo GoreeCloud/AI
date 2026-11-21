@@ -24,16 +24,20 @@ jobs:
       - name: Install locked Python dependencies
         run: |
           python -m pip install "uv==0.13.7"
-          cd server && uv sync --locked --extra dev --python 3.12
+          cd server && uv sync --locked --extra dev --extra sqlcipher --python 3.12
       - name: Lint Python
-        run: cd server && uv run --locked --extra dev ruff check app tests ../tools
+        run: cd server && uv run --locked --extra dev --extra sqlcipher ruff check app tests ../tools
+      - name: Verify optional SQLCipher runtime
+        run: |
+          cd server
+          uv run --locked --extra dev --extra sqlcipher python -c "import sqlcipher3; assert sqlcipher3.connect(':memory:').execute('PRAGMA cipher_version').fetchone()[0]"
       - name: Run API tests
-        run: cd server && uv run --locked --extra dev pytest -q
+        run: cd server && uv run --locked --extra dev --extra sqlcipher pytest -q
       - name: Audit locked production Python dependencies
         run: |
           python -m pip install "pip-audit==2.10.1"
           cd server
-          uv export --locked --no-dev --no-emit-project --format requirements-txt -o /tmp/goreecloud-ai-runtime-requirements.txt
+          uv export --locked --no-dev --extra sqlcipher --no-emit-project --format requirements-txt -o /tmp/goreecloud-ai-runtime-requirements.txt
           pip-audit -r /tmp/goreecloud-ai-runtime-requirements.txt --no-deps --disable-pip
       - name: Compile Python
         run: python -m compileall -q server/app linux

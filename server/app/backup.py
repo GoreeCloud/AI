@@ -15,7 +15,10 @@ from pathlib import Path
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from . import database as database_backend
+
 MAGIC = b"GCAI-BACKUP-v1\x00"
+MAGIC_SQLCIPHER = b"GCAI-BACKUP-v2-SQLCIPHER\x00"
 MAX_BYTES = 256 * 1024 * 1024
 
 
@@ -75,16 +78,28 @@ def backup(database: Path, destination: Path) -> None:
         raise FileExistsError("Backup output already exists")
     snapshot = _temporary(destination.parent)
     try:
-        with sqlite3.connect(database) as source, sqlite3.connect(snapshot) as target:
-            source.backup(target)
+        mode = database_backend.database_mode()
+        if mode == "sqlcipher":
+            driver = database_backend._sqlcipher_driver()
+            with (database_backend.connect(database, create=False) as source,
+                  driver.connect(str(snapshot)) as target):
+                key = database_backend._database_key()
+                target.execute("PRAGMA key = \"x'" + key.hex() + "'\"")
+                source.backup(target)
+            magic = MAGIC_SQLCIPHER
+        else:
+            with sqlite3.connect(database) as source, sqlite3.connect(snapshot) as target:
+                source.backup(target)
+            magic = MAGIC
         data = snapshot.read_bytes()
         if len(data) > MAX_BYTES:
             raise ValueError("Snapshot exceeds 256 MiB memory-safe limit")
-        if not data.startswith(b"SQLite format 3\x00"):
-            raise ValueError("Source is not a SQLite database")
+        if (data.startswith(database_backend.SQLITE_HEADER)
+                != (mode == "plaintext")):
+            raise ValueError("Snapshot encryption mode mismatch")
         nonce = os.urandom(12)
-        ciphertext = AESGCM(_key()).encrypt(nonce, data, MAGIC)
-        _write_exclusive(destination, MAGIC + nonce + ciphertext)
+        ciphertext = AESGCM(_key()).encrypt(nonce, data, magic)
+        _write_exclusive(destination, magic + nonce + ciphertext)
     finally:
         snapshot.unlink(missing_ok=True)
 
@@ -98,20 +113,37 @@ def restore(source: Path, destination: Path) -> None:
     if source.stat().st_size > MAX_BYTES + 128:
         raise ValueError("Encrypted backup exceeds supported limit")
     payload = source.read_bytes()
-    if not payload.startswith(MAGIC) or len(payload) < len(MAGIC) + 12 + 16:
+    if payload.startswith(MAGIC_SQLCIPHER):
+        magic = MAGIC_SQLCIPHER
+        mode = "sqlcipher"
+    elif payload.startswith(MAGIC):
+        magic = MAGIC
+        mode = "plaintext"
+    else:
         raise ValueError("Backup format is invalid")
-    nonce = payload[len(MAGIC):len(MAGIC) + 12]
-    plaintext = AESGCM(_key()).decrypt(nonce, payload[len(MAGIC) + 12:], MAGIC)
-    if not plaintext.startswith(b"SQLite format 3\x00"):
-        raise ValueError("Decrypted backup is not SQLite")
+    if len(payload) < len(magic) + 12 + 16:
+        raise ValueError("Backup is truncated")
+    if mode != database_backend.database_mode():
+        raise ValueError("Restore requires matching storage mode")
+    nonce = payload[len(magic):len(magic) + 12]
+    plaintext = AESGCM(_key()).decrypt(nonce, payload[len(magic) + 12:], magic)
+    if (plaintext.startswith(database_backend.SQLITE_HEADER)
+            != (mode == "plaintext")):
+        raise ValueError("Restored database format is invalid")
     snapshot = _temporary(destination.parent)
     try:
         _write_existing_private(snapshot, plaintext)
-        with sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True) as db:
+        if mode == "sqlcipher":
+            db = database_backend.connect(snapshot, create=False)
+        else:
+            db = sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True)
+        try:
             if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                 raise ValueError("Restored database failed integrity check")
             if "documents" not in {r[0] for r in db.execute("SELECT name FROM sqlite_master")}:
                 raise ValueError("Restored file is not a GoreeCloud AI database")
+        finally:
+            db.close()
         # Atomic exclusive publish, without clobbering an existing target.
         os.link(snapshot, destination, follow_symlinks=False)
         _sync_directory(destination.parent)

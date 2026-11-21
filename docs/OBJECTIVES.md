@@ -39,14 +39,15 @@ See README and THIRD_PARTY_NOTICES.md.
 
 The source provides an authenticated FastAPI preview, React web UI, Qt Linux
 UI, Android Compose UI, consent-gated cloud routing, local SQLite documents
+with source-tested opt-in SQLCipher full-DB/FTS5 encryption and offline migration,
 and conversations, metadata-only approval receipts, synthetic backup/restore
 tests, bounded parser subprocesses with opt-in Bubblewrap isolation, and
 offline pinned-JWKS authentication.
 The optional per-route capability checks remain source-tested and are not a
 verified issuer/delegation integration. No physical user-device acceptance,
-real model cost reconciliation, encrypted live database, complete sandbox
-qualification, signed production package, or deployed five-MIPS integration
-is demonstrated by this document.
+real model cost reconciliation, activated and operated encrypted live database,
+complete sandbox qualification, signed production package, or deployed five-MIPS
+integration is demonstrated by this document.
 
 ## Evidence before promotion
 
