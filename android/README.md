@@ -34,6 +34,18 @@ agent plans and manual MCP discovery/calls have
 development UI screens. Browser-only or unfinished native parity includes
 conversation save history, file import/export and image reference picking.
 
-Debug emulator can use local http://10.0.2.2:8000; release is HTTPS only.
+The debug source-set manifest now references a network security XML rule
+allowing cleartext **only** to the Android emulator's `10.0.2.2` loopback
+alias. Its base policy remains HTTPS-only, with no wildcard or custom trust
+anchors; the main/release manifest retains `usesCleartextTraffic=false`
+and `allowBackup=false`. BuildConfig.DEBUG also gates the Kotlin API's
+emulator HTTP exception. This is a narrow development convenience, **not**
+permission to use HTTP from a physical device, on a LAN or in production.
+
+Python source tests verify the strict manifest/XML/client relationship;
+the protected Android CI job compiles the debug app and checks the release
+manifest processing task. Real Android emulator networking and release-device
+acceptance are still unverified.
+
 API provider credentials must stay on the server. No production user Identity,
 privacy retention policy, signed release or physical device verification yet.

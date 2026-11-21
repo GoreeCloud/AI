@@ -84,7 +84,11 @@ production deployment.
   repeated events, UTF-8 line handling and cancellation state.
 - Sensitive HTTP responses have Cache-Control no-store, nosniff and
   no-referrer headers. Web and Linux clients permit only HTTPS or loopback HTTP.
-  Android release is HTTPS-only; emulator HTTP is debug-only.
+  Android release is HTTPS-only. A manifest/network XML overlay in
+  `android/app/src/debug/` permits cleartext only for the emulator alias
+  10.0.2.2, while the base policy is HTTPS-only. The API client also gates
+  this exception on BuildConfig.DEBUG. No release network-policy runtime
+  acceptance or physical-device test is implied.
 - Owner-only deletion removes live document rows/FTS terms and conversation
   snapshots. A separate locally invoked retention CLI offers read-only preview
   and opt-in transactional apply of expired snapshots, approval receipts and
