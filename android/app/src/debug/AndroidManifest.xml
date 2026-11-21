@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          xmlns:tools="http://schemas.android.com/tools">
-    <!-- Debug only: Android emulator may reach a local development API over HTTP. -->
-    <application android:usesCleartextTraffic="true"
-                 tools:replace="android:usesCleartextTraffic" />
+<!-- Debug source set only: do not copy this attribute to src/main or release. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:networkSecurityConfig="@xml/goree_ai_debug_network_security" />
 </manifest>

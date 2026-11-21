@@ -14,7 +14,9 @@ separately before marking any item complete.
 - Native Android and Linux image studios can browse and choose server-reported
   image models without triggering paid generation.
 - Android Compose has streamed chat/cancellation, host-side SSE framing tests
-  and no new cloud consent bypass; real device/provider qualification pending.
+  and no new cloud consent bypass; debug source set scopes local unencrypted
+  development HTTP to the emulator alias only. Release HTTPS-only policy is
+  source-tested; real emulator and provider qualification remain pending.
 - Native Qt Linux chat uses Qt Network SSE streaming and explicit cancellation
   with bounded frame decoding, redirect refusal and synthetic localhost tests.
   All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
