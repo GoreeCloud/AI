@@ -13,8 +13,9 @@ production deployment.
   **All other Linux REST requests** now use a separate native Qt Network
   bridge instead of QML XMLHttpRequest. The REST bridge requires an approved
   owner token and HTTPS/loopback endpoint, validates method/path and payload,
-  refuses redirects and ambient proxy settings, caps request (256KB) and
-  response (16MB) sizes and returns only validated JSON objects to QML.
+  refuses redirects, caps request (256KB) and response (16MB) sizes and
+  returns only validated JSON objects to QML. Both Linux Qt transports
+  also refuse ambient desktop proxy settings by default.
   Both clients retain separate cloud consent, non-streaming local fallback,
   and no disk-based client secret storage. Synthetic loopback and headless
   Qt tests do not establish real provider/device or lifecycle acceptance.

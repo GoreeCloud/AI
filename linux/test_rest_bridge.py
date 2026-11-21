@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import rest_bridge
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtNetwork import QNetworkProxy
 from rest_bridge import SafeRestBridge, checked_route
 
 
@@ -81,6 +82,10 @@ class QtRestBoundaryTests(unittest.TestCase):
         self.bridge.failed.connect(lambda *_: loop.quit())
         QTimer.singleShot(3000, loop.quit)
         loop.exec()
+
+    def test_no_implicit_desktop_proxy(self):
+        self.assertEqual(self.bridge.manager.proxy().type(),
+                         QNetworkProxy.ProxyType.NoProxy)
 
     def test_read_only_get_returns_structured_object(self):
         self.request()

@@ -7,8 +7,9 @@ with explicit cancellation, with bounded pure-Python frame decoding and a
 manual-redirect-denial policy for the streaming connection. All other
 Linux API calls now also use a bounded native Qt Network REST bridge with
 manual redirect refusal; the earlier credential-bearing QML XMLHttpRequest
-path has been retired. The REST bridge refuses ambient proxies as an
-additional local privacy guard.
+path has been retired. Both Qt Network transports refuse ambient proxies
+to protect the owner credential; operators requiring an approved proxy need
+a separately reviewed explicit policy.
 
 On a Linux machine with Python 3.11+ and a supported desktop environment:
 
