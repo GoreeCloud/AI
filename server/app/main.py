@@ -122,6 +122,7 @@ def _selected_provider(requested: str, cloud_approved: bool) -> str:
 async def chat(request: ChatRequest):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat")
     return await providers.chat([m.model_dump() for m in request.messages],
                                 request.model, selected, request.allow_local_fallback)
@@ -133,6 +134,7 @@ async def chat_stream(request: ChatRequest):
         raise HTTPException(422, "Fallback is only supported for non-streaming inference")
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat-stream")
 
     async def events():
@@ -172,6 +174,7 @@ async def images(request: ImageRequest):
     if not request.approve_paid_generation:
         raise HTTPException(403, "Image requests require explicit paid-call approval")
     reference = checked_reference(request.reference_data_url)
+    await providers.verify_cloud_key_budget()
     storage.admit_cloud_call("image")
     return await providers.image_request(request.prompt, request.model, reference)
 
@@ -257,6 +260,7 @@ async def extract_document(file: UploadFile = File(...)):
 async def agent_plan(request: AgentPlanRequest):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("agent-plan")
     answer = await providers.chat([
         {"role": "system", "content": (
@@ -321,6 +325,9 @@ def privacy_status():
     return {
         "cloud_consent_default": False,
         "conversation_persistence": "opt-in",
+        "conversation_retention_days": storage.conversation_retention_days(),
+        "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
+        "provider_key_cap_required": os.getenv("GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY", "false").lower() == "true",
         "document_storage": "local-plaintext-sqlite",
         "search": "local-fts5",
         "cloud_requests": storage.cloud_quota(),
@@ -386,6 +393,7 @@ async def research_answer(request: ResearchRequest):
                 "sources": [], "provider": "none", "sent_to_cloud": False}
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("research")
     excerpts = [
         {"source_id": item["id"], "title": item["title"][:150],
@@ -412,3 +420,35 @@ async def research_answer(request: ResearchRequest):
             "provider": model_answer["provider"],
             "model": model_answer["model"],
             "sent_to_cloud": model_answer["provider"] == "openrouter"}
+
+
+
+class RetentionPurgeRequest(BaseModel):
+    approved: bool = False
+
+
+@app.post("/api/v1/privacy/purge-expired", dependencies=[Depends(require_owner)])
+def purge_expired(request: RetentionPurgeRequest):
+    if not request.approved:
+        raise HTTPException(403, "Conversation retention deletion needs explicit approval")
+    return storage.purge_expired_conversations()
+
+
+@app.get("/api/v1/integrations/capabilities", dependencies=[Depends(require_owner)])
+def integration_capabilities():
+    """No model content, secrets, credentials or user records in discovery."""
+    return {
+        "service": "goreecloud-ai",
+        "api_version": "v1-preview",
+        "status": "local-development-not-deployed",
+        "capabilities": ["chat", "chat-stream", "document-search", "document-research",
+                         "image-generation", "manual-mcp"],
+        "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
+        "data_classification": "private-by-default",
+        "cloud_processing": "explicit-per-request-consent",
+        "operator_scoped_api": True,
+        "mesh_registered": False,
+        "identity_integration_verified": False,
+        "goreeshield_policy_verified": False,
+        "wardveil_policy_verified": False,
+    }

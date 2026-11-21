@@ -8,7 +8,7 @@ Original GoreeCloud AI code: MIT (see repository root LICENSE).
   upstream commit 5625121316230d78dd40a6e41a0671a250cb873b; see
   android/gc-ui-compose/UPSTREAM.md. Original files are copied, not rewritten.
   This is an alpha adapter, not a published SDK.
-- FastAPI, Starlette, httpx, Python-Multipart, pypdf, python-docx and MCP SDK:
+- FastAPI, Starlette, httpx, Python-Multipart, pypdf, python-docx, PyJWT, cryptography and MCP SDK:
   Python package dependencies governed by their upstream licenses.
 - React, React DOM, Vite and TypeScript: JavaScript package dependencies,
   governed by upstream licenses and web/package-lock.json.

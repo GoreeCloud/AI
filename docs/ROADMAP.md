@@ -14,16 +14,28 @@ separately before marking any item complete.
 - API mock tests, web typecheck/bundle, Linux offscreen QML boot and Android
   debug APK checks in GitHub Actions.
 
+## Source-level security foundation (not production acceptance)
+
+- Optional signed RS256/JWKS owner-scope verifier (offline pinned keys).
+- Optional capped OpenRouter key preflight with provider-owned limit.
+- Owner-approved retention cleanup and offline AES-GCM backup/restore.
+- Protected preview capability metadata for future Mesh contracts.
+- These do not establish GoreeCloud Identity/OIDC integration, complete
+  GoreeShield enforcement, Wardveil certification, or backup operations.
+
 ## P0 — protect privacy and qualify release
 
-1. GoreeCloud Identity signed-token/OIDC and per-client scoped access,
-   trusted HTTPS ingress and anti-abuse controls before public exposure.
-2. GoreeShield real consent policy, encrypted database+backup, retention
-   controls, data minimization and verified erasure behavior.
+1. Complete the source-authenticated GoreeCloud Identity issuer and claims
+   integration beyond the pinned JWKS verifier; per-route delegated scopes,
+   TLS ingress, MFA and anti-abuse controls before public exposure.
+2. GoreeShield enforced consent records and retention scheduling beyond the
+   explicitly approved snapshot purge; encrypt the live database, harden
+   backup custody, data minimization and verified erasure behavior.
 3. Wardveil scans, document parser sandbox, prompt/tool injection boundaries,
    MCP allowlists/worker isolation and secure audit without content leakage.
-4. True monetary caps based on provider prices, account credit/billing data,
-   concurrency reservations and usage reconciliation across worker processes.
+4. Require/verify provider-enforced per-key credit caps, then add real
+   monetary reservations and usage/billing reconciliation across workers;
+   present preflight is not a dollar spend guarantee.
 5. Test real Ollama/OpenRouter chat, streaming, images and MCP with safe data;
    no paid API call without explicit approved operator budget.
 6. Android real device, Linux interactive, browser/screen reader and UI quality
