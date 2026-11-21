@@ -4,6 +4,8 @@ import type { ChangeEvent, FormEvent } from 'react'
 type Tab = 'Chat' | 'Images' | 'Documents' | 'Agents' | 'MCP'
 type Message = { role: 'user' | 'assistant'; content: string }
 type SavedDoc = { id: string; title: string; body?: string; updated_at: string }
+type DocumentRevision = { id: string; document_id: string; title: string;
+  created_at: string; body_characters?: number; body?: string }
 type SavedConversation = { id: string; title: string; messages?: Message[]; message_count?: number }
 type SearchHit = { id: string; title: string; excerpt: string }
 type ConsentReceipt = { id: string; created_at: string; kind: string; approval: string }
@@ -50,6 +52,9 @@ export default function App() {
   const [docId, setDocId] = useState('')
   const [docTitle, setDocTitle] = useState('')
   const [docBody, setDocBody] = useState('')
+  const [recordRevision, setRecordRevision] = useState(false)
+  const [documentRevisions, setDocumentRevisions] = useState<DocumentRevision[]>([])
+  const [previewRevision, setPreviewRevision] = useState<DocumentRevision | null>(null)
   const [goal, setGoal] = useState('')
   const [plan, setPlan] = useState('')
   const [tools, setTools] = useState<string[]>([])
@@ -374,6 +379,7 @@ export default function App() {
     await action(async () => {
       await api<void>('/api/v1/documents/' + docId, 'DELETE')
       setDocId(''); setDocTitle(''); setDocBody('')
+      setDocumentRevisions([]); setPreviewRevision(null); setRecordRevision(false)
       setDocs(await api<SavedDoc[]>('/api/v1/documents'))
       setSearchHits([])
       setNotice('Document permanently removed from the local database.')
@@ -388,6 +394,44 @@ export default function App() {
     await action(async () => {
       const doc = await api<SavedDoc>('/api/v1/documents/' + id)
       setDocId(doc.id); setDocTitle(doc.title); setDocBody(doc.body || '')
+      setDocumentRevisions([]); setPreviewRevision(null); setRecordRevision(false)
+    })
+  }
+
+  async function refreshDocumentRevisions() {
+    if (!docId) return
+    await action(async () => {
+      const reply = await api<{ revisions: DocumentRevision[] }>(
+        '/api/v1/documents/' + docId + '/revisions')
+      setDocumentRevisions(reply.revisions)
+      setPreviewRevision(null)
+      setNotice(reply.revisions.length + ' saved earlier versions. No cloud request.')
+    })
+  }
+
+  async function inspectRevision(id: string) {
+    if (!docId) return
+    await action(async () => {
+      const revision = await api<DocumentRevision>(
+        '/api/v1/documents/' + docId + '/revisions/' + id)
+      setPreviewRevision(revision)
+      setNotice('Previous version loaded for read-only review. Editor unchanged.')
+    })
+  }
+
+  async function restoreRevision(id: string) {
+    if (!docId || !window.confirm(
+      'Replace the saved document with this earlier version? The current saved version ' +
+      'will be snapshotted for recovery, but unsaved editor changes will be lost.'
+    )) return
+    await action(async () => {
+      const restored = await api<SavedDoc>(
+        '/api/v1/documents/' + docId + '/revisions/' + id + '/restore',
+        'POST', { approved: true })
+      setDocTitle(restored.title); setDocBody(restored.body || '')
+      setDocumentRevisions([]); setPreviewRevision(null); setRecordRevision(false)
+      setDocs(await api<SavedDoc[]>('/api/v1/documents'))
+      setNotice('Restored locally. The displaced saved version is available in history.')
     })
   }
 
@@ -395,8 +439,12 @@ export default function App() {
     e.preventDefault()
     void action(async () => {
       const saved = await api<SavedDoc>('/api/v1/documents' + (docId ? '/' + docId : ''),
-        docId ? 'PUT' : 'POST', { title: docTitle, body: docBody })
-      setDocId(saved.id); setDocs(await api<SavedDoc[]>('/api/v1/documents'))
+        docId ? 'PUT' : 'POST', {
+          title: docTitle, body: docBody, record_revision: docId ? recordRevision : false
+        })
+      setDocId(saved.id); setRecordRevision(false)
+      setDocumentRevisions([]); setPreviewRevision(null)
+      setDocs(await api<SavedDoc[]>('/api/v1/documents'))
       setNotice('Document saved in the configured local database.')
     })
   }
@@ -412,6 +460,7 @@ export default function App() {
       if (!reply.ok) throw Error('Document import failed (' + reply.status + ')')
       const extracted = await reply.json() as { name: string; text: string; truncated: boolean }
       setDocId(''); setDocTitle(extracted.name); setDocBody(extracted.text)
+      setDocumentRevisions([]); setPreviewRevision(null); setRecordRevision(false)
       setNotice(extracted.truncated ? 'Imported preview truncated at 250,000 characters.' : 'Loaded into editor. Save to retain.')
     })
   }
@@ -636,12 +685,20 @@ export default function App() {
 
       {tab === 'Documents' && <div className="split">
         <section className="canvas"><div className="heading"><h2>Document editor</h2>
-          <button className="secondary" onClick={() => { setDocId(''); setDocTitle(''); setDocBody('') }}>New</button></div>
+          <button className="secondary" onClick={() => {
+            setDocId(''); setDocTitle(''); setDocBody('')
+            setDocumentRevisions([]); setPreviewRevision(null); setRecordRevision(false)
+          }}>New</button></div>
           <form className="doc-editor" onSubmit={saveDoc}>
             <input aria-label="Document title" className="doc-title" placeholder="Untitled document"
               value={docTitle} onChange={e => setDocTitle(e.target.value)} required />
             <textarea aria-label="Document body" value={docBody} onChange={e => setDocBody(e.target.value)}
               placeholder="Write in Markdown…" rows={14} />
+            {docId && <label className="check">
+              <input type="checkbox" checked={recordRevision}
+                onChange={e => setRecordRevision(e.target.checked)} />
+              Save a private copy of the current saved version before overwriting it
+            </label>}
             <div className="actions"><button disabled={busy || !docTitle.trim()}>Save</button>
               <button type="button" className="secondary" disabled={!docId || busy} onClick={() => void exportDoc('md')}>Export MD</button>
               <button type="button" className="secondary" disabled={!docId || busy} onClick={() => void exportDoc('docx')}>Export DOCX</button>
@@ -650,6 +707,24 @@ export default function App() {
           </form>
         </section>
         <aside className="controls"><h2>Library</h2><button className="secondary" onClick={() => void refreshDocs()}>Refresh library</button>
+          {docId && <section aria-label="Document history">
+            <div className="heading"><h2>Earlier versions</h2>
+              <button type="button" className="secondary" disabled={busy}
+                onClick={() => void refreshDocumentRevisions()}>Load history</button></div>
+            <p>History is opt-in per save, retained locally (up to 20 versions).
+              Restores capture the displaced saved version automatically.</p>
+            {documentRevisions.map(revision => <div className="revision-entry" key={revision.id}>
+              <button type="button" className="doc-link" disabled={busy}
+                onClick={() => void inspectRevision(revision.id)}>
+                {revision.title}<small>{revision.created_at}</small></button>
+              <button type="button" className="secondary" disabled={busy}
+                onClick={() => void restoreRevision(revision.id)}>Restore</button>
+            </div>)}
+            {previewRevision && <div aria-label="Read-only revision preview">
+              <strong>Preview: {previewRevision.title}</strong>
+              <pre className="result">{previewRevision.body}</pre>
+            </div>}
+          </section>}
           <label>Import document<input type="file" accept=".pdf,.docx,.md,.txt" onChange={e => void importFile(e)} /></label>
           {docs.map(doc => <button type="button" key={doc.id} className="doc-link"
             onClick={() => void openDoc(doc.id)}>{doc.title}<small>{doc.updated_at.slice(0, 10)}</small></button>)}

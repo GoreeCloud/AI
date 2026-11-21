@@ -16,7 +16,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Web | React/TypeScript chat stream/cancel, consent, searchable saved chats, explicit JSON/Markdown export and JSON import, rename, in-memory branching, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification and native conversation-library UI parity |
 | Linux | Native Qt Quick with bounded SSE and redirect-refusing authenticated Qt Network REST, chat cancellation, local saved-conversation list/search/save/open, images, documents, approved MCP and consent | Real desktop/accessibility, signed packages, provider acceptance and native export/import parity |
 | Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, incremental SSE chat/cancel, local saved-conversation list/search/save/open, images/docs/agents/MCP and debug-only emulator HTTP policy | Physical device/emulator networking, signed release, accessibility and native export/import parity |
-| Documents | SQLite CRUD/FTS5 with optional SQLCipher encryption; upload signature/UTF-8 preflight before resource-limited parser with opt-in Bubblewrap; export and cited retrieval | Deployed encryption, malware scanning, complete sandbox qualification and semantic search |
+| Documents | SQLite CRUD/FTS5 with optional SQLCipher; opt-in bounded revisions and approved rollback; upload preflight, isolated parser, export and cited retrieval | Deployed encryption, malware scanning, native revision parity and semantic search |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
 | Privacy | Consent-gated cloud processing, local snapshots and approval receipts, opt-in SQLCipher/FTS and backup, explicitly gated local retention CLI plus optional timer template | Deployment/key custody, hosted scheduler, secure erasure, policy acceptance and five-MIPS qualification |
 | Supply chain | Python/npm lockfile component inventories, directly declared Gradle source dependencies and partial installed PySide6 wheel inventory in CI | Resolved native transitive graph, licenses, attestation and signed release |
@@ -89,6 +89,13 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/privacy/purge-expired — explicitly approved retention deletion.
 - GET /api/v1/integrations/capabilities — authenticated preview capability metadata.
 - GET/POST /api/v1/documents and GET/PUT/DELETE /api/v1/documents/{uuid}.
+- PUT /api/v1/documents/{uuid} accepts optional record_revision=true to snapshot
+  the displaced saved content only when a change occurs.
+- GET /api/v1/documents/{uuid}/revisions and GET /api/v1/documents/{uuid}/revisions/{uuid}
+  expose owner-only bounded local history, 20 snapshots maximum.
+- POST /api/v1/documents/{uuid}/revisions/{uuid}/restore with approved=true
+  atomically restores previous content and preserves the displaced version.
+  See docs/DOCUMENT_REVISIONS.md.
 - GET /api/v1/search/documents?q=... — owner-only local FTS5 search.
 - POST /api/v1/research/answer — retrieved local source references with
   explicit cloud consent if a cloud provider is selected.
