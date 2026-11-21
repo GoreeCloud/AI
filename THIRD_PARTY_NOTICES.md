@@ -22,6 +22,8 @@ Original GoreeCloud AI code: MIT (see repository root LICENSE).
   notices must be evaluated before building distribution packages.
 - Kotlin, AndroidX, Jetpack Compose and Material3: upstream license/Android
   redistribution rules apply. Android SDK license requirements apply.
+- JUnit 4.13.2: Android host-side test-only framework (Eclipse Public License 1.0);
+  no JUnit code is bundled in the Android runtime package.
 - OpenRouter: externally hosted API and model marketplace, not rehosted source;
   model licenses, pricing, privacy and availability must be evaluated.
 - Ollama: optional independently installed runtime. Model weights and

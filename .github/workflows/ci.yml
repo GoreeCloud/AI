@@ -107,5 +107,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
         with:
           gradle-version: "9.4.1"
-      - name: Assemble Android debug APK
-        run: cd android && gradle :app:assembleDebug --no-daemon
+      - name: Test native Android SSE parser and assemble debug APK
+        run: cd android && gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon

@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -66,6 +68,9 @@ private fun AiWorkspace() {
     var provider by remember { mutableStateOf("auto") }
     var fallback by remember { mutableStateOf(false) }
     var cloudConsent by remember { mutableStateOf(false) }
+    var streamResponses by remember { mutableStateOf(true) }
+    var streamingControl by remember { mutableStateOf<StreamControl?>(null) }
+    var streamingJob by remember { mutableStateOf<Job?>(null) }
     val chat = remember { mutableStateListOf<Pair<String, String>>() }
     var prompt by remember { mutableStateOf("") }
     var imagePrompt by remember { mutableStateOf("") }
@@ -155,7 +160,7 @@ private fun AiWorkspace() {
                         Button(onClick = { provider = if (provider == "auto") "ollama" else "auto" }) {
                             Text(if (provider == "auto") "Auto · OpenRouter" else "Local · Ollama")
                         }
-                        Button(onClick = { chat.clear() }) { Text("New chat") }
+                        Button(enabled = !busy, onClick = { chat.clear() }) { Text("New chat") }
                     }
                     OutlinedTextField(value = model, onValueChange = { model = it },
                         label = { Text("Model ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -167,17 +172,77 @@ private fun AiWorkspace() {
                         Checkbox(checked = fallback, onCheckedChange = { fallback = it })
                         Text("Allow local fallback", style = MaterialTheme.typography.bodySmall)
                     }
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Checkbox(checked = streamResponses, onCheckedChange = { streamResponses = it })
+                        Text("Stream answer · cancel anytime", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (streamResponses && fallback) {
+                        Text("Local fallback uses a complete non-streaming response.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     OutlinedTextField(value = prompt, onValueChange = { prompt = it },
                         label = { Text("Message") }, minLines = 2, maxLines = 5,
                         modifier = Modifier.fillMaxWidth())
-                    Button(enabled = !busy && prompt.isNotBlank(), onClick = {
-                        val text = prompt.trim(); prompt = ""
-                        chat.add("user" to text)
-                        invoke("/api/v1/chat", AiApi.chatBody(chat.toList(), provider, model, fallback, cloudConsent)) {
-                            chat.add("assistant" to it.optString("content"))
-                            status = "Answered via " + it.optString("provider")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(enabled = !busy && prompt.isNotBlank(), onClick = {
+                            val text = prompt.trim()
+                            prompt = ""
+                            chat.add("user" to text)
+                            val history = chat.toList()
+                            if (streamResponses && !fallback) {
+                                val index = chat.size
+                                chat.add("assistant" to "")
+                                val control = StreamControl()
+                                streamingControl = control
+                                busy = true
+                                status = "Receiving streamed answer…"
+                                streamingJob = scope.launch {
+                                    try {
+                                        ChatStream.run(endpoint, token,
+                                            AiApi.chatBody(history, provider, model, false, cloudConsent),
+                                            control) { event ->
+                                            when (event.optString("type")) {
+                                                "delta" -> if (index < chat.size &&
+                                                    chat[index].first == "assistant") {
+                                                    chat[index] = "assistant" to (
+                                                        chat[index].second + event.optString("content"))
+                                                }
+                                                "done" -> status = "Answered via " +
+                                                    event.optString("provider", "selected provider")
+                                            }
+                                        }
+                                    } catch (_: CancellationException) {
+                                        status = "Stream cancelled"
+                                    } catch (e: Exception) {
+                                        status = e.message ?: "Stream unavailable"
+                                        if (index < chat.size && chat[index].second.isEmpty()) {
+                                            chat.removeAt(index)
+                                        }
+                                    } finally {
+                                        busy = false
+                                        streamingControl = null
+                                        streamingJob = null
+                                    }
+                                }
+                            } else {
+                                invoke("/api/v1/chat",
+                                    AiApi.chatBody(history, provider, model, fallback, cloudConsent)) {
+                                    chat.add("assistant" to it.optString("content"))
+                                    status = "Answered via " + it.optString("provider")
+                                }
+                            }
+                        }, modifier = Modifier.weight(1f)) {
+                            Text(if (streamResponses && !fallback) "Stream answer" else "Send")
                         }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Send") }
+                        if (busy && streamingControl != null) {
+                            Button(onClick = {
+                                streamingControl?.cancel()
+                                streamingJob?.cancel()
+                                status = "Stream cancelled"
+                            }) { Text("Cancel stream") }
+                        }
+                    }
                 }
                 1 -> Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
