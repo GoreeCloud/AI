@@ -6,6 +6,7 @@ type Message = { role: 'user' | 'assistant'; content: string }
 type SavedDoc = { id: string; title: string; body?: string; updated_at: string }
 type SavedConversation = { id: string; title: string; messages?: Message[]; message_count?: number }
 type SearchHit = { id: string; title: string; excerpt: string }
+type ImageCatalogEntry = { id: string; name: string; supports_reference: boolean; supports_streaming: boolean }
 
 function apiOrigin(value: string): string {
   const url = new URL(value)
@@ -36,10 +37,12 @@ export default function App() {
   const [prompt, setPrompt] = useState('')
   const [imagePrompt, setImagePrompt] = useState('')
   const [imageModel, setImageModel] = useState('bytedance-seed/seedream-4.5')
+  const [imageModels, setImageModels] = useState<ImageCatalogEntry[]>([])
   const [reference, setReference] = useState<string | null>(null)
   const [paidApproved, setPaidApproved] = useState(false)
   const [image, setImage] = useState('')
   const [imageCost, setImageCost] = useState<number | null>(null)
+  const [imageMime, setImageMime] = useState('image/png')
   const [docs, setDocs] = useState<SavedDoc[]>([])
   const [docId, setDocId] = useState('')
   const [docTitle, setDocTitle] = useState('')
@@ -155,14 +158,27 @@ export default function App() {
 
   function generateImage(e: FormEvent) {
     e.preventDefault()
+    const selected = imageModels.find(item => item.id === imageModel)
+    if (reference && selected && !selected.supports_reference) {
+      setAlert('This image model does not advertise reference-image support.')
+      return
+    }
     void action(async () => {
-      const reply = await api<{ image: string; cost: number | null }>(
+      const reply = await api<{ image: string; cost: number | null; media_type: string }>(
         '/api/v1/images', 'POST',
         { prompt: imagePrompt, model: imageModel, reference_data_url: reference,
           approve_paid_generation: paidApproved })
-      setImage(reply.image); setImageCost(reply.cost)
+      setImage(reply.image); setImageCost(reply.cost); setImageMime(reply.media_type)
       setPaidApproved(false)
       setNotice('Generated output received. Save locally to retain it.')
+    })
+  }
+
+  async function loadImageModels() {
+    await action(async () => {
+      const result = await api<{ models: ImageCatalogEntry[] }>('/api/v1/images/models')
+      setImageModels(result.models)
+      setNotice(result.models.length + ' available image models listed (no generation or paid request).')
     })
   }
 
@@ -443,11 +459,25 @@ export default function App() {
             ? <img src={image} alt={'AI generated output from prompt: ' + imagePrompt} />
             : <div className="empty"><span className="symbol">◈</span><h2>Start with an idea</h2>
               <p>Generate an original image or edit a reference.</p></div>}</div>
-          {image && <div className="actions"><a className="button" href={image} download="goreecloud-ai.png">Save image</a>
+          {image && <div className="actions"><a className="button" href={image} download={'goreecloud-ai.' + (
+            imageMime === 'image/jpeg' ? 'jpg' : imageMime === 'image/webp' ? 'webp' : 'png'
+          )}>Save image</a>
             {imageCost != null && <small>Reported request cost: {String(imageCost)} USD</small>}</div>}
         </section>
         <form className="controls" onSubmit={generateImage}><h2>Creative controls</h2>
-          <label>Image model<input value={imageModel} onChange={e => setImageModel(e.target.value)} /></label>
+          <div className="heading"><h3>Image models</h3>
+            <button type="button" className="secondary" disabled={busy}
+              onClick={() => void loadImageModels()}>Browse available</button></div>
+          {imageModels.length > 0 && <label>Available image models
+            <select aria-label="Choose available image model"
+              value={imageModels.some(item => item.id === imageModel) ? imageModel : ''}
+              onChange={e => { if (e.target.value) setImageModel(e.target.value) }}>
+              <option value="">Choose a discovered model</option>
+              {imageModels.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}
+            </select></label>}
+          <label>Image model ID<input value={imageModel} onChange={e => setImageModel(e.target.value)} /></label>
+          {reference && imageModels.some(item => item.id === imageModel && !item.supports_reference) &&
+            <p role="alert">Selected model does not advertise reference-image support.</p>}
           <label>Prompt<textarea rows={5} required value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} /></label>
           <label>Optional reference<input type="file" accept="image/png,image/jpeg,image/webp" onChange={setReferenceFile} /></label>
           {reference && <button className="secondary" type="button" onClick={() => setReference(null)}>Clear reference</button>}

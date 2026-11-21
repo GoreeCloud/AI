@@ -452,3 +452,10 @@ def integration_capabilities():
         "goreeshield_policy_verified": False,
         "wardveil_policy_verified": False,
     }
+
+
+
+@app.get("/api/v1/images/models", dependencies=[Depends(require_owner)])
+async def image_models():
+    """A deliberate public catalog lookup; no prompts, keys or documents sent."""
+    return await providers.image_catalog()

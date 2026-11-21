@@ -13,7 +13,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Surface | Implemented in source | Still missing |
 |---|---|---|
 | Shared API | Owner token or optional offline-JWKS scoped signed-token adapter, OpenRouter/Ollama, streaming, SSE and images | Verified GoreeCloud Identity issuer, dollar-cost reconciliation, live providers |
-| Web | React/TypeScript chat stream/cancel, consent, local conversation snapshots, documents, search/RAG, images, agents, MCP | Cross-browser/visual qualification |
+| Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
 | Documents | SQLite CRUD, PDF/DOCX/text extraction, Markdown/DOCX export, local FTS5 retrieval, source IDs | Full sandbox, encryption, semantic embeddings |
@@ -72,7 +72,8 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 
 - POST /api/v1/chat — text response; consent is required for cloud.
 - POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
-- POST /api/v1/images — paid generation/compatible reference edits.
+- POST /api/v1/images — explicitly approved paid generation/compatible reference edits (bounded image response, PNG/JPEG/WebP).
+- GET /api/v1/images/models — deliberate public OpenRouter image-model capability lookup; no prompt or generation billing.
 - GET /api/v1/models — configured routes.
 - GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
 - POST /api/v1/privacy/purge-expired — explicitly approved retention deletion.
