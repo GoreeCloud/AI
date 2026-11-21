@@ -7,7 +7,7 @@ billing savings, production availability or real-user data tests.
 
 | Mechanism | Default | Effect | Location and limits |
 | --- | --- | --- | --- |
-| Context trimming | Full history | Optional last_n with context_messages 1–32 drops older user/assistant turns, preserving system messages in order | Request memory only; no persistent summary; can lose important context |
+| Context trimming | Full history | Optional last_n or compact extractive older snippets, and budget auto-fit with declared model_context_window; all preserve system messages in order | Request memory only; no persistent summary; can lose important context |
 | Context preview | Manually requested | Reports approximate input-token counts and omitted messages using UTF-8 bytes/4 plus message overhead | No model call or disk write; no message contents returned |
 | Output cap | max_output_tokens=2048 | Optional 64–2048 caps OpenRouter max_tokens and (when changed) Ollama options.num_predict | Lower values may truncate useful replies |
 | Local exact-response cache | local_response_cache=false | On identical completed requests, may skip inference and reuse the last model answer without replaying usage or generation ID | Plaintext model output in server process RAM up to 300s, 64 LRU entries; no disk, SQLite or cross-worker sharing |
@@ -43,6 +43,26 @@ about billed dollars. Provider response cache HIT is reported only when its
 header is validated. A displayed estimated context reduction is approximate,
 not the actual provider tokenizer or an invoice. No live provider tests or
 payment commitments were made.
+
+## Lossy extractive context and declared-window budgeting
+
+The optional compact context mode retains the latest N user/assistant
+messages and every system message. It adds a locally computed, capped
+extractive digest from older turns marked as untrusted, incomplete user
+reference text; no abstractive model, API cost or durable storage is used.
+The owner may inspect this digest using the deliberately invoked
+POST /api/v1/chat/context-digest-preview route. It can omit important context
+and does not produce a faithful comprehensive summary.
+
+Budget mode requires caller-supplied model_context_window (1024–2M estimated
+context tokens), reserves max_output_tokens plus a 10% safety margin (minimum
+256), then sends as many recent turns as estimated to fit, preserving every
+system message and the latest non-system turn. If even that content exceeds
+the approximate allowance, inference is refused with 422; the local preview
+shows the budget failure. Input counts use a UTF-8-byte heuristic only.
+The declared window may be sourced from the model catalog or entered by the
+owner; it is not proof of provider tokenizer equivalence or guaranteed fit.
+See docs/CONTEXT_COMPACTION.md.
 
 ## Protected API controls
 

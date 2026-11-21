@@ -60,7 +60,8 @@ on the API. Open http://127.0.0.1:5173, enter the server URL and owner token
 (managed in memory only). Browser requests to non-loopback HTTP endpoints
 are refused. Chat streams are cancellable; opt-in saved chats stay in SQLite.
 The token-efficiency controls default to full history and no caching: you may
-explicitly preview approximate context savings, send the latest N exchanges,
+explicitly preview approximate context savings, review a local extractive digest,
+auto-fit a declared model context window, send the latest N exchanges,
 reduce output tokens, or allow temporary RAM/OpenRouter response caching and
 explicit Anthropic prompt-prefix caching. These separate controls are not
 verified dollar savings and do not relax cloud-processing consent.
@@ -85,7 +86,13 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
   Supports context limits, output caps, and provider-managed caching but not
   replay from the local RAM cache.
 - POST /api/v1/chat/context-preview — no inference; returns only approximate
-  token and message counts for selected context, without returning prompt text.
+  token/message counts and caller-declared model budget assessment, without
+  returning prompt text. New optional context_mode=compact extracts lossy
+  older reference snippets locally; mode=budget auto-selects recent history
+  against a declared model_context_window, reserving output and safety margin.
+- POST /api/v1/chat/context-digest-preview — local authenticated preview of
+  a compact mode's lossy, untrusted excerpts, never sent to inference.
+  See docs/CONTEXT_COMPACTION.md.
 - GET /api/v1/cache/status — owner-only counters for the current API worker.
 - POST /api/v1/cache/clear with approved=true — clear that worker's
   ephemeral response cache; strict OIDC requires admin, and provider caches

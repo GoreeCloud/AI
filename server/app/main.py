@@ -54,8 +54,10 @@ class ChatRequest(BaseModel):
     provider: Literal["auto", "openrouter", "ollama"] = "auto"
     allow_local_fallback: bool = False
     allow_cloud_processing: bool = False
-    context_mode: Literal["full", "last_n"] = "full"
+    context_mode: Literal["full", "last_n", "compact", "budget"] = "full"
     context_messages: int = Field(default=8, ge=1, le=32)
+    compact_max_characters: int = Field(default=1200, ge=256, le=3000)
+    model_context_window: int | None = Field(default=None, ge=1024, le=2_000_000)
     max_output_tokens: int = Field(default=2048, ge=64, le=2048)
     local_response_cache: bool = False
     provider_response_cache: bool = False
@@ -69,6 +71,8 @@ class ChatRequest(BaseModel):
     def bound_prompt_size(self):
         if sum(len(message.content) for message in self.messages) > 150000:
             raise ValueError("Prompt exceeds 150,000 character limit")
+        if self.context_mode == "budget" and self.model_context_window is None:
+            raise ValueError("Budget mode requires a declared model context window")
         return self
 
 
@@ -153,6 +157,8 @@ def chat_context(request: ChatRequest) -> list[dict]:
     return token_savings.select_context(
         [message.model_dump() for message in request.messages],
         request.context_mode, request.context_messages,
+        request.compact_max_characters, request.model_context_window,
+        request.max_output_tokens,
     )
 
 
@@ -162,7 +168,42 @@ def chat_context_preview(request: ChatRequest):
     return token_savings.preview(
         [message.model_dump() for message in request.messages],
         request.context_mode, request.context_messages,
+        request.compact_max_characters, request.model_context_window,
+        request.max_output_tokens,
     )
+
+
+@app.post("/api/v1/chat/context-digest-preview", dependencies=[Depends(require_owner)])
+def chat_digest_preview(request: ChatRequest):
+    """Deliberate local-only preview of lossy excerpts before allowing send."""
+    if request.context_mode != "compact":
+        raise HTTPException(422, "Choose compact context mode to inspect excerpts")
+    messages = [entry.model_dump() for entry in request.messages]
+    selected = token_savings.select_context(
+        messages, "compact", request.context_messages,
+        request.compact_max_characters, request.model_context_window,
+        request.max_output_tokens,
+    )
+    excerpt = next((item["content"] for item in selected
+                    if item["content"].startswith(token_savings.context_compaction.INTRO)), "")
+    return {
+        "digest": excerpt, "characters": len(excerpt),
+        "source": "local-deterministic-extractive-untrusted",
+        "sent_to_provider": False, "saved_to_disk": False,
+        "may_omit_information": True,
+    }
+
+
+def _assert_budget_fits(request: ChatRequest, selected: list[dict]) -> None:
+    window = request.model_context_window
+    if window is None:
+        return
+    allowed = token_savings.recommended_input_budget(window, request.max_output_tokens)
+    if token_savings.estimate_tokens(selected) > allowed:
+        raise HTTPException(
+            422, "Estimated input exceeds the declared context budget; shorten "
+                 "your prompt or increase the declared model context window"
+        )
 
 
 @app.get("/api/v1/cache/status", dependencies=[Depends(require_owner)])
@@ -197,6 +238,7 @@ async def chat(request: ChatRequest, http_request: Request):
         request.provider_prompt_cache, request.model, request.cache_session_id,
     )
     messages = chat_context(request)
+    _assert_budget_fits(request, messages)
     digest = None
     if request.local_response_cache:
         digest = token_savings.response_cache.key(
@@ -258,6 +300,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         request.provider_prompt_cache, request.model, request.cache_session_id,
     )
     messages = chat_context(request)
+    _assert_budget_fits(request, messages)
     if selected == "openrouter":
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat-stream", approved=request.allow_cloud_processing)
@@ -540,7 +583,7 @@ def privacy_status():
     return {
         "cloud_consent_default": False,
         "document_revision_history": "opt-in-per-save-max-20",
-        "chat_context_trimming": "opt-in-last-n-preserve-system",
+        "chat_context_trimming": "opt-in-last-n-or-extractive-compact-or-budget",
         "local_response_cache": "opt-in-ephemeral-process-memory",
         "provider_cache": "explicit-opt-in-may-retain-upstream",
         "conversation_persistence": "opt-in",
@@ -714,7 +757,8 @@ def integration_capabilities():
         "status": "local-development-not-deployed",
         "capabilities": ["chat", "chat-stream", "document-search", "document-research",
                          "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import", "document-revisions", "text-model-catalog", "chat-context-preview", "local-response-cache",
-                          "provider-response-cache", "provider-prompt-cache"],
+                          "provider-response-cache", "provider-prompt-cache",
+                          "context-digest-preview", "context-budget-planning"],
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "data_classification": "private-by-default",
         "cloud_processing": "explicit-per-request-consent",

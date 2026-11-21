@@ -15,6 +15,8 @@ type ContextPreview = {
   mode: string; messages_original: number; messages_sent: number; messages_omitted: number;
   estimated_input_tokens_original: number; estimated_input_tokens_sent: number;
   estimated_input_tokens_reduced: number; sent_to_provider: boolean;
+  has_extractive_digest?: boolean; estimated_budget_fits?: boolean | null;
+  declared_model_context_window?: number | null; recommended_input_budget?: number | null;
 }
 type CacheStatus = { mode: string; entries: number; hits: number; misses: number;
   max_entries: number; ttl_seconds: number }
@@ -41,8 +43,10 @@ export default function App() {
   const [fallback, setFallback] = useState(false)
   const [cloudConsent, setCloudConsent] = useState(false)
   const [streaming, setStreaming] = useState(true)
-  const [contextMode, setContextMode] = useState<'full' | 'last_n'>('full')
+  const [contextMode, setContextMode] = useState<'full' | 'last_n' | 'compact' | 'budget'>('full')
   const [contextMessages, setContextMessages] = useState(8)
+  const [modelContextWindow, setModelContextWindow] = useState(8192)
+  const [contextDigest, setContextDigest] = useState('')
   const [maxOutputTokens, setMaxOutputTokens] = useState(2048)
   const [contextPreview, setContextPreview] = useState<ContextPreview | null>(null)
   const [localResponseCache, setLocalResponseCache] = useState(false)
@@ -128,6 +132,7 @@ export default function App() {
     setProviderResponseCache(false)
     setProviderPromptCache(false)
     setContextPreview(null)
+    setContextDigest('')
     setCacheSessionId(globalThis.crypto?.randomUUID?.() || null)
   }
 
@@ -136,6 +141,8 @@ export default function App() {
       messages: history, provider, model,
       allow_local_fallback: fallback, allow_cloud_processing: cloudConsent,
       context_mode: contextMode, context_messages: contextMessages,
+      compact_max_characters: 1200,
+      ...(contextMode === 'budget' ? { model_context_window: modelContextWindow } : {}),
       max_output_tokens: maxOutputTokens,
       local_response_cache: localResponseCache && !streaming,
       provider_response_cache: providerResponseCache,
@@ -153,6 +160,18 @@ export default function App() {
         chatPayload(history))
       setContextPreview(reply)
       setNotice('Context estimated entirely on your API server, with no model request.')
+    })
+  }
+
+  async function reviewContextDigest() {
+    const history: Message[] = prompt.trim()
+      ? [...messages, { role: 'user', content: prompt.trim() }] : messages
+    if (!history.length || contextMode !== 'compact') return
+    await action(async () => {
+      const reply = await api<{ digest: string; may_omit_information: boolean }>(
+        '/api/v1/chat/context-digest-preview', 'POST', chatPayload(history))
+      setContextDigest(reply.digest)
+      setNotice('Generated local-only extractive excerpts for inspection; no model contacted.')
     })
   }
 
@@ -181,6 +200,7 @@ export default function App() {
     void action(async () => {
       const payload = chatPayload(next)
       setContextPreview(null)
+      setContextDigest('')
       if (!streaming) {
         const reply = await api<{
           content: string; provider: string; model: string;
@@ -691,6 +711,9 @@ export default function App() {
                 const selected = textModels.find(item => item.id === e.target.value)
                 if (!selected) return
                 setModel(selected.id); setProvider('openrouter')
+                if (selected.context_length != null &&
+                    selected.context_length >= 1024 && selected.context_length <= 2000000)
+                  setModelContextWindow(selected.context_length)
                 setCloudConsent(false); setFallback(false)
                 setProviderPromptCache(false); setProviderResponseCache(false)
                 setNotice('Model selected · cloud processing consent remains off.')
@@ -719,19 +742,42 @@ export default function App() {
               <button type="button" className="secondary" disabled={busy || (!prompt.trim() && !messages.length)}
                 onClick={() => void previewChatContext()}>Preview context</button></div>
             <label>History sent to the model
-              <select value={contextMode === 'full' ? 'full' : String(contextMessages)}
+              <select value={contextMode === 'last_n' ? 'last_n:' + contextMessages : contextMode}
                 onChange={e => {
                   const value = e.target.value
-                  setContextMode(value === 'full' ? 'full' : 'last_n')
-                  if (value !== 'full') setContextMessages(Number(value))
-                  setContextPreview(null)
+                  if (value.startsWith('last_n:')) {
+                    setContextMode('last_n'); setContextMessages(Number(value.split(':')[1]))
+                  } else {
+                    setContextMode(value as 'full' | 'compact' | 'budget')
+                    if (value === 'compact') setContextMessages(4)
+                    if (value === 'budget') setContextMessages(32)
+                  }
+                  setContextPreview(null); setContextDigest('')
                 }}>
                 <option value="full">Full history (existing behavior)</option>
-                <option value="4">Latest 4 user/assistant messages</option>
-                <option value="8">Latest 8 user/assistant messages</option>
-                <option value="16">Latest 16 user/assistant messages</option>
+                <option value="last_n:4">Latest 4 user/assistant messages</option>
+                <option value="last_n:8">Latest 8 user/assistant messages</option>
+                <option value="last_n:16">Latest 16 user/assistant messages</option>
+                <option value="compact">Extract older excerpts locally · keep last 4</option>
+                <option value="budget">Auto-fit declared model budget (estimated)</option>
               </select>
             </label>
+            {contextMode === 'compact' && <>
+              <button type="button" className="secondary" disabled={busy || (!messages.length && !prompt.trim())}
+                onClick={() => void reviewContextDigest()}>Inspect extracted context</button>
+              <small>This is a lossy deterministic excerpt, not a model summary.
+                Verify the quotes before using it. No extra inference call or disk write.</small>
+              {contextDigest && <pre className="result" role="status">{contextDigest}</pre>}
+            </>}
+            {contextMode === 'budget' && <>
+              <label>Declared model context window (tokens)
+                <input type="number" value={modelContextWindow} min={1024} max={2000000}
+                  onChange={e => { setModelContextWindow(Number(e.target.value)); setContextPreview(null) }} />
+              </label>
+              <small>Model metadata may provide this value; verify it with your selected provider.
+                The budget uses a heuristic and reserves 10% safety margin plus response tokens.
+                If even the newest message cannot fit, the server refuses the model call.</small>
+            </>}
             <label>Maximum response tokens
               <select value={maxOutputTokens}
                 onChange={e => setMaxOutputTokens(Number(e.target.value))}>
@@ -744,8 +790,13 @@ export default function App() {
               {' '}{contextPreview.estimated_input_tokens_original.toLocaleString()} full →{' '}
               {contextPreview.estimated_input_tokens_sent.toLocaleString()} selected,
               approximately {contextPreview.estimated_input_tokens_reduced.toLocaleString()} reduced.
-              {' '}{contextPreview.messages_omitted} messages omitted. System messages stay.
-              This heuristic is not the model tokenizer or a billing estimate.</p>}
+              {' '}{contextPreview.messages_omitted} historical messages omitted.
+              {contextPreview.has_extractive_digest ? ' Local extractive digest included.' : ''}
+              {contextPreview.recommended_input_budget != null
+                ? ' Estimated input allowance: ' + contextPreview.recommended_input_budget.toLocaleString() +
+                  '; within allowance: ' + (contextPreview.estimated_budget_fits ? 'yes' : 'no') + '.'
+                : ''}
+              System messages stay. This is not the provider tokenizer or a billing estimate.</p>}
             <label className="check"><input type="checkbox" checked={localResponseCache}
               disabled={busy || streaming}
               onChange={e => setLocalResponseCache(e.target.checked)} />
