@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
-from . import database, import_sandbox, mcp_tools, providers, storage
+from . import database, import_sandbox, mcp_tools, providers, storage, upload_validation
 from .security import require_capability, require_owner
 
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
@@ -302,6 +302,7 @@ async def extract_document(file: UploadFile = File(...)):
         if not file.filename or not file.filename.lower().endswith((".pdf", ".docx", ".txt", ".md")):
             raise HTTPException(415, "Only PDF, DOCX and plain text are supported")
         suffix = file.filename.lower().rsplit(".", 1)[-1]
+        upload_validation.preflight_document(contents, suffix)
         result = await parse_document_isolated(contents, suffix)
         return {"name": file.filename[:160], "text": result["text"],
                 "truncated": result["truncated"]}

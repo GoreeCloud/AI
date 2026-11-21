@@ -3,9 +3,14 @@
 ## Current architecture
 
 The API accepts authenticated uploads of PDF, DOCX, TXT and Markdown, capped
-at 6 MB. It does **not** parse untrusted document contents inside the FastAPI
-process. A separate Python interpreter (invoked with sys.executable and -I)
-handles each upload using a single-use stdin/stdout protocol on Linux.
+at 6 MB. A bounded **preflight** inspects only the supplied bytes' PDF 1.x/2.x
+header, ZIP local-file signature for DOCX and valid UTF-8 without NUL for
+plain text/Markdown. Obvious mislabeling is rejected with a generic HTTP 422
+before subprocess creation. This does **not** prove the file is safe, validate
+its complete MIME structure or detect malware. The API does **not** parse
+PDF/DOCX structure in the web process; the existing separate interpreter
+(invoked with sys.executable and -I) handles full parsing under resource limits
+using a single-use stdin/stdout protocol on Linux.
 
 Two operator-selectable Linux import modes now exist. The backward-compatible
 default, **process**, keeps the original limited worker running under the host
@@ -29,7 +34,7 @@ production configuration and qualification.
 | Boundary | Enforced behavior |
 | --- | --- |
 | API access | Owner bearer token or configured signed JWT owner mode |
-| Upload | 6,000,000 bytes maximum; supported extensions only |
+| Upload | 6,000,000 bytes maximum; supported extensions, PDF/ZIP magic-byte and UTF-8/plain-text preflight before parser spawn |
 | Process | New Linux Python process per upload, isolated -I interpreter |
 | Optional Bubblewrap | GOREECLOUD_AI_IMPORT_ISOLATION=bwrap; namespace, read-only runtime, no network, isolated /tmp, no private host filesystem binds |
 | No downgrade | Missing or invalid sandbox binary refuses import; process mode is deliberate default only |
@@ -52,8 +57,10 @@ production configuration and qualification.
   independently reviewed. There is no seccomp policy, dedicated host UID,
   cgroup limit, malware scanner or secret broker. Further isolation, reliable
   environment-specific verification and Wardveil acceptance remain open.
-- Uploaded multipart bytes and live SQLite documents are not encrypted.
-  Temporary file spooling and host backups may retain sensitive information.
+- Multipart uploads may spool unencrypted temporary file bytes; live
+  SQLite documents use plaintext storage **unless** optional SQLCipher mode
+  is correctly enabled with external key custody. Older backups, swap,
+  plaintext export files and old databases may retain sensitive information.
 - PDF/DOCX embedded links and text are untrusted data, never permissions,
   system instructions or evidence that an agent action was approved.
 - A two-slot semaphore bounds local API worker concurrency, but it does not
@@ -80,7 +87,9 @@ On a trusted Linux development host using locked dependencies:
     uv run --locked --extra dev pytest -q tests/test_import_sandbox.py
     uv run --locked --extra dev pytest -q
 
-Tests cover valid text/DOCX/PDF, malformed input, existing DOCX decompression
+Tests cover authenticated PDF/DOCX/text/Markdown preflight (including real
+synthetic files, invalid signatures, UTF-8/BOM and binary rejection before
+worker creation), valid text/DOCX/PDF parsing, existing DOCX decompression
 limit, owner authentication, sanitized process environment, timeout termination,
 bounded worker output and cancellation cleanup. On Linux hosts where Bubblewrap
 can actually enter unprivileged namespaces, synthetic integration tests check

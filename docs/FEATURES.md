@@ -7,9 +7,9 @@ GoreeCloud UI source and independently licensed dependencies. This is a
 | Capability | Current source status | Verification and limitations |
 | --- | --- | --- |
 | OpenRouter and Ollama text inference | Implemented in FastAPI; safe optional generation ID and owner-deliberate provider-reported USD cost metadata retrieval | Consent-gated OpenRouter; local Ollama opt-in; real cost/invoice/provider compatibility needs live safe testing |
-| Chat SSE streaming/cancel | Server stream and React stream/abort implemented | Mock tests and web build; native cancellation parity pending |
+| Chat SSE streaming/cancel | Server and React stream/cancel, native Android Compose and Linux Qt streaming/cancel with host-side SSE tests | Physical device, real desktop, lifecycle, browser and provider acceptance pending |
 | Image generation and catalog | Source-level backend and web/Android/Linux model selectors | Explicit paid approval; tested mock provider shape; real pricing, model and media compatibility unverified |
-| Document editing, import/export | SQLite CRUD with opt-in SQLCipher encrypted full database/FTS5, export and resource-limited Linux imports with optional Bubblewrap | Live encryption needs activation/verified key custody; native file-picker parity pending |
+| Document editing, import/export | SQLite CRUD and opt-in SQLCipher/FTS5, export, PDF/ZIP signatures and UTF-8 text preflight before bounded Linux parser and optional Bubblewrap | No malware inspection; real encryption/key custody, full parser security and native picker parity pending |
 | Local search and cited answers | SQLite FTS5 lexical retrieval, bounded source-linked text | No vector indexes; no guarantee of model factuality; source text is untrusted |
 | Saved chat and retention | Explicit saved snapshots, approved purge, dry-run-first local retention CLI with opt-in apply, and optional systemd timer templates | No enabled/deployed scheduler or secure erasure; backup copies may retain prior data |
 | Cloud consent and quotas | Default-off per-request approval, daily atomic request admission and metadata-only receipts | Admission is not actual spend; no provider billing reconciliation or production privacy engine |

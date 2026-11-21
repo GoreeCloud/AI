@@ -58,8 +58,11 @@ production deployment.
 - Owner shared-token check, no prompt logging, bounded streamed JSON responses,
   validated base64 image formats, fixed upstream OpenRouter URL,
   disabled redirects, bounded requests, reference validation and PDF/DOCX
-  file limits. PDF/DOCX/TXT/MD extraction now runs in a separate Linux worker
-  with 512 MiB virtual memory, 6 CPU seconds, 10-second wall timeout, sanitized
+  file limits. Authenticated uploads are preflight-checked for PDF/DOCX
+  signature and valid UTF-8 text/Markdown bytes before worker spawn. These
+  cheap checks are not full MIME identification, antivirus or sandbox controls.
+  PDF/DOCX/TXT/MD extraction runs in a separate Linux worker with
+  512 MiB virtual memory, 6 CPU seconds, 10-second wall timeout, sanitized
   worker environment and 6 MB input/25 MB DOCX-expanded/250k-character output
   bounds plus a two-slot per-API-process import admission semaphore.
   Default process mode shares host UID, filesystem and network; optional
