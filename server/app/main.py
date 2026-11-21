@@ -260,6 +260,10 @@ async def parse_document_isolated(contents: bytes, suffix: str, timeout_seconds:
             await process.wait()
     if len(output) > 1_200_000:
         raise HTTPException(502, "Document parser output exceeded limit")
+    if process.returncode and not output and import_sandbox.import_mode() == "bwrap":
+        # Sandbox setup or worker execution failed. Never retry outside the
+        # chosen security boundary; avoid disclosing kernel/host paths.
+        raise HTTPException(503, "Document sandbox is unavailable on this host")
     try:
         result = json.loads(output)
     except (ValueError, TypeError) as exc:

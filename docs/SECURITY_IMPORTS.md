@@ -82,8 +82,12 @@ On a trusted Linux development host using locked dependencies:
 
 Tests cover valid text/DOCX/PDF, malformed input, existing DOCX decompression
 limit, owner authentication, sanitized process environment, timeout termination,
-bounded worker output and cancellation cleanup. No provider calls or real
-private documents are necessary.
+bounded worker output and cancellation cleanup. On Linux hosts where Bubblewrap
+can actually enter unprivileged namespaces, synthetic integration tests check
+file, environment and network isolation. Hosted CI that has the binary but
+denies user namespaces records these runtime tests as **skipped**, not passed;
+no production safety is inferred from the skipped checks. No provider calls
+or real private documents are necessary.
 
 ## Next release gates
 
