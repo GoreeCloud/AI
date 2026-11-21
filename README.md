@@ -119,9 +119,13 @@ Details, command examples and key handling:
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python linux/smoke.py
     cd android && gradle :app:assembleDebug
 
-GitHub Actions checks all four tracks; the Python job also audits locked
-runtime dependencies for known advisories. See docs/RELEASE_GATES.md and
-docs/ROADMAP.md for production blockers. Keep all changes reviewable via
+GitHub Actions checks all four tracks; Python production and web production
+dependency advisories are audited in CI. A deterministic two-ecosystem
+lockfile component inventory is uploaded as a short-retention CI artifact;
+actions are pinned by verified full source commit SHA. The inventories
+are not release SBOM attestations or full license/scanner coverage.
+See docs/SUPPLY_CHAIN.md, docs/RELEASE_GATES.md and docs/ROADMAP.md
+for the remaining production blockers. Keep all changes reviewable via
 pull requests with passing CI and protected main settings.
 
 License: MIT for original source (LICENSE). Dependency and pinned
