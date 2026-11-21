@@ -30,7 +30,7 @@ import_slots = asyncio.Semaphore(2)
 origins = [x.strip() for x in os.getenv("GOREECLOUD_AI_CORS_ORIGINS", "").split(",") if x.strip()]
 if origins:
     app.add_middleware(CORSMiddleware, allow_origins=origins,
-                       allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"])
+                       allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"], allow_headers=["Authorization", "Content-Type"])
 
 
 @app.middleware("http")
@@ -368,6 +368,15 @@ class SaveConversationRequest(BaseModel):
         return self
 
 
+class ImportConversationRequest(BaseModel):
+    schema_version: Literal["goreecloud.ai.conversation.v1"] = Field(alias="schema")
+    conversation: SaveConversationRequest
+
+
+class RenameConversationRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=150)
+
+
 class ResearchRequest(BaseModel):
     question: str = Field(min_length=3, max_length=10000)
     provider: Literal["auto", "openrouter", "ollama"] = "auto"
@@ -430,12 +439,57 @@ def save_conversation(request: SaveConversationRequest):
         request.title, [message.model_dump() for message in request.messages])
 
 
+@app.post("/api/v1/conversations/import", dependencies=[Depends(require_owner)], status_code=201)
+def import_conversation(request: ImportConversationRequest):
+    """Create a new local snapshot; imported UUIDs/timestamps are never trusted."""
+    item = request.conversation
+    return storage.save_conversation(
+        item.title, [message.model_dump() for message in item.messages])
+
+
 @app.get("/api/v1/conversations/{conversation_id}", dependencies=[Depends(require_owner)])
 def read_conversation(conversation_id: UUID):
     item = storage.get_conversation(str(conversation_id))
     if item is None:
         raise HTTPException(404, "Conversation not found")
     return item
+
+
+
+@app.get("/api/v1/search/conversations", dependencies=[Depends(require_owner)])
+def search_conversations(q: str, limit: int = 20):
+    return {"results": storage.search_conversations(q, limit), "mode": "local-fts5"}
+
+
+@app.patch("/api/v1/conversations/{conversation_id}", dependencies=[Depends(require_owner)])
+def rename_conversation(conversation_id: UUID, request: RenameConversationRequest):
+    result = storage.rename_conversation(str(conversation_id), request.title)
+    if result is None:
+        raise HTTPException(404, "Conversation not found")
+    return result
+
+
+@app.get("/api/v1/conversations/{conversation_id}/export", dependencies=[Depends(require_owner)])
+def export_conversation(conversation_id: UUID, format: Literal["json", "md"] = "json"):
+    """Explicit owner-only portability: no automatic upload or remote sharing."""
+    item = storage.get_conversation(str(conversation_id))
+    if item is None:
+        raise HTTPException(404, "Conversation not found")
+    headers = {
+        "Content-Disposition": f'attachment; filename="goreecloud-conversation-{conversation_id}.{format}"',
+        "Cache-Control": "no-store",
+    }
+    if format == "json":
+        payload = {"schema": "goreecloud.ai.conversation.v1", "conversation": item}
+        content = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        return Response(content=content, media_type="application/json", headers=headers)
+    transcript = ["# " + item["title"], "",
+                  "Exported saved conversation. User text is untrusted content.", ""]
+    for message in item["messages"]:
+        transcript.extend(["## " + ("You" if message["role"] == "user" else "GoreeCloud AI"),
+                           "", message["content"], ""])
+    return Response(content="\n".join(transcript).encode("utf-8"),
+                    media_type="text/markdown", headers=headers)
 
 
 @app.delete("/api/v1/conversations/{conversation_id}", dependencies=[Depends(require_owner)])
@@ -504,7 +558,7 @@ def integration_capabilities():
         "api_version": "v1-preview",
         "status": "local-development-not-deployed",
         "capabilities": ["chat", "chat-stream", "document-search", "document-research",
-                         "image-generation", "manual-mcp"],
+                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import"],
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "data_classification": "private-by-default",
         "cloud_processing": "explicit-per-request-consent",

@@ -7,8 +7,10 @@ separately before marking any item complete.
 
 - OpenRouter/Ollama router, optional local fallback, stream/cancel API,
   consent-gated cloud routing and bounded request-count budget.
-- Explicit local conversation snapshots, SQLite FTS5 search/retrieval,
-  source-linked responses and document/conversation deletion.
+- Explicit local conversation snapshots, SQLite FTS5 document and saved-message
+  search, owner-authenticated rename and portable JSON/Markdown export,
+  bounded local JSON import with fresh IDs, non-destructive web branching,
+  source-linked document answers and document/conversation deletion.
 - Web, Linux Qt Quick and Android Kotlin Compose clients, including the
   pinned GoreeCloud UI Material 3 Expressive source adapter.
 - Native Android and Linux image studios can browse and choose server-reported
@@ -92,6 +94,8 @@ separately before marking any item complete.
   routing profiles and physical-device native streaming/cancellation
   qualification; Android Compose and Linux Qt SSE are source-implemented,
   but live-provider, lifecycle and real-device acceptance remain open.
+- Native Linux/Android saved-conversation library UI parity; verified browser
+  import/export, accessibility and local-database migration qualification.
 - Voice, transcription, TTS, editing history, media library and offline-first sync.
 
 ## P2 — ecosystem adoption

@@ -30,6 +30,8 @@ export default function App() {
   const [streaming, setStreaming] = useState(true)
   const streamAbort = useRef<AbortController | null>(null)
   const [savedChats, setSavedChats] = useState<SavedConversation[]>([])
+  const [chatQuery, setChatQuery] = useState('')
+  const [chatResults, setChatResults] = useState<SavedConversation[] | null>(null)
   const [searchText, setSearchText] = useState('')
   const [searchHits, setSearchHits] = useState<SearchHit[]>([])
   const [researchAnswer, setResearchAnswer] = useState('')
@@ -61,7 +63,7 @@ export default function App() {
   const [consentReceipts, setConsentReceipts] = useState<ConsentReceipt[]>([])
   const [receiptsLoaded, setReceiptsLoaded] = useState(false)
   const [privacyInfo, setPrivacyInfo] = useState<{
-    auth_mode: string; conversation_retention_days: number;
+    auth_mode: string; document_storage: string; conversation_retention_days: number;
     consent_receipt_retention_days: number; provider_key_cap_required: boolean;
     cloud_requests: { remaining: number; limit: number }
   } | null>(null)
@@ -256,8 +258,78 @@ export default function App() {
     await action(async () => {
       const saved = await api<SavedConversation>('/api/v1/conversations/' + id)
       setMessages(saved.messages || [])
+      setCloudConsent(false)
       setNotice('Loaded local conversation snapshot.')
     })
+  }
+
+  async function importChatFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (file.size > 350000 || !file.name.toLowerCase().endsWith('.json')) {
+      setAlert('Choose a GoreeCloud conversation JSON export smaller than 350 KB.')
+      return
+    }
+    await action(async () => {
+      const document: unknown = JSON.parse(await file.text())
+      await api('/api/v1/conversations/import', 'POST', document)
+      setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
+      setChatResults(null)
+      setNotice('Imported a new local snapshot. Original IDs and timestamps were not reused.')
+    })
+  }
+
+  async function searchChats() {
+    if (chatQuery.trim().length < 2) {
+      setAlert('Enter at least two characters to search saved chats.')
+      return
+    }
+    await action(async () => {
+      const reply = await api<{ results: SavedConversation[] }>(
+        '/api/v1/search/conversations?q=' + encodeURIComponent(chatQuery.trim()))
+      setChatResults(reply.results)
+      setNotice(reply.results.length + ' matching local saved conversations. No cloud processing.')
+    })
+  }
+
+  async function renameChat(id: string, oldTitle: string) {
+    const value = window.prompt('Rename saved conversation', oldTitle)
+    if (value === null) return
+    const title = value.trim()
+    if (!title || title.length > 150) { setAlert('Enter a title of 1–150 characters.'); return }
+    await action(async () => {
+      await api('/api/v1/conversations/' + id, 'PATCH', { title })
+      setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
+      setChatResults(null)
+      setNotice('Saved conversation renamed locally.')
+    })
+  }
+
+  async function exportChat(id: string, format: 'json' | 'md') {
+    await action(async () => {
+      if (!token.trim()) throw Error('Set an owner token first.')
+      const reply = await fetch(apiOrigin(endpoint) +
+        '/api/v1/conversations/' + id + '/export?format=' + format, {
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store', referrerPolicy: 'no-referrer'
+      })
+      if (!reply.ok) throw Error('Conversation export failed (' + reply.status + ')')
+      const objectURL = URL.createObjectURL(await reply.blob())
+      const anchor = document.createElement('a')
+      anchor.href = objectURL
+      anchor.download = 'goreecloud-conversation-' + id + '.' + format
+      anchor.click()
+      setTimeout(() => URL.revokeObjectURL(objectURL), 1000)
+      setNotice('Private conversation downloaded to your device. Protect the unencrypted file.')
+    })
+  }
+
+  function branchChat(index: number) {
+    if (busy) return
+    setMessages(messages.slice(0, index + 1))
+    setCloudConsent(false)
+    setNotice('Branched in this tab; save explicitly to retain the new conversation.')
   }
 
   async function deleteChat(id: string) {
@@ -265,6 +337,7 @@ export default function App() {
     await action(async () => {
       await api<void>('/api/v1/conversations/' + id, 'DELETE')
       setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
+      setChatResults(null)
       setNotice('Saved conversation deleted.')
     })
   }
@@ -424,7 +497,11 @@ export default function App() {
               <p>Reason, create, research and plan from one calm workspace.</p></div>}
             {messages.map((entry, i) => <article key={i} className={'message ' + entry.role}>
               <strong>{entry.role === 'user' ? 'You' : 'GoreeCloud AI'}</strong>
-              <p>{entry.content}</p></article>)}
+              <p>{entry.content}</p>
+              {i < messages.length - 1 && <button type="button" className="secondary branch-action"
+                disabled={busy} onClick={() => branchChat(i)}
+                aria-label={'Branch conversation after message ' + (i + 1)}>Branch from here</button>}
+            </article>)}
           </div>
           <form className="composer" onSubmit={send}>
             <label className="sr-only" htmlFor="chat-prompt">Chat prompt</label>
@@ -450,16 +527,42 @@ export default function App() {
             onChange={e => { setStreaming(e.target.checked); if (e.target.checked) setFallback(false) }} /> Stream responses with cancel control</label>
           <p>Without cloud consent, Auto uses a configured local model or refuses the request. Paid calls consume a daily request slot.</p>
           <div className="actions">
-            <button type="button" className="secondary" disabled={busy} onClick={() => setMessages([])}>New chat</button>
+            <button type="button" className="secondary" disabled={busy}
+              onClick={() => { setMessages([]); setCloudConsent(false) }}>New chat</button>
             <button type="button" disabled={busy || messages.length === 0} onClick={() => void saveCurrentChat()}>Save locally</button>
           </div>
           <div className="heading"><h2>Saved conversations</h2>
             <button className="secondary" type="button" onClick={() => void refreshChats()}>Refresh</button></div>
-          {savedChats.map(chat => <div className="saved-chat" key={chat.id}>
+          <label>Import conversation JSON (local-only)
+            <input type="file" accept=".json,application/json"
+              disabled={busy} onChange={e => void importChatFile(e)} /></label>
+          <label>Find in saved conversations
+            <input value={chatQuery} maxLength={200} placeholder="Search local chat history…"
+              onChange={e => setChatQuery(e.target.value)} /></label>
+          <div className="actions">
+            <button type="button" className="secondary" disabled={busy || chatQuery.trim().length < 2}
+              onClick={() => void searchChats()}>Search locally</button>
+            {chatResults !== null && <button type="button" className="secondary"
+              disabled={busy} onClick={() => { setChatResults(null); setChatQuery('') }}>Show all</button>}
+          </div>
+          {chatResults !== null && <small role="status">{chatResults.length} local matches</small>}
+          {(chatResults ?? savedChats).map(chat => <div className="saved-chat" key={chat.id}>
             <button type="button" className="doc-link" onClick={() => void openChat(chat.id)}>
               {chat.title}<small>{chat.message_count} messages</small></button>
-            <button type="button" className="secondary" aria-label={'Delete ' + chat.title}
-              onClick={() => void deleteChat(chat.id)}>Delete</button>
+            <div className="saved-chat-actions">
+              <button type="button" className="secondary" disabled={busy}
+                aria-label={'Rename ' + chat.title}
+                onClick={() => void renameChat(chat.id, chat.title)}>Rename</button>
+              <button type="button" className="secondary" disabled={busy}
+                aria-label={'Export ' + chat.title + ' as JSON'}
+                onClick={() => void exportChat(chat.id, 'json')}>JSON</button>
+              <button type="button" className="secondary" disabled={busy}
+                aria-label={'Export ' + chat.title + ' as Markdown'}
+                onClick={() => void exportChat(chat.id, 'md')}>MD</button>
+              <button type="button" className="secondary" disabled={busy}
+                aria-label={'Delete ' + chat.title}
+                onClick={() => void deleteChat(chat.id)}>Delete</button>
+            </div>
           </div>)}
           <div className="heading"><h2>Privacy and quotas</h2>
             <button className="secondary" type="button" disabled={busy}
@@ -470,7 +573,10 @@ export default function App() {
             <p>Retention: {privacyInfo.conversation_retention_days === 0
               ? 'manual only' : privacyInfo.conversation_retention_days + ' days'}.
               Provider key cap verification: {privacyInfo.provider_key_cap_required ? 'required' : 'off'}.</p>
-            <p>Live document storage is unencrypted. The provider credit-cap check is not a dollar guarantee.</p>
+            <p>Storage: {privacyInfo.document_storage === 'local-sqlcipher-fts5'
+              ? 'SQLCipher configured for live data' : 'plaintext local SQLite'}.
+              Downloaded conversation exports are unencrypted. Provider credit-cap checks
+              are not a dollar guarantee.</p>
             <button type="button" className="secondary"
               disabled={busy || privacyInfo.conversation_retention_days === 0}
               onClick={() => void purgeOldChats()}>Purge expired saved chats</button>
