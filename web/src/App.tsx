@@ -6,6 +6,7 @@ type Message = { role: 'user' | 'assistant'; content: string }
 type SavedDoc = { id: string; title: string; body?: string; updated_at: string }
 type SavedConversation = { id: string; title: string; messages?: Message[]; message_count?: number }
 type SearchHit = { id: string; title: string; excerpt: string }
+type ConsentReceipt = { id: string; created_at: string; kind: string; approval: string }
 type ImageCatalogEntry = { id: string; name: string; supports_reference: boolean; supports_streaming: boolean }
 
 function apiOrigin(value: string): string {
@@ -57,9 +58,11 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [alert, setAlert] = useState('')
   const [notice, setNotice] = useState('')
+  const [consentReceipts, setConsentReceipts] = useState<ConsentReceipt[]>([])
+  const [receiptsLoaded, setReceiptsLoaded] = useState(false)
   const [privacyInfo, setPrivacyInfo] = useState<{
     auth_mode: string; conversation_retention_days: number;
-    provider_key_cap_required: boolean;
+    consent_receipt_retention_days: number; provider_key_cap_required: boolean;
     cloud_requests: { remaining: number; limit: number }
   } | null>(null)
 
@@ -208,6 +211,28 @@ export default function App() {
     await action(async () => {
       setPrivacyInfo(await api('/api/v1/privacy/status'))
       setNotice('Current local privacy and request-limit settings loaded.')
+    })
+  }
+
+  async function refreshConsentReceipts() {
+    await action(async () => {
+      const result = await api<{ receipts: ConsentReceipt[] }>('/api/v1/privacy/consent-receipts?limit=15')
+      setConsentReceipts(result.receipts)
+      setReceiptsLoaded(true)
+      setNotice('Local admission receipts loaded; no prompt contents or provider charges are recorded.')
+    })
+  }
+
+  async function clearConsentReceipts() {
+    if (!window.confirm(
+      'Clear local cloud-consent admission receipts? Request-count quota and backups are unchanged.'
+    )) return
+    await action(async () => {
+      const result = await api<{ deleted_receipts: number }>(
+        '/api/v1/privacy/consent-receipts/clear', 'POST', { approved: true })
+      setConsentReceipts([])
+      setReceiptsLoaded(true)
+      setNotice(result.deleted_receipts + ' local consent receipts cleared. Request-count quota unchanged.')
     })
   }
 
@@ -449,6 +474,21 @@ export default function App() {
             <button type="button" className="secondary"
               disabled={busy || privacyInfo.conversation_retention_days === 0}
               onClick={() => void purgeOldChats()}>Purge expired saved chats</button>
+            <p>Cloud admission receipts retain only event metadata for
+              {' '}{privacyInfo.consent_receipt_retention_days} days, not your prompts or billed cost.</p>
+            <div className="actions">
+              <button type="button" className="secondary" disabled={busy}
+                onClick={() => void refreshConsentReceipts()}>Review cloud consent receipts</button>
+              <button type="button" className="secondary danger" disabled={busy}
+                onClick={() => void clearConsentReceipts()}>Clear receipts</button>
+            </div>
+            {receiptsLoaded && <div aria-live="polite">
+              {consentReceipts.length === 0 ? <p>No recent cloud admission receipts.</p> :
+                consentReceipts.map(item => <p key={item.id}>
+                  {item.created_at} · {item.kind} · {item.approval}
+                </p>)}
+              <small>An admission does not prove a provider call completed or was billed.</small>
+            </div>}
           </div>}
         </aside>
       </div>}
