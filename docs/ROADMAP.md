@@ -37,6 +37,9 @@ separately before marking any item complete.
   acceptance or isolated MCP worker.
 - Optional Bubblewrap parser isolation (read-only runtime, no network or
   host data mounts) with synthetic Linux checks; default subprocess retained.
+- Bounded PDF/DOCX magic-byte and UTF-8 text preflight before any parser
+  subprocess to reject obviously mislabeled/binary inputs; this does not
+  inspect malware or prove a file's format is safe.
 - Owner-approved retention cleanup, metadata-only cloud admission receipts
   and separate opt-in, content-free, atomic local retention maintenance CLI
   with uninstalled systemd example; opt-in SQLCipher encrypted live
@@ -58,7 +61,8 @@ separately before marking any item complete.
    deployment and rollback, harden backup custody, data minimization and
    verified erasure behavior.
 3. Wardveil production-qualify opt-in Bubblewrap import isolation with
-   dedicated host UID, seccomp and cgroup controls; add malware scanning,
+   dedicated host UID, seccomp and cgroup controls; add actual content type
+   and malware scanning beyond inexpensive signature/encoding preflight,
    prompt/tool injection boundaries, MCP worker isolation and delegated
    authorization beyond bounded manual calls, and content-free audit.
 4. Require/verify provider-enforced per-key credit caps, then add real
