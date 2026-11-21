@@ -1,17 +1,19 @@
 """Local single-owner storage.
 
-Documents and saved conversations are deliberately opt-in and NOT encrypted at
-rest. FTS5 indexes live in the same private SQLite file. No prompt/secret logs.
+Documents and saved conversations are opt-in; the database supports optional
+SQLCipher encryption of live storage and FTS5 indexes. Plain SQLite remains
+default for compatibility. No prompt/secret logs.
 """
 import os
 import re
-import sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
+
+from . import database
 
 
 def _now() -> str:
@@ -21,12 +23,9 @@ def _now() -> str:
 @contextmanager
 def _connection():
     path = Path(os.getenv("GOREECLOUD_AI_DB_PATH", "./data/ai.sqlite3")).expanduser()
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if path.exists() and path.is_symlink():
-        raise RuntimeError("Database path must not be a symlink")
-    db = sqlite3.connect(path, timeout=10)
+    db = database.connect(path)
     try:
-        db.row_factory = sqlite3.Row
+        db.row_factory = database.row_factory()
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")
         db.execute("""CREATE TABLE IF NOT EXISTS documents
@@ -69,7 +68,6 @@ def _connection():
         db.commit()
         if not path.exists():
             raise RuntimeError("Database could not be initialized")
-        path.chmod(0o600)
         yield db
         db.commit()
     except Exception:

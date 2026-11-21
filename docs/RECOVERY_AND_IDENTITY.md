@@ -1,42 +1,94 @@
-# Offline encrypted backup and restore (development preview)
+# Local encryption, offline migration, backup and recovery (development preview)
 
-GoreeCloud AI includes a **CLI-only, offline** SQLite backup utility.
-It encrypts a coherent SQLite snapshot with AES-256-GCM, random 96-bit nonce
-and authenticated version header. It stores no key in the repository, archive
-or logs and refuses to overwrite outputs or existing restore databases.
+**Source-tested, NOT deployed or production accepted.** The default storage is
+plaintext SQLite/FTS5 for compatibility. An optional locked `sqlcipher3`
+dependency allows SQLCipher to encrypt the **entire local database**, including
+document text, saved chats, consent receipts, counters and FTS5 indexes, when
+the operator explicitly configures `GOREECLOUD_AI_DB_MODE=sqlcipher` and a
+separately managed 32-byte base64 `GOREECLOUD_AI_DB_KEY`.
 
-These are source-level controls exercised with synthetic data. They do not
-encrypt the live SQLite database, memory, WAL files, backups from unrelated
-tools, cloud-provider content or disk blocks. Never claim secure erasure.
+SQLCipher does **not** encrypt application memory, API responses, prompts sent
+to cloud models, unencrypted old source files, OS swap, other backups, external
+logs or processes. These controls do not prove GoreeShield policy integration,
+full secure deletion, safe key custody or a real deployed recovery plan.
 
-## Preconditions
+## Prerequisites and key management
 
-- Operate on a trusted private host with filesystem permissions no broader
-  than necessary. Keep output files and detached keys in separate locations.
-- Supply the 32-byte random encryption key through a secret manager as a
-  base64 process-only GOREECLOUD_AI_BACKUP_KEY environment value. Never paste
-  keys into chat, GitHub, Drive, recorded CI logs or command-line arguments.
-- Run from the locked server environment (uv sync --locked --extra dev --python 3.12).
-- Backup key loss makes restoration impossible; test isolated recovery.
+- Work only on a trusted, private host. **Stop all API writers** and maintain
+  an independently verified encrypted offline backup before migration.
+- Use `cd server && uv sync --locked --extra dev --extra sqlcipher --python 3.12`
+  on the authorized development host. The optional source-reviewed Python
+  binding bundles SQLCipher Community Edition; check provenance, notices,
+  wheel compatibility and runtime behavior on the actual deployment host.
+- Supply `GOREECLOUD_AI_DB_KEY` and `GOREECLOUD_AI_BACKUP_KEY` as **different**
+  independently random 32-byte base64 keys from an approved secret manager.
+  Do not put values into command arguments, shell history, code, logs, GitHub,
+  Google Drive, chat or test fixtures. Securely protect recovery keys off-host.
+- A wrong or missing encryption key or storage-mode mismatch fails closed.
+  `GOREECLOUD_AI_DB_MODE=plaintext` remains the default; SQLCipher is opt-in.
 
-## Create an encrypted snapshot
+## Offline plaintext-to-SQLCipher migration (non-overwriting)
+
+Perform on a **stopped** API with the original private 0600 database and no
+SQLite WAL sidecar (safely checkpoint/stop first, never delete an active WAL).
+After checking a complete offline backup and keys, run the migration into a
+**new** private database pathname:
 
     cd server
-    uv run --locked python -m app.backup backup \
+    uv run --locked --extra sqlcipher python -m app.migrate_sqlcipher \
+      --source /path/to/private-original/ai.sqlite3 \
+      --output /path/to/private-encrypted/ai.sqlite3
+
+The command refuses any existing target, uses an exclusive private scratch
+file, verifies SQLCipher integrity and schema version, and publishes by a
+non-overwriting filesystem link. The original plaintext DB is **kept** for
+owner-controlled backup/retention and a possible rollback. Validate the
+encrypted database and FTS search with synthetic or approved private test
+data **before** configuring its path on the API. Then configure:
+
+    GOREECLOUD_AI_DB_MODE=sqlcipher
+    GOREECLOUD_AI_DB_PATH=/path/to/private-encrypted/ai.sqlite3
+
+The above are config **names and illustrative path placeholders**, not commands
+to paste a key or claims about a running deployment. If migration fails, the
+original must remain untouched and the API should continue using its verified
+original configuration. Explicitly manage the old plaintext database, WAL
+files, backups and snapshots under a tested retention/erasure process; no
+automatic shredding, WAL deletion or data loss is authorized.
+
+## CLI-only encrypted snapshot
+
+The offline backup utility encrypts a coherent SQLite snapshot using an
+independent AES-256-GCM key, random nonce and authenticated version marker.
+In SQLCipher mode its temporary SQLite snapshot is **also SQLCipher-encrypted**,
+so the backup directory never needs a plaintext intermediate DB. The original
+plaintext mode remains supported with an ephemeral private plaintext snapshot.
+
+    cd server
+    uv run --locked --extra sqlcipher python -m app.backup backup \
       --source ./data/ai.sqlite3 \
       --output /path/to/private-backup/goreecloud-ai.gcai
 
-## Restore to a new private path
+## Non-overwriting isolated restore
+
+Set the appropriate same DB mode, database key (for SQLCipher) and independent
+backup key in the secure process environment before restoration. The archive
+version records the source storage mode; restoring with the wrong mode is
+refused rather than silently downgrading encryption.
 
     cd server
-    uv run --locked python -m app.backup restore \
+    uv run --locked --extra sqlcipher python -m app.backup restore \
       --source /path/to/private-backup/goreecloud-ai.gcai \
       --output /path/to/isolated-restore/ai-restored.sqlite3
 
-Restore validates AEAD and SQLite PRAGMA quick_check; verify important records
-in an isolated test deployment before depending on recovery. Existing target
-databases are never overwritten. Practice key rotation, restore and off-host
-backup policies before promoting this to critical data use.
+Restore authenticates AES-GCM and validates SQLite/SQLCipher integrity and
+GoreeCloud AI schema before atomically publishing a new private target.
+It never overwrites a working database. Verify important records and local
+FTS5 search in an isolated service before depending on the restored file.
+The independent backup and DB keys are **both** required to recover a
+SQLCipher-mode snapshot. Loss of either key loses recoverability. A backup
+or restore test on synthetic data is not an off-host recovery certification.
+
 
 ## Retention and secure deletion limitations
 

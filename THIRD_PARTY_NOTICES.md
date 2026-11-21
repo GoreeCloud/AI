@@ -10,6 +10,12 @@ Original GoreeCloud AI code: MIT (see repository root LICENSE).
   This is an alpha adapter, not a published SDK.
 - FastAPI, Starlette, httpx, Python-Multipart, pypdf, python-docx, PyJWT, cryptography and MCP SDK:
   Python package dependencies governed by their upstream licenses.
+- Optional sqlcipher3 0.6.5 Python binding (https://github.com/coleifer/sqlcipher3),
+  distributed under its upstream zlib-style license, bundles SQLCipher
+  Community Edition (https://github.com/sqlcipher/sqlcipher), governed by
+  its BSD-style license and third-party notices. Neither library is vendored
+  as source into this repository; review binary provenance and reproduce
+  upstream attribution in a packaged distribution before release.
 - React, React DOM, Vite and TypeScript: JavaScript package dependencies,
   governed by upstream licenses and web/package-lock.json.
 - PySide6/Qt Quick: LGPL/commercial Qt licensing and redistributed Qt plugin

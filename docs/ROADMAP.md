@@ -30,7 +30,9 @@ separately before marking any item complete.
 - Optional Bubblewrap parser isolation (read-only runtime, no network or
   host data mounts) with synthetic Linux checks; default subprocess retained.
 - Owner-approved retention cleanup, metadata-only cloud admission receipts
-  with owner-controlled review/clear, and offline AES-GCM backup/restore.
+  with owner-controlled review/clear, opt-in SQLCipher encrypted live
+  SQLite/FTS5 with a separate non-overwriting offline migration, and
+  AES-GCM backup/restore for either storage mode (synthetic-tested).
 - Protected preview capability metadata for future Mesh contracts.
 - These do not establish GoreeCloud Identity/OIDC integration, complete
   GoreeShield enforcement, Wardveil certification, or backup operations.
@@ -42,8 +44,9 @@ separately before marking any item complete.
    multi-user scopes, TLS ingress, MFA and anti-abuse before public exposure.
 2. GoreeShield enforced consent policy and scheduled retention beyond
    local approval/admission receipts and explicit snapshot/receipt purge;
-   encrypt the live database, harden
-   backup custody, data minimization and verified erasure behavior.
+   qualify/activate optional SQLCipher with real operator key custody, encrypted
+   deployment and rollback, harden backup custody, data minimization and
+   verified erasure behavior.
 3. Wardveil production-qualify opt-in Bubblewrap import isolation with
    dedicated host UID, seccomp and cgroup controls; add malware scanning,
    prompt/tool injection boundaries, MCP worker isolation and delegated

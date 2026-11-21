@@ -16,9 +16,9 @@ Open WebUI, AnythingLLM or LibreChat.
 | Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
-| Documents | SQLite CRUD, bounded Linux import subprocess and optional network-denied Bubblewrap document sandbox, export, FTS5 retrieval and source IDs | Production-qualified sandbox, encryption, semantic embeddings |
+| Documents | SQLite CRUD and FTS5 with optional SQLCipher at-rest encryption, bounded Linux import subprocess/opt-in Bubblewrap isolation, export and cited retrieval | Deployed encrypted mode, complete sandbox qualification and semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
-| Privacy | Cloud opt-in, metadata-only cloud-admission receipts, owner-controlled receipt clearing, local snapshots, count quota, retention purge, encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
+| Privacy | Cloud opt-in, metadata-only approval receipts, local snapshots, request-count cap, opt-in SQLCipher-encrypted SQLite/FTS and AES-GCM offline backup | Live encryption activation/migration, policy acceptance, secure erasure and five-MIPS qualification |
 
 OpenRouter is an external model provider and may charge per request, token, image
 or other unit. The daily request admission limit is **not a money limit**.
@@ -97,8 +97,19 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - GET /api/health is public, /api/docs and /api/openapi.json are developer
   references. Bind the server to loopback only in this preview.
 
-SQLite files, FTS5 content and saved snapshots are **unencrypted**. Deletion
-removes live rows/index entries but is not verified secure erasure of pages
+Existing default storage is **plaintext SQLite/FTS5**. New opt-in
+GOREECLOUD_AI_DB_MODE=sqlcipher stores the entire local SQLite database and
+FTS5 indexes encrypted with the optional locked SQLCipher dependency and an
+external 32-byte GOREECLOUD_AI_DB_KEY. The server refuses wrong keys or
+plaintext/ciphertext mode mismatch; it never silently rewrites old data.
+Stop the API, securely back up the original, and migrate offline into a
+**new** path using `python -m app.migrate_sqlcipher`, then configure the new
+key/mode/path. The old plaintext source is deliberately **preserved** for
+operator-controlled retention and destruction. Backups of encrypted storage
+are additionally AES-GCM encrypted and require two separate keys. This is
+source-tested, NOT a deployed GoreeShield policy, secure erasure, key escrow,
+or off-host recovery. See docs/RECOVERY_AND_IDENTITY.md.
+Deletion removes live rows/index entries but is not verified secure erasure of pages
 or backups. Before migrating existing data, back up privately and test
 recovery. See docs/ARCHITECTURE.md for exact boundaries and risks. Optional
 GOREECLOUD_AI_IMPORT_ISOLATION=bwrap requires a trusted Linux Bubblewrap

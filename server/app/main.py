@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
-from . import import_sandbox, mcp_tools, providers, storage
+from . import database, import_sandbox, mcp_tools, providers, storage
 from .security import require_capability, require_owner
 
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
@@ -384,7 +384,10 @@ def privacy_status():
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "oidc_capability_scopes_enabled": os.getenv("GOREECLOUD_AI_OIDC_ENFORCE_CAPABILITY_SCOPES", "false").lower() == "true",
         "provider_key_cap_required": os.getenv("GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY", "false").lower() == "true",
-        "document_storage": "local-plaintext-sqlite",
+        "document_storage": (
+            "local-sqlcipher-fts5" if database.database_mode() == "sqlcipher"
+            else "local-plaintext-sqlite"
+        ),
         "document_import_isolation": import_sandbox.import_mode(),
         "search": "local-fts5",
         "cloud_requests": storage.cloud_quota(),

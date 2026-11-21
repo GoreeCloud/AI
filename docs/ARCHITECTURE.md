@@ -8,9 +8,12 @@ production deployment.
 - React web, Qt Quick 6.12 Linux and Kotlin Compose Android use an authenticated
   versioned FastAPI API, with server-only OpenRouter keys and local Ollama.
 - Chat history stays in client memory unless saved as an explicit local snapshot.
-- Documents and conversation snapshots remain plaintext in owner-controlled
-  SQLite. Local FTS5 search indexes title/body; no embeddings or external
-  service is used for search.
+- Documents and conversation snapshots remain plaintext SQLite by default.
+  Optional SQLCipher encrypts the entire live database, including FTS5
+  indexed title/body, when explicitly installed/configured with an external
+  key and either newly initialized or offline-migrated into a new path.
+  Local FTS5 search remains available; no embeddings or external
+  service is used for search. No existing database is auto-converted.
 - Retrieval question-answering selects bounded local excerpts and source IDs.
   Sources are untrusted reference material, not executable instructions.
   Excerpts are sent to OpenRouter only when expressly consented, else Ollama.
@@ -42,8 +45,10 @@ production deployment.
   text is saved. Receipts are retained for 30 days by default, configurable
   between 1 and 365, pruned on later admissions or owner review, and may be
   explicitly cleared without refunding request quota. An admission is **not**
-  proof that transfer, provider completion or billing occurred; SQLite live
-  rows, freed pages and backups are not encrypted or securely erased.
+  proof that transfer, provider completion or billing occurred; default
+  SQLite live rows remain plaintext, while opt-in SQLCipher encrypts database
+  pages and indexes. Neither mode proves secure erasure of freed pages, OS
+  copies or provider data.
 - Owner shared-token check, no prompt logging, bounded streamed JSON responses,
   validated base64 image formats, fixed upstream OpenRouter URL,
   disabled redirects, bounded requests, reference validation and PDF/DOCX
@@ -70,8 +75,9 @@ production deployment.
   with fail-closed unknown routes. No verified GoreeCloud Identity issuer,
   MFA, delegated multiuser permissions, session lifecycle, tenant isolation
   or live trusted key-rotation contract yet.
-- **GoreeShield:** no production policy engine, encrypted storage, fine-grained
-  consent record, private-data retention schedule or cryptographic erasure.
+- **GoreeShield:** opt-in SQLCipher local encryption with synthetic tests and
+  non-destructive migration code exists; no verified activation, key custody,
+  production policy enforcement, scheduled retention or cryptographic erasure.
 - **Wardveil:** Linux parser subprocess resource bounds plus optional,
   synthetic-tested Bubblewrap namespace/filesystem/network isolation. No
   dedicated host UID, seccomp policy, workload cgroup, credential broker,
@@ -124,7 +130,12 @@ production deployment.
 ## Database upgrade and privacy
 
 Before upgrading an existing SQLite database, privately back it up and test
-restore in isolation. The first new connection creates FTS5 index tables,
+restore in isolation. SQLCipher mode deliberately fails on plaintext input and
+on wrong/missing keys. Migrate only with the API stopped using
+`python -m app.migrate_sqlcipher --source OLD --output NEW` with a 32-byte
+secret-manager-provided database key; the source is retained until explicitly
+managed by its owner. See docs/RECOVERY_AND_IDENTITY.md.
+The first new connection creates FTS5 index tables,
 snapshot/message tables and admission counters, using PRAGMA user_version 1
 for the indexed migration. File mode 0600 and directory mode 0700 are applied,
 but encryption/OS backups and secure deletion are still the operator's duty.
