@@ -134,6 +134,11 @@ def _selected_provider(requested: str, cloud_approved: bool) -> str:
     raise HTTPException(503, "No inference provider configured")
 
 
+@app.get("/api/v1/models/catalog", dependencies=[Depends(require_owner)])
+async def text_model_catalog():
+    return await providers.text_model_catalog()
+
+
 @app.post("/api/v1/chat", dependencies=[Depends(require_owner)])
 async def chat(request: ChatRequest, http_request: Request):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
@@ -594,7 +599,7 @@ def integration_capabilities():
         "api_version": "v1-preview",
         "status": "local-development-not-deployed",
         "capabilities": ["chat", "chat-stream", "document-search", "document-research",
-                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import", "document-revisions"],
+                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import", "document-revisions", "text-model-catalog"],
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "data_classification": "private-by-default",
         "cloud_processing": "explicit-per-request-consent",

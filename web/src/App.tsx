@@ -10,6 +10,7 @@ type SavedConversation = { id: string; title: string; messages?: Message[]; mess
 type SearchHit = { id: string; title: string; excerpt: string }
 type ConsentReceipt = { id: string; created_at: string; kind: string; approval: string }
 type ImageCatalogEntry = { id: string; name: string; supports_reference: boolean; supports_streaming: boolean }
+type TextModelEntry = { id: string; name: string; context_length: number | null; supports_tools: boolean }
 
 function apiOrigin(value: string): string {
   const url = new URL(value)
@@ -27,6 +28,9 @@ export default function App() {
   const [token, setToken] = useState('')
   const [provider, setProvider] = useState('auto')
   const [model, setModel] = useState('openrouter/auto')
+  const [textModels, setTextModels] = useState<TextModelEntry[]>([])
+  const [textModelFilter, setTextModelFilter] = useState('')
+  const [textCatalogTruncated, setTextCatalogTruncated] = useState(false)
   const [fallback, setFallback] = useState(false)
   const [cloudConsent, setCloudConsent] = useState(false)
   const [streaming, setStreaming] = useState(true)
@@ -181,6 +185,15 @@ export default function App() {
       setImage(reply.image); setImageCost(reply.cost); setImageMime(reply.media_type)
       setPaidApproved(false)
       setNotice('Generated output received. Save locally to retain it.')
+    })
+  }
+
+  async function loadTextModels() {
+    await action(async () => {
+      const reply = await api<{ models: TextModelEntry[]; truncated: boolean }>('/api/v1/models/catalog')
+      setTextModels(reply.models)
+      setTextCatalogTruncated(reply.truncated)
+      setNotice('Read-only OpenRouter text-model catalog loaded. No prompts or paid inference sent.')
     })
   }
 
@@ -516,6 +529,10 @@ export default function App() {
     })
   }
 
+  const visibleTextModels = textModels.filter(entry =>
+    (entry.name + ' ' + entry.id).toLocaleLowerCase().includes(textModelFilter.toLocaleLowerCase())
+  ).slice(0, 100)
+
   return <div className="gc-app app" data-gc-theme="dark" data-gc-accent="iris">
     <aside className="navigation" aria-label="Primary navigation">
       <div className="brand"><span className="symbol">✦</span><div><strong>GoreeCloud <em>AI</em></strong>
@@ -567,6 +584,31 @@ export default function App() {
             <option value="openrouter">OpenRouter</option>
             <option value="ollama">Ollama local</option>
           </select></label>
+          <div className="heading"><h2>Text model catalog</h2>
+            <button type="button" className="secondary" disabled={busy}
+              onClick={() => void loadTextModels()}>Browse models</button></div>
+          {textModels.length > 0 && <>
+            <label>Filter catalog locally
+              <input value={textModelFilter} maxLength={120} placeholder="Search models..."
+                onChange={e => setTextModelFilter(e.target.value)} />
+            </label>
+            <label>Discovered models (first 100 matches)
+              <select value="" onChange={e => {
+                const selected = textModels.find(item => item.id === e.target.value)
+                if (!selected) return
+                setModel(selected.id); setProvider('openrouter')
+                setCloudConsent(false); setFallback(false)
+                setNotice('Model selected · cloud processing consent remains off.')
+              }}>
+                <option value="">Choose a model to fill its ID</option>
+                {visibleTextModels.map(item => <option key={item.id} value={item.id}>
+                  {item.name} · {item.context_length?.toLocaleString() || 'unknown'} context tokens
+                  {item.supports_tools ? ' · tool-capable' : ''}
+                </option>)}
+              </select></label>
+            {textCatalogTruncated && <small>Catalog response was capped to 250 entries;
+              use the official model catalog for additional choices.</small>}
+          </>}
           <label>Model ID<input value={model} onChange={e => setModel(e.target.value)} /></label>
           <label className="check"><input type="checkbox" checked={cloudConsent}
             onChange={e => setCloudConsent(e.target.checked)} /> Allow selected text to leave this server for OpenRouter inference</label>

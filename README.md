@@ -12,7 +12,7 @@ Open WebUI, AnythingLLM or LibreChat.
 
 | Surface | Implemented in source | Still missing |
 |---|---|---|
-| Shared API | Owner or opt-in scoped signed JWT, OpenRouter/Ollama, SSE/images and deliberate owner-only OpenRouter generation-cost metadata lookup | Verified Identity issuer, invoice-level cost reconciliation, dollar cap, live providers |
+| Shared API | Owner or opt-in scoped signed JWT, OpenRouter/Ollama, SSE/images, deliberate owner-only generation-cost metadata and sanitized read-only text model discovery | Verified Identity issuer, invoice-level cost reconciliation, dollar cap and live providers |
 | Web | React/TypeScript chat stream/cancel, consent, searchable saved chats, explicit JSON/Markdown export and JSON import, rename, in-memory branching, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification and native conversation-library UI parity |
 | Linux | Native Qt Quick with bounded SSE and redirect-refusing authenticated Qt Network REST, local saved-conversation save/list/search/open/rename/delete, chat cancellation, images, documents, approved MCP and consent | Real desktop/accessibility, signed packages, provider acceptance and file import/export parity |
 | Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, SSE/cancel, local conversation save/list/search/open, Android picker JSON import/export and approved delete, images/docs/agents/MCP | Physical device/emulator networking, signed release, accessibility, native rename and Markdown parity |
@@ -83,6 +83,11 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
   lookup requires a configured key with appropriate upstream permission and
   is not independent invoice reconciliation or a hard USD spending limit.
 - GET /api/v1/models — configured routes.
+- GET /api/v1/models/catalog — explicit owner-only, read-only OpenRouter text-model
+  metadata discovery; bounded IDs, display names, context sizes and tool
+  capability flags. No prompts, request content, inference or paid tokens are
+  sent. Web client filters the result locally and does not automatically grant
+  cloud consent. See docs/MODEL_DISCOVERY.md.
 - GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
 - GET /api/v1/privacy/consent-receipts — owner-only bounded, content-free approvals/admission metadata.
 - POST /api/v1/privacy/consent-receipts/clear — explicitly approved receipt deletion; does not refund quota.
