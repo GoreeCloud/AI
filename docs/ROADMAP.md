@@ -9,6 +9,10 @@ separately before marking any item complete.
   consent-gated cloud routing and bounded request-count budget.
 - Opt-in per-save document version snapshots (20 per document) and approved
   atomic rollback with a web history viewer; no cloud use or scheduler.
+- Research-answer cache reusing an exact question only with opt-in, and only
+  after fresh FTS5 query and selected document update timestamps, excerpts
+  and titles match the cached provenance. Each worker stores separate
+  bounded plaintext outputs in RAM; no provider call on a verified hit.
 - Explicit local conversation snapshots, SQLite FTS5 document and saved-message
   search, owner-authenticated rename and portable JSON/Markdown export,
   bounded local JSON import with fresh IDs, non-destructive web branching,

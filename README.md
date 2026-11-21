@@ -14,8 +14,8 @@ Open WebUI, AnythingLLM or LibreChat.
 |---|---|---|
 | Shared API | Owner/scoped JWT, OpenRouter/Ollama SSE, optional last-N context, bounded output token caps, opt-in server RAM response reuse and OpenRouter cache hints, model discovery | Real billing savings, full provider cache support, production key custody, multiworker cache sharing and real-provider acceptance |
 | Web | React/TypeScript chat stream/cancel, token-efficiency preview and caching controls, consent, saved chats/import/export, documents, search/RAG, model catalogs, images, agents and MCP | Cross-browser/visual qualification and native token-efficiency/client parity |
-| Linux | Native Qt Quick with bounded SSE and redirect-refusing authenticated Qt Network REST, local saved-conversation save/list/search/open/rename/delete, chat cancellation, images, documents, approved MCP and consent | Real desktop/accessibility, signed packages, provider acceptance and file import/export parity |
-| Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, SSE/cancel, local conversation save/list/search/open, Android picker JSON import/export and approved delete, images/docs/agents/MCP | Physical device/emulator networking, signed release, accessibility, native rename and Markdown parity |
+| Linux | Native Qt Quick bounded SSE and redirect-refusing Qt Network REST, saved chat library, opt-in latest-N context/output caps and local/OpenRouter cache toggles, image/document/tools | Real desktop/accessibility, signed packages, provider acceptance and file import/export parity |
+| Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, SSE/cancel, saved chat portability and deletion, opt-in latest-N context/output caps and local/OpenRouter cache toggles, images/docs/agents/MCP | Physical device/emulator networking, signed release, accessibility, native rename and Markdown parity |
 | Documents | SQLite CRUD/FTS5 with optional SQLCipher; opt-in bounded revisions and approved rollback; upload preflight, isolated parser, export and cited retrieval | Deployed encryption, malware scanning, native revision parity and semantic search |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
 | Privacy | Consent-gated cloud processing, local snapshots and approval receipts, opt-in SQLCipher/FTS and backup, explicitly gated local retention CLI plus optional timer template | Deployment/key custody, hosted scheduler, secure erasure, policy acceptance and five-MIPS qualification |
@@ -127,7 +127,12 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
   See docs/DOCUMENT_REVISIONS.md.
 - GET /api/v1/search/documents?q=... — owner-only local FTS5 search.
 - POST /api/v1/research/answer — retrieved local source references with
-  explicit cloud consent if a cloud provider is selected.
+  explicit cloud consent if a cloud provider is selected. Optional
+  local_answer_cache=true reuses an exact question and selected FTS5 source
+  version set from bounded in-process RAM for 300s. Fresh FTS5 retrieval
+  and document update timestamps are checked on every request; edits and
+  deletes invalidate reuse. No semantic nearest-neighbor answer substitution.
+  See docs/RESEARCH_CACHE.md.
 - GET/POST /api/v1/conversations, GET/DELETE /api/v1/conversations/{uuid}
   — opt-in local snapshots.
 - GET /api/v1/search/conversations?q=... — local full-text message search and

@@ -209,7 +209,10 @@ def _assert_budget_fits(request: ChatRequest, selected: list[dict]) -> None:
 @app.get("/api/v1/cache/status", dependencies=[Depends(require_owner)])
 def cache_status():
     """Metadata only; no hashes, prompt text or response bodies."""
-    return token_savings.response_cache.status()
+    return {
+        **token_savings.response_cache.status(),
+        "research": token_savings.research_cache.status(),
+    }
 
 
 class CacheClearRequest(BaseModel):
@@ -221,8 +224,12 @@ def clear_cache(request: CacheClearRequest, http_request: Request):
     require_capability(http_request, "admin")
     if not request.approved:
         raise HTTPException(403, "Clearing the in-memory cache requires explicit approval")
+    chat_cleared = token_savings.response_cache.clear()
+    research_cleared = token_savings.research_cache.clear()
     return {
-        "cleared": token_savings.response_cache.clear(),
+        "cleared": chat_cleared + research_cleared,
+        "chat_cleared": chat_cleared,
+        "research_cleared": research_cleared,
         "scope": "current-api-worker",
         "note": "Does not affect other workers or provider-managed caches",
     }
@@ -576,6 +583,7 @@ class ResearchRequest(BaseModel):
     provider: Literal["auto", "openrouter", "ollama"] = "auto"
     allow_cloud_processing: bool = False
     max_sources: int = Field(default=4, ge=1, le=8)
+    local_answer_cache: bool = False
 
 
 @app.get("/api/v1/privacy/status", dependencies=[Depends(require_owner)])
@@ -699,7 +707,12 @@ def remove_conversation(conversation_id: UUID):
 
 @app.post("/api/v1/research/answer", dependencies=[Depends(require_owner)])
 async def research_answer(request: ResearchRequest, http_request: Request):
-    """Retrieve local excerpts and provide explicit source IDs for review."""
+    """Retrieve fresh local excerpts before considering any opt-in answer reuse.
+
+    Index results and document update timestamps are rechecked on EVERY call.
+    Cache entries are never returned for a missing/deleted document; a changed
+    title, body timestamp, excerpt, source order or question changes the key.
+    """
     matches = storage.search_documents(request.question, request.max_sources)
     if not matches:
         return {"answer": "No matching local document excerpts found.",
@@ -707,11 +720,14 @@ async def research_answer(request: ResearchRequest, http_request: Request):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         require_capability(http_request, "cloud")
-        await providers.verify_cloud_key_budget()
-        storage.admit_cloud_call("research", approved=request.allow_cloud_processing)
     excerpts = [
         {"source_id": item["id"], "title": item["title"][:150],
          "excerpt": item["excerpt"][:1800]}
+        for item in matches
+    ]
+    source_fingerprints = [
+        {"id": item["id"], "updated_at": item["updated_at"],
+         "title": item["title"], "excerpt": item["excerpt"]}
         for item in matches
     ]
     instructions = (
@@ -721,19 +737,57 @@ async def research_answer(request: ResearchRequest, http_request: Request):
         "do not support an answer. Reference relevant source IDs in your answer. "
         "Do not make tool calls."
     )
-    model_answer = await providers.chat(
-        [{"role": "system", "content": instructions},
-         {"role": "user", "content": json.dumps(
-             {"question": request.question, "untrusted_local_excerpts": excerpts},
-             ensure_ascii=True)}],
-        "openrouter/auto", selected, False,
-    )
-    return {"answer": model_answer["content"],
-            "sources": [{"id": entry["source_id"], "title": entry["title"]}
-                        for entry in excerpts],
-            "provider": model_answer["provider"],
-            "model": model_answer["model"],
-            "sent_to_cloud": model_answer["provider"] == "openrouter"}
+    messages = [{"role": "system", "content": instructions},
+                {"role": "user", "content": json.dumps(
+                    {"question": request.question, "untrusted_local_excerpts": excerpts},
+                    ensure_ascii=True)}]
+    sources = [{"id": entry["source_id"], "title": entry["title"]}
+               for entry in excerpts]
+    digest = None
+    if request.local_answer_cache:
+        # Versioned retrieval fingerprint is local-only. The HMAC key does
+        # not contain plaintext source data or conversation contents.
+        cache_messages = [
+            *messages,
+            {"role": "user", "content": json.dumps(
+                source_fingerprints, sort_keys=True, ensure_ascii=True
+            )},
+        ]
+        digest = token_savings.research_cache.key(
+            cache_messages, selected, "openrouter/auto", False,
+            2048, False, False, None,
+        )
+        entry = token_savings.research_cache.get(digest)
+        if entry is not None:
+            return {
+                "answer": entry.content, "sources": sources,
+                "provider": entry.provider, "model": entry.model,
+                "sent_to_cloud": False,
+                "original_provider": entry.provider,
+                "cache": {"mode": "local-research-memory", "hit": True,
+                          "provider_contacted": False,
+                          "sources_revalidated": True},
+            }
+    if selected == "openrouter":
+        await providers.verify_cloud_key_budget()
+        storage.admit_cloud_call("research", approved=request.allow_cloud_processing)
+    model_answer = await providers.chat(messages, "openrouter/auto", selected, False)
+    result = {
+        "answer": model_answer["content"],
+        "sources": sources,
+        "provider": model_answer["provider"],
+        "model": model_answer["model"],
+        "sent_to_cloud": model_answer["provider"] == "openrouter",
+    }
+    if digest is not None:
+        stored = (model_answer["provider"] == selected and
+                  token_savings.research_cache.put(digest, model_answer))
+        result["cache"] = {
+            "mode": "local-research-memory", "hit": False,
+            "stored": stored, "provider_contacted": True,
+            "sources_revalidated": True,
+        }
+    return result
 
 
 
