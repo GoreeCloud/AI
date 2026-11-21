@@ -33,8 +33,9 @@ separately before marking any item complete.
 2. GoreeShield enforced consent records and retention scheduling beyond the
    explicitly approved snapshot purge; encrypt the live database, harden
    backup custody, data minimization and verified erasure behavior.
-3. Wardveil scans, document parser sandbox, prompt/tool injection boundaries,
-   MCP allowlists/worker isolation and secure audit without content leakage.
+3. Wardveil scans and real untrusted-document sandboxing beyond the tested
+   subprocess limits; enforce OS identity and network isolation, prompt/tool
+   injection boundaries, MCP worker isolation and content-free security audit.
 4. Require/verify provider-enforced per-key credit caps, then add real
    monetary reservations and usage/billing reconciliation across workers;
    present preflight is not a dollar spend guarantee.

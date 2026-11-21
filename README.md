@@ -16,7 +16,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
-| Documents | SQLite CRUD, PDF/DOCX/text extraction, Markdown/DOCX export, local FTS5 retrieval, source IDs | Full sandbox, encryption, semantic embeddings |
+| Documents | SQLite CRUD, resource-limited Linux subprocess PDF/DOCX/text extraction, Markdown/DOCX export, FTS5 retrieval and source IDs | Full parser sandbox, encryption, semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator allowlisted manual Streamable HTTP MCP | Multi-step autonomous agents, OAuth, worker sandbox |
 | Privacy | Cloud opt-in, local snapshots, delete APIs, request count quota, opt-in retention purge and encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
 
