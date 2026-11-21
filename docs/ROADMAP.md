@@ -70,9 +70,10 @@ separately before marking any item complete.
 6. Android real device, Linux interactive, browser/screen reader and UI quality
    tests. Qualify signed packages and repository supply-chain provenance.
 7. Maintain protected main PR gates, SHA-pinned GitHub Actions, locked Python
-   and web production dependency CVE checks and lockfile-derived component
-   inventories. Finish native Android/Qt SBOM, provenance/signing, and tested
-   restore/rollback.
+   and web production dependency CVE checks, Python/npm lock inventories,
+   declared direct Gradle dependencies and partial installed PySide6 wheel
+   inventories. Complete **resolved** Android/Qt/OS dependency graph, licenses,
+   reproducible builds, provenance/signing, and tested restore/rollback.
 
 ## P1 — capabilities
 

@@ -9,6 +9,8 @@ import tomllib
 from pathlib import Path
 from urllib.parse import quote
 
+from native_sbom import android_declared_components, qt_installed_components
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -74,35 +76,50 @@ def npm_components(root: Path) -> list[dict]:
     return sorted(results.values(), key=lambda x: x["bom-ref"])
 
 
-def _bom(name: str, components: list[dict]) -> dict:
+def _bom(name: str, components: list[dict], coverage: str) -> dict:
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.6",
         "version": 1,
-        "metadata": {"component": {"type": "application", "name": name, "version": "0.1.0"}},
+        "metadata": {
+            "component": {"type": "application", "name": name, "version": "0.1.0"},
+            "properties": [{"name": "goreecloud:inventory-coverage", "value": coverage}],
+        },
         "components": components,
     }
 
 
-def build(output: Path, root: Path = ROOT) -> tuple[Path, Path]:
+def build(output: Path, root: Path = ROOT, *, include_qt_runtime: bool = False) -> tuple[Path, ...]:
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
     paths = []
-    for filename, name, components in (
-        ("python.cdx.json", "goreecloud-ai-server", python_components(root)),
-        ("web.cdx.json", "goreecloud-ai-web", npm_components(root)),
-    ):
+    inventories = [
+        ("python.cdx.json", "goreecloud-ai-server", python_components(root),
+         "committed-uv-lock-packages-not-full-dependency-graph"),
+        ("web.cdx.json", "goreecloud-ai-web", npm_components(root),
+         "committed-npm-lock-packages-not-full-dependency-graph"),
+        ("android-direct.cdx.json", "goreecloud-ai-android", android_declared_components(root),
+         "source-declared-direct-maven-and-plugin-ids-only"),
+    ]
+    if include_qt_runtime:
+        inventories.append((
+            "qt-runtime.cdx.json", "goreecloud-ai-linux-qt",
+            qt_installed_components(), "selected-installed-pyside6-wheel-versions-only",
+        ))
+    for filename, name, components, coverage in inventories:
         path = output / filename
-        path.write_text(json.dumps(_bom(name, components), indent=2, sort_keys=True) + "\n",
-                        encoding="utf-8")
+        path.write_text(json.dumps(_bom(name, components, coverage), indent=2, sort_keys=True)
+                        + "\n", encoding="utf-8")
         paths.append(path)
-    return paths[0], paths[1]
+    return tuple(paths)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=Path("dist/sbom"))
+    parser.add_argument("--include-qt-runtime", action="store_true",
+                        help="Add selected installed Qt Python wheel versions (not OS/Qt libraries)")
     args = parser.parse_args()
-    for path in build(args.output):
+    for path in build(args.output, include_qt_runtime=args.include_qt_runtime):
         print(f"Created {path}")
 
 
