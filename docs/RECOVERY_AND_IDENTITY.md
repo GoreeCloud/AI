@@ -56,6 +56,34 @@ original configuration. Explicitly manage the old plaintext database, WAL
 files, backups and snapshots under a tested retention/erasure process; no
 automatic shredding, WAL deletion or data loss is authorized.
 
+## Offline SQLCipher key rotation (non-overwriting)
+
+Once SQLCipher is explicitly active, rotate its 32-byte database key without
+rewriting an active DB in place. **Stop every API writer**, verify a complete
+offline backup and an isolated restore, and maintain the existing separate
+`GOREECLOUD_AI_DB_KEY`. Supply a **distinct** `GOREECLOUD_AI_NEW_DB_KEY` as
+a random 32-byte base64 value from the authorized secret manager. Never put
+either key in command arguments, history, GitHub, Drive or logs.
+
+    cd server
+    uv run --locked --extra sqlcipher python -m app.rotate_sqlcipher \
+      --source /path/to/private-encrypted/ai.sqlite3 \
+      --output /path/to/private-rotated/ai.sqlite3
+
+The operation requires SQLCipher mode, refuses a missing/equal/wrong key,
+unsafe source/destination permissions, live WAL sidecar, a plaintext source,
+and an existing output path. It uses a private scratch file, encrypted-to-
+encrypted `sqlcipher_export`, a new key, integrity/schema checks, a
+non-overwriting publish, and source preservation. It does not delete old
+ciphertext, old database keys or historical backups. Validate encrypted FTS
+search and saved data under the **new** key in an isolated test deployment,
+then separately cut over `GOREECLOUD_AI_DB_PATH` and `GOREECLOUD_AI_DB_KEY`
+under a reversible operating plan. Older SQLCipher snapshots still need the
+**old** database key plus their backup key, until retired under verified
+retention and recovery policy. Re-encrypt new backups and test off-host
+restoration before revoking the original key. No production key custody or
+rotation has been performed.
+
 ## CLI-only encrypted snapshot
 
 The offline backup utility encrypts a coherent SQLite snapshot using an

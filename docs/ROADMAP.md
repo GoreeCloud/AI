@@ -34,8 +34,9 @@ separately before marking any item complete.
   host data mounts) with synthetic Linux checks; default subprocess retained.
 - Owner-approved retention cleanup, metadata-only cloud admission receipts
   with owner-controlled review/clear, opt-in SQLCipher encrypted live
-  SQLite/FTS5 with a separate non-overwriting offline migration, and
-  AES-GCM backup/restore for either storage mode (synthetic-tested).
+  SQLite/FTS5, non-overwriting offline migration and source-preserving
+  encrypted-to-encrypted key rotation, and AES-GCM backup/restore for either
+  storage mode (synthetic-tested).
 - Protected preview capability metadata for future Mesh contracts.
 - These do not establish GoreeCloud Identity/OIDC integration, complete
   GoreeShield enforcement, Wardveil certification, or backup operations.
