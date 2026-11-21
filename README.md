@@ -118,7 +118,8 @@ Details, command examples and key handling:
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python linux/smoke.py
     cd android && gradle :app:assembleDebug
 
-GitHub Actions checks all four tracks. See docs/RELEASE_GATES.md and
+GitHub Actions checks all four tracks; the Python job also audits locked
+runtime dependencies for known advisories. See docs/RELEASE_GATES.md and
 docs/ROADMAP.md for production blockers. Keep all changes reviewable via
 pull requests with passing CI and protected main settings.
 

@@ -40,7 +40,7 @@ separately before marking any item complete.
    no paid API call without explicit approved operator budget.
 6. Android real device, Linux interactive, browser/screen reader and UI quality
    tests. Qualify signed packages and repository supply-chain provenance.
-7. Maintain protected main PR gates, lockfiles, dependency audit, SBOM and
+7. Maintain protected main PR gates, locked Python CVE-audit job, SBOM and
    tested restore/rollback.
 
 ## P1 — capabilities
