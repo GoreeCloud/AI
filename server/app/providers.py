@@ -233,7 +233,8 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                       provider_response_cache: bool = False,
                       provider_prompt_cache: bool = False,
                       cache_session_id: str | None = None,
-                      max_output_tokens: int = 2048) -> AsyncIterator[dict]:
+                      max_output_tokens: int = 2048,
+                      expose_terminal: bool = False) -> AsyncIterator[dict]:
     """Stream bounded structured events; caller authenticates and authorizes cloud access.
 
     This request does not retry or switch providers mid-stream. Cancellation of the
@@ -268,6 +269,7 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
         return
 
     produced = 0
+    upstream_terminal = False
     final_model = body["model"]
     generation_id = None
     cache_status = None
@@ -294,6 +296,7 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                             continue
                         data = line[6:]
                         if data == "[DONE]":
+                            upstream_terminal = True
                             break
                     else:
                         data = line
@@ -325,11 +328,16 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                             return
                         yield {"type": "delta", "content": delta}
                     if provider == "ollama" and event.get("done") is True:
+                        upstream_terminal = True
                         break
     except httpx.RequestError:
         yield {"type": "error", "message": "Inference provider is unreachable"}
         return
     done = {"type": "done", "provider": provider, "model": final_model}
+    if expose_terminal:
+        # Opt-in response-cache admission requires actual provider completion
+        # marker; legacy response shape remains unchanged for other clients.
+        done["upstream_terminal"] = upstream_terminal
     if provider == "openrouter" and generation_id and cache_status != "HIT":
         done["generation_id"] = generation_id
     if provider == "openrouter" and provider_response_cache:

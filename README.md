@@ -79,12 +79,16 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 
 - POST /api/v1/chat — text response; consent is required for cloud. Optional
   context_mode=last_n, context_messages (1–32), max_output_tokens (64–2048),
-  local_response_cache (non-stream only), provider_response_cache,
+  local_response_cache (complete responses and provider-completed SSE streams),
+  provider_response_cache,
   provider_prompt_cache (explicit Anthropic breakpoint), and bounded
   cache_session_id are opt-in. See docs/TOKEN_EFFICIENCY.md.
 - POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
-  Supports context limits, output caps, and provider-managed caching but not
-  replay from the local RAM cache.
+  Supports context limits, output caps, provider-managed caching, and
+  opt-in exact local SSE replay. Only fully delivered provider-terminal streams
+  are cached after completion; partial/error streams are not stored. Hits emit
+  bounded replayed delta events and a new completion marker without stale
+  usage or generation IDs. See docs/STREAM_RESPONSE_CACHE.md.
 - POST /api/v1/chat/context-preview — no inference; returns only approximate
   token/message counts and caller-declared model budget assessment, without
   returning prompt text. New optional context_mode=compact extracts lossy

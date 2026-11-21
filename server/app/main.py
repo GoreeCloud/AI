@@ -395,8 +395,6 @@ async def chat(request: ChatRequest, http_request: Request):
 async def chat_stream(request: ChatRequest, http_request: Request):
     if request.allow_local_fallback:
         raise HTTPException(422, "Fallback is only supported for non-streaming inference")
-    if request.local_response_cache:
-        raise HTTPException(422, "Local response reuse is only available for complete responses")
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         require_capability(http_request, "cloud")
@@ -406,29 +404,82 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     )
     messages = chat_context(request)
     _assert_budget_fits(request, messages)
+    digest = None
+    headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no",
+               "X-Content-Type-Options": "nosniff"}
+    if request.local_response_cache:
+        digest = token_savings.response_cache.key(
+            messages, selected, request.model, False,
+            request.max_output_tokens, request.provider_response_cache,
+            request.provider_prompt_cache, request.cache_session_id,
+        )
+        entry = token_savings.response_cache.get(digest)
+        if entry is not None:
+            async def replay():
+                # Replay model text in bounded SSE chunks, not old provider
+                # usage, generation IDs or external response-cache metadata.
+                for i in range(0, len(entry.content), 4096):
+                    yield "data: " + json.dumps(
+                        {"type": "delta", "content": entry.content[i:i + 4096]},
+                        ensure_ascii=True,
+                    ) + "\n\n"
+                yield "data: " + json.dumps({
+                    "type": "done", "provider": entry.provider, "model": entry.model,
+                    "cache": {"mode": "local-process-memory", "hit": True,
+                              "provider_contacted": False, "new_usage_reported": False},
+                }, ensure_ascii=True) + "\n\n"
+            return StreamingResponse(replay(), media_type="text/event-stream",
+                                     headers=headers)
+
     if selected == "openrouter":
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat-stream", approved=request.allow_cloud_processing)
 
     async def events():
         if (request.provider_response_cache or request.provider_prompt_cache
-                or request.max_output_tokens != 2048):
+                or request.max_output_tokens != 2048 or digest is not None):
             stream = providers.stream_chat(
                 messages, request.model, selected,
                 provider_response_cache=request.provider_response_cache,
                 provider_prompt_cache=request.provider_prompt_cache,
                 cache_session_id=request.cache_session_id,
                 max_output_tokens=request.max_output_tokens,
+                expose_terminal=digest is not None,
             )
         else:
             stream = providers.stream_chat(messages, request.model, selected)
+        fragments: list[str] = []
+        total_chars = 0
+        bounded = True
         async for message in stream:
+            if digest is not None and message.get("type") == "delta":
+                fragment = message.get("content")
+                if isinstance(fragment, str) and fragment:
+                    total_chars += len(fragment)
+                    if total_chars <= token_savings.MAX_RESPONSE_CHARS:
+                        fragments.append(fragment)
+                    else:
+                        bounded = False
+            elif digest is not None and message.get("type") == "done":
+                complete = (
+                    message.get("upstream_terminal") is True and bounded and
+                    total_chars > 0 and message.get("provider") == selected
+                )
+                stored = False
+                if complete:
+                    stored = token_savings.response_cache.put(
+                        digest, {"provider": selected, "model": message.get("model"),
+                                 "content": "".join(fragments)},
+                    )
+                message = {
+                    **message,
+                    "cache": {"mode": "local-process-memory", "hit": False,
+                              "stored": stored, "provider_contacted": True},
+                }
             yield "data: " + json.dumps(message, ensure_ascii=True) + "\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-store",
-                                      "X-Accel-Buffering": "no",
-                                      "X-Content-Type-Options": "nosniff"})
+                             headers=headers)
 
 
 def checked_reference(value: str | None) -> str | None:

@@ -28,7 +28,8 @@ remain unverified.
 
 Native chat supports local/cloud consent, selectable full/4/8/16 message
 history sent to the model, 256–2048 response-token caps, and deliberate
-opt-in to local complete-answer RAM reuse or OpenRouter response caching.
+opt-in to local completed-answer/stream RAM reuse or OpenRouter response caching.
+Unconfirmed or interrupted streams cannot populate the server replay cache.
 These are server options; the app retains no cached model output on-device.
 Opening or starting a new chat resets caching consent; cloud consent remains
 separately required. The source and pure policy tests do not prove real

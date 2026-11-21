@@ -153,7 +153,7 @@ export default function App() {
       compact_max_characters: 1200,
       ...(contextMode === 'budget' ? { model_context_window: modelContextWindow } : {}),
       max_output_tokens: maxOutputTokens,
-      local_response_cache: localResponseCache && !streaming,
+      local_response_cache: localResponseCache,
       provider_response_cache: providerResponseCache,
       provider_prompt_cache: providerPromptCache,
       cache_session_id: providerPromptCache ? cacheSessionId : null
@@ -302,7 +302,8 @@ export default function App() {
             const event = JSON.parse(record.slice(6)) as
               { type: string; content?: string; message?: string; provider?: string; model?: string;
                 provider_response_cache?: { status: string };
-                provider_prompt_cache?: { reported_token_details?: { cached_tokens?: number } } }
+                provider_prompt_cache?: { reported_token_details?: { cached_tokens?: number } };
+                cache?: { hit: boolean; stored?: boolean } }
             if (event.type === 'error') throw Error(event.message || 'Upstream stream error')
             if (event.type === 'delta' && event.content) {
               output += event.content
@@ -314,8 +315,11 @@ export default function App() {
               const providerCache = event.provider_response_cache
                 ? ' · OpenRouter response cache ' + event.provider_response_cache.status : ''
               const cachedTokens = event.provider_prompt_cache?.reported_token_details?.cached_tokens
+              const localCache = event.cache?.hit
+                ? ' · RAM cache HIT · no model contacted'
+                : event.cache?.stored ? ' · saved to temporary RAM cache' : ''
               setNotice('Stream complete · ' + event.provider + ' · ' + event.model +
-                providerCache +
+                localCache + providerCache +
                 (cachedTokens ? ' · ' + cachedTokens + ' provider-reported cached input tokens' : ''))
             }
           }
@@ -885,11 +889,12 @@ export default function App() {
                 : ''}
               System messages stay. This is not the provider tokenizer or a billing estimate.</p>}
             <label className="check"><input type="checkbox" checked={localResponseCache}
-              disabled={busy || streaming}
+              disabled={busy}
               onChange={e => setLocalResponseCache(e.target.checked)} />
-              Reuse identical complete responses in this server's RAM for 5 minutes
+              Reuse identical completed responses in this server's RAM for 5 minutes
             </label>
-            {streaming && <small>Turn streaming off to enable local RAM response reuse.</small>}
+            <small>Works with streaming and complete responses. Interrupted or
+              failed streams are never stored, and replay does not contact a model.</small>
             <label className="check"><input type="checkbox" checked={providerResponseCache}
               disabled={busy || provider === 'ollama'}
               onChange={e => setProviderResponseCache(e.target.checked)} />
