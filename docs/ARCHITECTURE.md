@@ -127,6 +127,25 @@ production deployment.
 - Real OpenRouter acceptance, prices, provider policy and live model routing
   remain unverified; mock tests alone do not authorize purchases.
 
+## Explicit provider-reported generation cost lookup
+
+- OpenRouter may return a bounded generation ID on a successful model/image
+  response or the final chat-stream event. IDs must match its documented
+  `gen-...` format, not arbitrary URLs, tokens or untrusted control bytes.
+- An authenticated owner (or `goreecloud.ai.admin` with strict signed-JWT
+  scopes) can explicitly request GET
+  `/api/v1/usage/openrouter/{generation_id}`, which queries the fixed
+  `https://openrouter.ai/api/v1/generation` metadata endpoint using the
+  server-managed key, with no redirects/ambient proxy, 8-second timeout,
+  two concurrent requests per API worker and 64 KB response cap.
+- The result is restricted to the selected generation ID, model, reported USD
+  cost and explanatory source; it never stores or reflects prompts, completions,
+  provider headers, raw provider metadata, key or user IDs. It does not
+  automatically call the provider, spend model tokens, reserve currency,
+  reconcile an independent invoice, or guarantee BYOK and multi-worker limits.
+  Real-provider authority, billing, permissions, cost stability and rate
+  limits require verification before production.
+
 ## Database upgrade and privacy
 
 Before upgrading an existing SQLite database, privately back it up and test

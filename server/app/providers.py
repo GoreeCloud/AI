@@ -1,4 +1,5 @@
 """Outgoing model calls never use user-supplied endpoints or log prompt content."""
+import asyncio
 import base64
 import binascii
 import json
@@ -82,7 +83,9 @@ async def chat(messages: list[dict], model: str, provider: str, allow_local_fall
             }, key)
             return {
                 "provider": "openrouter", "model": result.get("model", model),
-                "content": _extract_content(result), "usage": result.get("usage", {})
+                "content": _extract_content(result), "usage": result.get("usage", {}),
+                **({"generation_id": validated_generation_id(result.get("id"))}
+                   if validated_generation_id(result.get("id")) else {})
             }
         except UpstreamFailure as exc:
             if not (allow_local_fallback and exc.transient and os.getenv("OLLAMA_MODEL")):
@@ -155,7 +158,9 @@ async def image_request(prompt: str, model: str, reference: str | None) -> dict:
         cost = None
     return {
         "model": model, "image": f"data:{media_type};base64,{encoded}", "cost": cost,
-        "media_type": media_type
+        "media_type": media_type,
+        **({"generation_id": validated_generation_id(result.get("id"))}
+           if validated_generation_id(result.get("id")) else {})
     }
 
 
@@ -188,12 +193,17 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
 
     produced = 0
     final_model = body["model"]
+    generation_id = None
     try:
         async with httpx.AsyncClient(timeout=90, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
             async with client.stream("POST", url, json=body, headers=headers) as response:
                 if response.status_code != 200:
                     yield {"type": "error", "message": "Inference provider returned an error"}
                     return
+                if provider == "openrouter":
+                    generation_id = validated_generation_id(
+                        getattr(response, "headers", {}).get("X-Generation-Id")
+                    )
                 async for line in response.aiter_lines():
                     if len(line) > 100_000:
                         yield {"type": "error", "message": "Upstream response exceeded limit"}
@@ -217,6 +227,8 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
                         return
                     if not isinstance(event, dict):
                         continue
+                    if provider == "openrouter":
+                        generation_id = validated_generation_id(event.get("id")) or generation_id
                     final_model = str(event.get("model") or final_model)[:128]
                     if provider == "openrouter":
                         choices = event.get("choices") or []
@@ -234,7 +246,10 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
     except httpx.RequestError:
         yield {"type": "error", "message": "Inference provider is unreachable"}
         return
-    yield {"type": "done", "provider": provider, "model": final_model}
+    done = {"type": "done", "provider": provider, "model": final_model}
+    if provider == "openrouter" and generation_id:
+        done["generation_id"] = generation_id
+    yield done
 
 
 async def verify_cloud_key_budget() -> None:
@@ -324,3 +339,74 @@ async def image_catalog() -> dict:
                 "note": "Preview catalog; a model may change availability or price without notice."}
     except (httpx.RequestError, ValueError, TypeError, UnicodeError) as exc:
         raise HTTPException(503, "Image model catalog unavailable") from exc
+
+
+
+# OpenRouter documents a gen-* ID, maximum length 128. The ID is metadata,
+# not a bearer credential or permission to view someone else's generations.
+_GENERATION_PATTERN = re.compile(r"gen-[A-Za-z0-9-]{1,124}")
+_generation_slots = asyncio.Semaphore(2)
+
+
+def validated_generation_id(value) -> str | None:
+    if isinstance(value, str) and _GENERATION_PATTERN.fullmatch(value):
+        return value
+    return None
+
+
+async def generation_cost(generation_id: str) -> dict:
+    """Deliberately requested OpenRouter *metadata* lookup, no model request.
+
+    Provider-reported cost is not an independent invoice or hard budget gate.
+    Prompts, completions, full provider metadata and bearer key are discarded.
+    """
+    if validated_generation_id(generation_id) != generation_id:
+        raise HTTPException(422, "Invalid OpenRouter generation ID")
+    key = os.getenv("OPENROUTER_API_KEY", "")
+    if not key:
+        raise HTTPException(503, "OpenRouter API key is not configured")
+    try:
+        await asyncio.wait_for(_generation_slots.acquire(), timeout=0.5)
+    except TimeoutError as exc:
+        raise HTTPException(429, "Provider accounting capacity is busy") from exc
+    try:
+        try:
+            async with (
+                httpx.AsyncClient(timeout=8, follow_redirects=False, trust_env=False) as client,
+                client.stream("GET", OPENROUTER + "/generation",
+                              params={"id": generation_id},
+                              headers={"Authorization": "Bearer " + key,
+                                       "Accept": "application/json"}) as response,
+            ):
+                    if response.status_code != 200:
+                        raise HTTPException(502, "Provider generation metadata is unavailable")
+                    buffer = bytearray()
+                    async for part in response.aiter_bytes():
+                        if len(buffer) + len(part) > 65536:
+                            raise HTTPException(502, "Provider generation metadata exceeded limit")
+                        buffer.extend(part)
+        except httpx.RequestError as exc:
+            raise HTTPException(502, "Provider generation metadata is unreachable") from exc
+        try:
+            payload = json.loads(buffer)
+            info = payload.get("data") if isinstance(payload, dict) else None
+            if not isinstance(info, dict) or info.get("id") != generation_id:
+                raise ValueError("Invalid generation metadata")
+            amount = info.get("total_cost")
+            if (type(amount) not in (int, float) or not math.isfinite(amount)
+                    or not 0 <= amount <= 1_000_000):
+                raise ValueError("Invalid provider-reported cost")
+            model = info.get("model")
+            if not isinstance(model, str) or not 1 <= len(model) <= 128:
+                raise ValueError("Invalid reported model")
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(502, "Provider generation metadata could not be validated") from exc
+        return {
+            "generation_id": generation_id,
+            "model": model,
+            "total_cost_usd": amount,
+            "source": "openrouter-reported-generation",
+            "note": "Provider metadata only; not an independent invoice or hard USD spending cap",
+        }
+    finally:
+        _generation_slots.release()

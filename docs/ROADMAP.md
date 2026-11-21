@@ -24,6 +24,9 @@ separately before marking any item complete.
   opt-in per-route read/write/inference/cloud/paid/tools/admin capabilities
   and fail-closed unknown protected routes (offline pinned keys).
 - Optional capped OpenRouter key preflight with provider-owned limit.
+- Source-tested deliberate owner-only OpenRouter generation metadata read
+  with ID validation, bounded fixed-origin query and provider-reported
+  USD cost only; no automatic requests, invoice matching or money cap.
 - Manual MCP call admission/argument/output/time bounds, early operator
   allowlist check and opaque media omission; no real server interoperability
   acceptance or isolated MCP worker.
@@ -52,8 +55,9 @@ separately before marking any item complete.
    prompt/tool injection boundaries, MCP worker isolation and delegated
    authorization beyond bounded manual calls, and content-free audit.
 4. Require/verify provider-enforced per-key credit caps, then add real
-   monetary reservations and usage/billing reconciliation across workers;
-   present preflight is not a dollar spend guarantee.
+   monetary reservations, automatic admission-to-generation ID linkage
+   and invoice-level reconciliation across workers. The optional manual
+   metadata lookup and preflight are not a dollar spend guarantee.
 5. Test real Ollama/OpenRouter chat, streaming, images and MCP with safe data;
    no paid API call without explicit approved operator budget.
 6. Android real device, Linux interactive, browser/screen reader and UI quality

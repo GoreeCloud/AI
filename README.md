@@ -12,7 +12,7 @@ Open WebUI, AnythingLLM or LibreChat.
 
 | Surface | Implemented in source | Still missing |
 |---|---|---|
-| Shared API | Owner token or optional pinned-JWKS RS256 JWT adapter with opt-in read/write/inference/cloud/paid/tools/admin scopes, OpenRouter/Ollama, streaming, SSE and images | Verified GoreeCloud Identity issuer, dollar-cost reconciliation, live providers |
+| Shared API | Owner or opt-in scoped signed JWT, OpenRouter/Ollama, SSE/images and deliberate owner-only OpenRouter generation-cost metadata lookup | Verified Identity issuer, invoice-level cost reconciliation, dollar cap, live providers |
 | Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
@@ -74,6 +74,13 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
 - POST /api/v1/images — explicitly approved paid generation/compatible reference edits (bounded image response, PNG/JPEG/WebP).
 - GET /api/v1/images/models — deliberate owner-authenticated model catalog lookup using the server-only OpenRouter API key; no prompt or paid generation request.
+- GET /api/v1/usage/openrouter/{generation_id} — owner/admin-capability only,
+  deliberate read-only metadata lookup of one OpenRouter generation ID. Returns
+  provider-reported model and USD cost; never returns full generation metadata,
+  prompts, completions or provider credentials. The ID may appear in successful
+  OpenRouter chat/image responses or streaming completion events. Metadata
+  lookup requires a configured key with appropriate upstream permission and
+  is not independent invoice reconciliation or a hard USD spending limit.
 - GET /api/v1/models — configured routes.
 - GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
 - GET /api/v1/privacy/consent-receipts — owner-only bounded, content-free approvals/admission metadata.
