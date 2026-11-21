@@ -22,6 +22,9 @@ bearer = HTTPBearer(auto_error=False)
 _ROUTE_CAPABILITIES: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/models"): "read",
     ("GET", "/api/v1/models/catalog"): "read",
+    ("POST", "/api/v1/chat/context-preview"): "read",
+    ("GET", "/api/v1/cache/status"): "read",
+    ("POST", "/api/v1/cache/clear"): "admin",
     ("GET", "/api/v1/images/models"): "read",
     ("GET", "/api/v1/usage/openrouter/{generation_id}"): "admin",
     ("GET", "/api/v1/privacy/status"): "read",

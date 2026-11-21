@@ -28,6 +28,11 @@ separately before marking any item complete.
   with bounded frame decoding, redirect refusal and synthetic localhost tests.
   All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
   of QML XMLHttpRequest. Real desktop/provider acceptance remains pending.
+- Opt-in token-efficiency stack: approximate local context preview, last-N
+  history trimming preserving system content, adjustable output token limits,
+  300-second bounded exact-response reuse in RAM, explicit OpenRouter
+  response cache hints and Anthropic prompt cache breakpoints. Original
+  behavior stays the default; no automatic cloud cache retention.
 - OpenRouter text model discovery using deliberate, read-only fixed-origin
   catalog requests and browser-local filtering; no prompts or paid inference.
 - OpenRouter public image-model discovery, web selector, bounded provider
@@ -61,6 +66,18 @@ separately before marking any item complete.
 - Protected preview capability metadata for future Mesh contracts.
 - These do not establish GoreeCloud Identity/OIDC integration, complete
   GoreeShield enforcement, Wardveil certification, or backup operations.
+
+## Token efficiency: production validation pending
+
+- Run consent-approved synthetic and then budget-approved real-provider
+  experiments to verify token reporting, prompt-cache write premiums, actual
+  cache hits, response freshness, request quota effects and account charges.
+- Design multiworker/instance cache invalidation, operator-safe data retention,
+  robust telemetry without prompt logging, and cache-clearing guarantees.
+  The implemented local cache is process-bound with no disk persistence.
+- Implement native Qt/Android efficiency controls after UI/transport acceptance.
+- Expand provider prompt-cache controls to supported models only after verifying
+  their API semantics and privacy/cost policy.
 
 ## P0 — protect privacy and qualify release
 
