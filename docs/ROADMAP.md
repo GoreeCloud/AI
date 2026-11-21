@@ -32,6 +32,10 @@ separately before marking any item complete.
   with bounded frame decoding, redirect refusal and synthetic localhost tests.
   All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
   of QML XMLHttpRequest. Real desktop/provider acceptance remains pending.
+- Explicit loopback Ollama-generated summaries of older conversation turns,
+  shown as reviewable/editable drafts; no automatic history replacement or
+  cloud request, independent explicit local-inference approval. Separate
+  optional 5-minute bounded in-process RAM summary reuse.
 - Opt-in token-efficiency stack: approximate local context preview, last-N
   history trimming, deterministic extractive older-history context with
   inspectable local digest, declared model-window budget auto-fit with hard

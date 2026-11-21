@@ -225,3 +225,6 @@ def validate_cache_mode(selected: str, provider_response: bool,
 response_cache = ResponseCache()
 # Separate bounded owner-only answer store; no accidental chat/research key overlap.
 research_cache = ResponseCache()
+# Locally generated, opt-in summaries are separate from ordinary completions
+# and document answers, with the same short TTL and per-process RAM boundary.
+summary_cache = ResponseCache()

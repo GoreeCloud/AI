@@ -12,8 +12,8 @@ Open WebUI, AnythingLLM or LibreChat.
 
 | Surface | Implemented in source | Still missing |
 |---|---|---|
-| Shared API | Owner/scoped JWT, OpenRouter/Ollama SSE, optional last-N context, bounded output token caps, opt-in server RAM response reuse and OpenRouter cache hints, model discovery | Real billing savings, full provider cache support, production key custody, multiworker cache sharing and real-provider acceptance |
-| Web | React/TypeScript chat stream/cancel, token-efficiency preview and caching controls, consent, saved chats/import/export, documents, search/RAG, model catalogs, images, agents and MCP | Cross-browser/visual qualification and native token-efficiency/client parity |
+| Shared API | Owner/scoped JWT, OpenRouter/Ollama SSE, opt-in extractive/adaptive context and approved loopback Ollama summary drafts, output-token caps, optional RAM/provider caches and model discovery | Real billing savings, full provider cache support, production key custody, multiworker cache sharing and real-provider acceptance |
+| Web | React/TypeScript chat stream/cancel, context previews, optional reviewable Ollama summary drafts, token/caching controls, consent, local saved chats and documents, search/RAG, model catalogs, images, agents and MCP | Cross-browser/visual qualification and native token-efficiency/client parity |
 | Linux | Native Qt Quick bounded SSE and redirect-refusing Qt Network REST, saved chat library, opt-in latest-N context/output caps and local/OpenRouter cache toggles, image/document/tools | Real desktop/accessibility, signed packages, provider acceptance and file import/export parity |
 | Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, SSE/cancel, saved chat portability and deletion, opt-in latest-N context/output caps and local/OpenRouter cache toggles, images/docs/agents/MCP | Physical device/emulator networking, signed release, accessibility, native rename and Markdown parity |
 | Documents | SQLite CRUD/FTS5 with optional SQLCipher; opt-in bounded revisions and approved rollback; upload preflight, isolated parser, export and cited retrieval | Deployed encryption, malware scanning, native revision parity and semantic search |
@@ -93,10 +93,17 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/chat/context-digest-preview — local authenticated preview of
   a compact mode's lossy, untrusted excerpts, never sent to inference.
   See docs/CONTEXT_COMPACTION.md.
+- POST /api/v1/chat/local-summary — with approved=true, securely bound to the
+  configured **loopback-only** Ollama model. Only older non-system messages
+  (max 12 KB) are sent to local inference. The provisional model-written
+  summary is returned for human review; never auto-applied/saved, and
+  no OpenRouter requests. Optional reuse_local_summary_cache=true retains a
+  bounded plaintext draft in API process RAM for 300 seconds. See
+  docs/LOCAL_SUMMARIES.md.
 - GET /api/v1/cache/status — owner-only counters for the current API worker.
 - POST /api/v1/cache/clear with approved=true — clear that worker's
-  ephemeral response cache; strict OIDC requires admin, and provider caches
-  or other API worker caches are not affected.
+  temporary chat, research-answer and summary caches; strict OIDC requires
+  admin, and provider caches/other API worker caches are not affected.
 - POST /api/v1/images — explicitly approved paid generation/compatible reference edits (bounded image response, PNG/JPEG/WebP).
 - GET /api/v1/images/models — deliberate owner-authenticated model catalog lookup using the server-only OpenRouter API key; no prompt or paid generation request.
 - GET /api/v1/usage/openrouter/{generation_id} — owner/admin-capability only,
