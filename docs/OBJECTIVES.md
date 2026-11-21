@@ -20,7 +20,8 @@ See README and THIRD_PARTY_NOTICES.md.
    understandable before paid actions. Support explicit retention, export,
    deletion, recoverable backups and safe migration.
 3. **Security:** Enforce identity, scoped authorization, least-privilege
-   worker isolation, input boundaries, secret management and tested rollback.
+   worker isolation, bounded and explicitly approved MCP tool calls, input
+   boundaries, secret management and tested rollback.
    The separate GoreeShield privacy and Wardveil cybersecurity responsibilities
    must not be conflated.
 4. **Integrations:** Connect only through verified authenticated contracts;

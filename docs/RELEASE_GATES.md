@@ -7,7 +7,7 @@
 | Linux | Qt startup, real desktop, packaging | Qt source includes image model discovery; headless smoke/real desktop acceptance pending |
 | Android | Material3 Expressive build, emulator/device, signing | Image model discovery uses native Compose; debug build/device acceptance pending |
 | GoreeShield | Privacy consent records, retention/encryption | Explicit cloud approvals, metadata-only admission receipts/owner clear, snapshot retention purge; policy integration and live DB encryption pending |
-| Wardveil | Threat assessment, sandbox, scans | Subprocess limits plus opt-in Bubblewrap namespace/net/filesystem isolation tested on a trusted Linux host; seccomp, dedicated UID, production runtime and independent security acceptance remain open |
+| Wardveil | Threat assessment, sandbox, scans | Synthetic-tested opt-in Bubblewrap parser isolation, bounded/approved MCP request-output boundary and unit tests; seccomp, isolated MCP workers, provider runtime and independent security acceptance remain open |
 | Identity | OIDC/OAuth source contract and scopes | Offline pinned-JWKS RS256 adapter and optional route capability matrix tested; no verified GoreeCloud Identity issuer, delegated multiuser scopes or deployment |
 | Mesh | Authenticated service integration | Authenticated read-only capability manifest; not a registered Mesh adapter |
 | Billing | Hard USD limit and actual provider reconciliation | Count guard + optional per-key credit-cap preflight; no USD reservation/reconciliation |

@@ -15,7 +15,7 @@ GoreeCloud UI source and independently licensed dependencies. This is a
 | Cloud consent and quotas | Default-off per-request approval, daily atomic request admission and metadata-only receipts | Admission is not actual spend; no provider billing reconciliation or production privacy engine |
 | Offline encrypted backups | AES-256-GCM encrypted export/restore CLI, synthetic tests | Running database remains plaintext; off-host recovery unverified |
 | Identity | Owner token; optional pinned RS256/JWKS signed-owner token with opt-in route capability checks | No real GoreeCloud Identity issuer, MFA, multiuser delegation or tenant isolation |
-| Manual tools and MCP | Approved local document.read and operator-allowlisted MCP HTTPS/loopback tools | No autonomous tool execution, OAuth, trust-certified sandbox or real MCP interop proof |
+| Manual tools and MCP | Approved local document.read and operator-allowlisted MCP HTTPS/loopback tools with bounded arguments/time/concurrency/sanitized outputs | No autonomous tool execution, OAuth, isolated MCP worker or real MCP interop proof |
 | Integration metadata | Owner-authenticated read-only v1 preview capability manifest | Not a registered, production-authenticated GoreeCloud Mesh service |
 | Web client | React/TypeScript UI, token memory, consent, documents, chat, model browsing | Real browser, accessibility and visual acceptance open |
 | Linux client | Native Qt Quick preview using GoreeCloud UI token source | Headless smoke only; interactive desktop and package signing pending |

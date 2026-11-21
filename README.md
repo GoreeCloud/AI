@@ -17,7 +17,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
 | Documents | SQLite CRUD, bounded Linux import subprocess and optional network-denied Bubblewrap document sandbox, export, FTS5 retrieval and source IDs | Production-qualified sandbox, encryption, semantic embeddings |
-| Agents & MCP | Plans without automatic execution, read-only approved document action, operator allowlisted manual Streamable HTTP MCP | Multi-step autonomous agents, OAuth, worker sandbox |
+| Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
 | Privacy | Cloud opt-in, metadata-only cloud-admission receipts, owner-controlled receipt clearing, local snapshots, count quota, retention purge, encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
 
 OpenRouter is an external model provider and may charge per request, token, image
@@ -89,7 +89,11 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/documents/extract — bounded PDF/DOCX/TXT/MD extraction.
 - GET /api/v1/documents/{uuid}/export?format=md|docx.
 - POST /api/v1/agents/plan and /api/v1/agents/run.
-- GET /api/v1/mcp/tools and POST /api/v1/mcp/call.
+- GET /api/v1/mcp/tools and POST /api/v1/mcp/call. Manual MCP calls require a
+  separate approval, operator tool allowlist and bounded 256 KB JSON arguments.
+  Session admission allows two concurrent calls per API worker; discovery
+  and tool results are bounded, and media/tool-output blobs are not returned
+  raw. See docs/ARCHITECTURE.md for source-only limitations.
 - GET /api/health is public, /api/docs and /api/openapi.json are developer
   references. Bind the server to loopback only in this preview.
 
