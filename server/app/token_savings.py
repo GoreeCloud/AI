@@ -180,3 +180,5 @@ def validate_cache_mode(selected: str, provider_response: bool,
 
 
 response_cache = ResponseCache()
+# Separate bounded owner-only answer store; no accidental chat/research key overlap.
+research_cache = ResponseCache()

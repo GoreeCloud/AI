@@ -120,7 +120,12 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
   See docs/DOCUMENT_REVISIONS.md.
 - GET /api/v1/search/documents?q=... — owner-only local FTS5 search.
 - POST /api/v1/research/answer — retrieved local source references with
-  explicit cloud consent if a cloud provider is selected.
+  explicit cloud consent if a cloud provider is selected. Optional
+  local_answer_cache=true reuses an exact question and selected FTS5 source
+  version set from bounded in-process RAM for 300s. Fresh FTS5 retrieval
+  and document update timestamps are checked on every request; edits and
+  deletes invalidate reuse. No semantic nearest-neighbor answer substitution.
+  See docs/RESEARCH_CACHE.md.
 - GET/POST /api/v1/conversations, GET/DELETE /api/v1/conversations/{uuid}
   — opt-in local snapshots.
 - GET /api/v1/search/conversations?q=... — local full-text message search and
