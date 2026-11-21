@@ -28,45 +28,45 @@ ApplicationWindow {
     property var mcpTools: []
     property string renderedImage: ""
     property var imageModels: []
+    property int restRequestCounter: 0
+    property var restPendingCallbacks: ({})
 
     function request(method, path, payload, callback) {
+        if (busy)
+            return
         if (token.length === 0) {
             feedback = "Enter an owner token before sending a request."
             return
         }
-        var hostOk = /^https:\/\/[^ ]+$/.test(endpoint) ||
-                     /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(endpoint)
-        if (!hostOk) {
-            feedback = "Use HTTPS or local loopback HTTP only."
-            return
-        }
         busy = true
         feedback = ""
-        var xhr = new XMLHttpRequest()
-        xhr.open(method, endpoint.replace(/\/+$/, "") + path)
-        xhr.setRequestHeader("Authorization", "Bearer " + token)
-        if (payload !== null)
-            xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            busy = false
+        restRequestCounter += 1
+        if (restRequestCounter > 2000000000)
+            restRequestCounter = 1
+        var id = restRequestCounter
+        restPendingCallbacks[id] = callback
+        restBridge.start(id, endpoint, token, method, path,
+                         payload === null ? "" : JSON.stringify(payload))
+    }
+
+    Connections {
+        target: restBridge
+        function onSucceeded(requestId, jsonText) {
+            var callback = window.restPendingCallbacks[requestId]
+            delete window.restPendingCallbacks[requestId]
+            window.busy = false
             try {
-                var result = JSON.parse(xhr.responseText)
-                if (xhr.status < 200 || xhr.status >= 300) {
-                    feedback = result.detail || ("HTTP error " + xhr.status)
-                    return
-                }
-                callback(result)
-            } catch (err) {
-                feedback = "Service response could not be read (" + xhr.status + ")"
+                if (callback)
+                    callback(JSON.parse(jsonText))
+            } catch (_error) {
+                window.feedback = "API response could not be applied"
             }
         }
-        xhr.onerror = function() {
-            busy = false
-            feedback = "Could not reach the configured server."
+        function onFailed(requestId, message) {
+            delete window.restPendingCallbacks[requestId]
+            window.busy = false
+            window.feedback = message
         }
-        xhr.send(payload === null ? null : JSON.stringify(payload))
     }
 
     function sendChat() {

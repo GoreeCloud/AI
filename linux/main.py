@@ -6,6 +6,7 @@ from chat_stream import ChatStreamBridge
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
+from rest_bridge import SafeRestBridge
 
 
 def main() -> int:
@@ -15,6 +16,8 @@ def main() -> int:
     engine = QQmlApplicationEngine()
     bridge = ChatStreamBridge()
     engine.rootContext().setContextProperty("streamBridge", bridge)
+    rest_bridge = SafeRestBridge()
+    engine.rootContext().setContextProperty("restBridge", rest_bridge)
     path = Path(__file__).resolve().parent / "Main.qml"
     engine.load(QUrl.fromLocalFile(str(path)))
     if not engine.rootObjects():

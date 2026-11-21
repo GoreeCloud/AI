@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from chat_stream import ChatStreamBridge
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtNetwork import QNetworkProxy
 
 
 class LocalSse(BaseHTTPRequestHandler):
@@ -87,6 +88,10 @@ class QtStreamHTTPTests(unittest.TestCase):
         self.bridge.failed.connect(lambda *_: loop.quit())
         QTimer.singleShot(3000, loop.quit)
         loop.exec()
+
+    def test_no_implicit_desktop_proxy(self):
+        self.assertEqual(self.bridge.manager.proxy().type(),
+                         QNetworkProxy.ProxyType.NoProxy)
 
     def test_live_loopback_sse_delivers_delta_and_done(self):
         self._call()

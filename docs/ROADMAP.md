@@ -16,8 +16,9 @@ separately before marking any item complete.
 - Android Compose has streamed chat/cancellation, host-side SSE framing tests
   and no new cloud consent bypass; real device/provider qualification pending.
 - Native Qt Linux chat uses Qt Network SSE streaming and explicit cancellation
-  with bounded frame decoding, redirect refusal and synthetic localhost tests;
-  real desktop and provider acceptance remain pending.
+  with bounded frame decoding, redirect refusal and synthetic localhost tests.
+  All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
+  of QML XMLHttpRequest. Real desktop/provider acceptance remains pending.
 - OpenRouter public image-model discovery, web selector, bounded provider
   response streaming and image format checks with no paid test calls.
 - API mock tests, web typecheck/bundle, Linux offscreen QML boot and Android

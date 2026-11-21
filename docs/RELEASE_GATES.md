@@ -4,7 +4,7 @@
 |---|---|---|
 | API | Regression, compatibility, explicit contracts | Python CI/mock tests include bounded provider image responses and capability discovery; live-provider contract acceptance pending |
 | Web | Build, browsers, accessibility | TypeScript build covers image catalog selector; browser and accessibility verification pending |
-| Linux | Qt startup, real desktop, packaging | Qt source includes image model discovery plus SSE stream/cancel and bounded parser; offscreen QML smoke and synthetic loopback/redirect/cancel tests passed, but interactive desktop, accessibility and signed package pending |
+| Linux | Qt startup, real desktop, packaging | Qt image discovery and SSE stream/cancel plus bounded no-redirect native REST; offscreen QML smoke and synthetic loopback/redirect/token-boundary tests, but real desktop, accessibility and signed package pending |
 | Android | Material3 Expressive build, emulator/device, signing | Compose image discovery and streaming/cancel source; debug build and native SSE JUnit parser CI, but emulator/physical-device, screen reader and signed distribution pending |
 | GoreeShield | Privacy consent records, retention/encryption | Consent receipts, opt-in dry-run/apply local retention CLI and uninstalled systemd timer template, optional SQLCipher/FTS and encrypted backup tests; actual scheduler, activation, key custody, policy and erasure acceptance pending |
 | Wardveil | Threat assessment, sandbox, scans | Source-tested PDF/DOCX magic-byte and UTF-8 text preflight before parser spawn, opt-in Bubblewrap isolation, bounded/approved MCP boundaries; no malware scan, seccomp, isolated MCP worker, host resource acceptance or independent review |

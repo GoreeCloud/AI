@@ -7,7 +7,7 @@ import json
 from urllib.parse import urlsplit
 
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
-from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkProxy, QNetworkReply, QNetworkRequest
 from stream_frames import StreamFrameError, StreamFrames
 
 
@@ -41,6 +41,8 @@ class ChatStreamBridge(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.manager = QNetworkAccessManager(self)
+        # Avoid forwarding owner credentials through implicit desktop proxy settings.
+        self.manager.setProxy(QNetworkProxy(QNetworkProxy.ProxyType.NoProxy))
         self._reply: QNetworkReply | None = None
         self._frames = StreamFrames()
 

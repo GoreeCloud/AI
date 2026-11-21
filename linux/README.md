@@ -4,7 +4,12 @@ Qt Quick 6.12 / PySide6 6.12 source, native operating-system window and controls
 Uses the backend REST and SSE APIs; owner credentials are entered at runtime
 and not persisted. Chat now supports incremental native Qt Network streaming
 with explicit cancellation, with bounded pure-Python frame decoding and a
-manual-redirect-denial policy for the streaming connection.
+manual-redirect-denial policy for the streaming connection. All other
+Linux API calls now also use a bounded native Qt Network REST bridge with
+manual redirect refusal; the earlier credential-bearing QML XMLHttpRequest
+path has been retired. Both Qt Network transports refuse ambient proxies
+to protect the owner credential; operators requiring an approved proxy need
+a separately reviewed explicit policy.
 
 On a Linux machine with Python 3.11+ and a supported desktop environment:
 
@@ -26,10 +31,12 @@ Run the FastAPI server separately and configure a token. The native UI now
 requires explicit cloud-processing approval before OpenRouter inference;
 without consent, Auto may use the configured Ollama model. Remote API
 endpoints must use HTTPS, with HTTP limited to 127.0.0.1/localhost.
-The native stream bridge refuses credential-bearing URLs, query/fragment
-endpoints, and redirects; it does not expose prompts or tokens through
-logging or command-line arguments. The regular non-streaming request
-implementation remains available for server-supported local fallback. The Qt Quick interface
+Both native Qt bridges refuse credential-bearing URLs, query/fragment
+endpoints, and redirects; REST calls also enforce a bounded API route,
+request/response JSON limits and single active request. They do not expose
+prompts or tokens through logging or command-line arguments. The regular
+non-streaming request implementation remains available for server-supported
+local fallback. The Qt Quick interface
 supports streamed and complete-response chat with cancel, model routing,
 read-only discovered image models, image generation preview, Markdown document CRUD,
 agent planning and MCP tool discovery/explicit invocation. It is a native

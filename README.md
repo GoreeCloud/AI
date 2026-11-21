@@ -14,7 +14,7 @@ Open WebUI, AnythingLLM or LibreChat.
 |---|---|---|
 | Shared API | Owner or opt-in scoped signed JWT, OpenRouter/Ollama, SSE/images and deliberate owner-only OpenRouter generation-cost metadata lookup | Verified Identity issuer, invoice-level cost reconciliation, dollar cap, live providers |
 | Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
-| Linux | Native Qt Quick, bounded SSE chat/cancel through Qt Network, images, documents, agent plans, approved MCP and consent | Real desktop/accessibility, signed packages and provider acceptance |
+| Linux | Native Qt Quick with bounded SSE and redirect-refusing authenticated Qt Network REST, chat cancellation, images, documents, approved MCP and consent | Real desktop/accessibility, signed packages and provider acceptance |
 | Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, incremental SSE chat/cancel, images, docs, agents and MCP | Physical device, signed release and file-picker parity |
 | Documents | SQLite CRUD/FTS5 with optional SQLCipher encryption; upload signature/UTF-8 preflight before resource-limited parser with opt-in Bubblewrap; export and cited retrieval | Deployed encryption, malware scanning, complete sandbox qualification and semantic search |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
