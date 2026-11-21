@@ -20,7 +20,9 @@ separately before marking any item complete.
 
 ## Source-level security foundation (not production acceptance)
 
-- Optional signed RS256/JWKS owner-scope verifier (offline pinned keys).
+- Optional signed RS256/JWKS owner-scope verifier with source-tested,
+  opt-in per-route read/write/inference/cloud/paid/tools/admin capabilities
+  and fail-closed unknown protected routes (offline pinned keys).
 - Optional capped OpenRouter key preflight with provider-owned limit.
 - Optional Bubblewrap parser isolation (read-only runtime, no network or
   host data mounts) with synthetic Linux checks; default subprocess retained.
@@ -32,9 +34,9 @@ separately before marking any item complete.
 
 ## P0 — protect privacy and qualify release
 
-1. Complete the source-authenticated GoreeCloud Identity issuer and claims
-   integration beyond the pinned JWKS verifier; per-route delegated scopes,
-   TLS ingress, MFA and anti-abuse controls before public exposure.
+1. Complete source-authenticated GoreeCloud Identity issuer integration beyond
+   the offline pinned-JWKS and opt-in capability-scoped adapter; delegated
+   multi-user scopes, TLS ingress, MFA and anti-abuse before public exposure.
 2. GoreeShield enforced consent policy and scheduled retention beyond
    local approval/admission receipts and explicit snapshot/receipt purge;
    encrypt the live database, harden
