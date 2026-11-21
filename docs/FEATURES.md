@@ -19,7 +19,7 @@ GoreeCloud UI source and independently licensed dependencies. This is a
 | Integration metadata | Owner-authenticated read-only v1 preview capability manifest | Not a registered, production-authenticated GoreeCloud Mesh service |
 | Web client | React/TypeScript UI, token memory, consent, documents, chat, model browsing | Real browser, accessibility and visual acceptance open |
 | Linux client | Native Qt Quick preview using GoreeCloud UI token source | Headless smoke only; interactive desktop and package signing pending |
-| Android client | Kotlin Compose Material 3 Expressive, pinned MIT gc-ui adapter | Debug APK CI only; physical-device and signed release pending |
+| Android client | Kotlin Compose Material 3 Expressive, pinned MIT gc-ui adapter, opt-in SSE streaming with cancellation and bounded parser | Host-side JUnit/build checks only; physical-device SSE, accessibility and signed release pending |
 
 Source evidence resides in the app, web, Linux and Android directories,
 their tests and GitHub Actions history. For exact current implementation,

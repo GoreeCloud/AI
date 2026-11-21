@@ -61,6 +61,12 @@ production deployment.
   namespaces, read-only interpreter/code, isolated /tmp and no network.
   Requested bwrap failures do not downgrade to process mode. No complete
   Wardveil/production acceptance is implied. See docs/SECURITY_IMPORTS.md.
+- Android Compose chat offers optional bounded SSE streaming with explicit
+  HTTP disconnect and coroutine cancellation, reusing the same authenticated
+  consent-gated server endpoint. Non-streaming remains supported when local
+  fallback is selected; no device/lifecycle tests or provider billing
+  cancellation guarantee is implied. Host-side JUnit tests cover frame size,
+  repeated events, UTF-8 line handling and cancellation state.
 - Sensitive HTTP responses have Cache-Control no-store, nosniff and
   no-referrer headers. Web and Linux clients permit only HTTPS or loopback HTTP.
   Android release is HTTPS-only; emulator HTTP is debug-only.

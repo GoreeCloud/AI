@@ -17,17 +17,23 @@ import java.net.URL
  * Never sends credentials to redirected/untrusted origins.
  */
 internal object AiApi {
+    internal fun validatedBase(endpoint: String): String {
+        val base = endpoint.trim().trimEnd('/')
+        val target = URL(base)
+        val isEmulatorDevelopment = BuildConfig.DEBUG &&
+            target.protocol == "http" && target.host == "10.0.2.2"
+        require(target.protocol == "https" || isEmulatorDevelopment) {
+            "Use HTTPS. Debug emulator can use http://10.0.2.2:8000"
+        }
+        require(target.userInfo == null && target.ref == null &&
+            target.query == null) { "Invalid server address" }
+        return base
+    }
+
     suspend fun call(endpoint: String, ownerToken: String, path: String, body: JSONObject? = null): JSONObject =
         withContext(Dispatchers.IO) {
             require(ownerToken.isNotBlank()) { "Enter an owner token" }
-            val base = endpoint.trim().trimEnd('/')
-            val target = URL(base)
-            val isEmulatorDevelopment = BuildConfig.DEBUG &&
-                target.protocol == "http" && target.host == "10.0.2.2"
-            require(target.protocol == "https" || isEmulatorDevelopment) {
-                "Use HTTPS. Debug emulator can use http://10.0.2.2:8000"
-            }
-            require(target.userInfo == null && target.ref == null) { "Invalid server address" }
+            val base = validatedBase(endpoint)
             require(path.startsWith("/api/")) { "Unsupported API route" }
             val connection = URL(base + path).openConnection() as HttpURLConnection
             connection.instanceFollowRedirects = false
