@@ -32,13 +32,23 @@ OpenRouter Image API model capabilities via the owner-authenticated API;
 discovery does not itself authorize paid generation. Markdown documents,
 agent plans and manual MCP discovery/calls have
 development UI screens. Browser-only or unfinished native parity includes
-conversation JSON import/export, renaming, file import/export and image reference picking.
+conversation renaming, Markdown chat export, general document file import/export
+and image reference picking.
 The Chat screen now includes an explicit local-snapshot save control and a
 saved-conversations view with refresh, bounded local FTS search, and opening
 previously saved messages. Opening a snapshot or starting a new chat clears
 cloud-processing consent. No local snapshot is uploaded automatically and
 the owner token remains in memory only. These native history controls are
 source-tested/build-checked, not qualified on a physical device.
+
+An explicit Android system file picker now supports importing a user-selected
+GoreeCloud AI v1 conversation JSON export into a new snapshot, or exporting
+one chosen saved chat as JSON to a user-selected destination. Imports and
+exports are bounded to 1.25 MB. The destination may sync to cloud storage;
+the UI warns about plaintext, and only the user chooses the destination.
+Saved-chat deletion uses a separate confirmation dialog and scoped HTTP
+DELETE supporting an empty 204 response. Pure host-side transport-policy
+tests guard route restrictions. No background sharing occurs.
 
 The debug source-set manifest now references a network security XML rule
 allowing cleartext **only** to the Android emulator's `10.0.2.2` loopback

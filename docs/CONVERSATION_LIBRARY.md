@@ -31,8 +31,12 @@ Deletes remove saved records and current FTS entries but are **not secure erasur
 The web client exposes the complete set above. The native Linux Qt and Android
 Compose clients additionally provide save/list/search/open for opt-in local
 snapshots, with cloud consent reset when opening history or starting a new
-chat. Native rename, JSON/Markdown export/import and message-level branching
-remain open for parity; neither native client is qualified on real devices.
+chat. Android now also provides explicit document-picker JSON import/export and
+confirmed local saved-snapshot deletion with bounded request and file handling.
+Linux Qt adds rename and approved delete with scoped PATCH/DELETE and 204
+response support. Native Markdown export, Qt file import/export, Android rename
+and native message-level branching remain pending; neither native client has
+real-device or production deployment qualification.
 
 ## Development validation
 

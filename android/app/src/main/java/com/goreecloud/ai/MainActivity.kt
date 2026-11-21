@@ -3,6 +3,8 @@ package com.goreecloud.ai
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -36,15 +39,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.io.ByteArrayOutputStream
 import com.goreecloud.ui.material3.GoreeCloudExpressiveTheme
 import com.goreecloud.ui.material3.GoreeAccent
 import com.goreecloud.ui.material3.GoreeDestination
@@ -76,6 +83,8 @@ private fun AiWorkspace() {
     var showChatLibrary by remember { mutableStateOf(false) }
     var savedChats by remember { mutableStateOf(JSONArray()) }
     var chatSearch by remember { mutableStateOf("") }
+    var pendingDeleteId by remember { mutableStateOf("") }
+    var pendingExportJson by remember { mutableStateOf<String?>(null) }
     var prompt by remember { mutableStateOf("") }
     var imagePrompt by remember { mutableStateOf("") }
     var imageModel by remember { mutableStateOf("bytedance-seed/seedream-4.5") }
@@ -94,6 +103,64 @@ private fun AiWorkspace() {
     var approveTool by remember { mutableStateOf(false) }
     var toolResult by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val exportPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val content = pendingExportJson
+        pendingExportJson = null
+        if (uri != null && content != null) scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val output = context.contentResolver.openOutputStream(uri, "w")
+                        ?: throw IllegalStateException("Selected destination cannot be written")
+                    output.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+                }
+                status = "Export saved to your chosen destination. Protect the plaintext file."
+            } catch (e: Exception) {
+                status = "Export failed: " + (e.message ?: "Cannot write selected file")
+            }
+        }
+    }
+    val importPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null && !busy) {
+            busy = true
+            scope.launch {
+                try {
+                    val content = withContext(Dispatchers.IO) {
+                        val source = context.contentResolver.openInputStream(uri)
+                            ?: throw IllegalStateException("Cannot open selected JSON")
+                        source.use { input ->
+                            val output = ByteArrayOutputStream()
+                            val buffer = ByteArray(8192)
+                            while (true) {
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                if (output.size() + count > 1_250_000)
+                                    throw IllegalArgumentException("Import exceeds 1.25 MB")
+                                output.write(buffer, 0, count)
+                            }
+                            output.toByteArray().toString(Charsets.UTF_8)
+                        }
+                    }
+                    val imported = JSONObject(content)
+                    require(imported.optString("schema") == "goreecloud.ai.conversation.v1") {
+                        "Not a supported GoreeCloud AI conversation export"
+                    }
+                    AiApi.call(endpoint, token, "/api/v1/conversations/import", imported)
+                    val index = AiApi.call(endpoint, token, "/api/v1/conversations")
+                    savedChats = index.optJSONArray("items") ?: JSONArray()
+                    chatSearch = ""
+                    status = "New local conversation snapshot imported; no provider request."
+                } catch (e: Exception) {
+                    status = "Import failed: " + (e.message ?: "Invalid file or API response")
+                } finally { busy = false }
+            }
+        }
+    }
 
     fun invoke(path: String, body: JSONObject? = null, completed: (JSONObject) -> Unit) {
         if (busy) return
@@ -107,6 +174,38 @@ private fun AiWorkspace() {
                 status = e.message ?: "Request failed"
             } finally { busy = false }
         }
+    }
+
+    if (pendingDeleteId.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = "" },
+            title = { Text("Delete saved conversation?") },
+            text = { Text("This removes the saved snapshot from the local database. " +
+                "Exports, backups and SQLite pages may still retain copies.") },
+            confirmButton = {
+                Button(onClick = {
+                    val id = pendingDeleteId
+                    pendingDeleteId = ""
+                    if (busy) return@Button
+                    busy = true
+                    scope.launch {
+                        try {
+                            AiApi.call(endpoint, token, "/api/v1/conversations/" + id,
+                                method = "DELETE")
+                            val index = AiApi.call(endpoint, token, "/api/v1/conversations")
+                            savedChats = index.optJSONArray("items") ?: JSONArray()
+                            chatSearch = ""
+                            status = "Local saved conversation deleted (backups unchanged)."
+                        } catch (e: Exception) {
+                            status = e.message ?: "Could not delete saved conversation"
+                        } finally { busy = false }
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                Button(onClick = { pendingDeleteId = "" }) { Text("Cancel") }
+            }
+        )
     }
 
     Scaffold(
@@ -175,10 +274,20 @@ private fun AiWorkspace() {
                             status = savedChats.length().toString() + " matching local conversations"
                         }
                     }) { Text("Search locally") }
+                    Text("Import/export uses the Android document picker. The chosen " +
+                        "destination may be an external or cloud-synced location.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(enabled = !busy, onClick = {
+                        importPicker.launch(arrayOf("application/json"))
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Import conversation JSON…")
+                    }
                     val historyEntries = (0 until savedChats.length()).mapNotNull { savedChats.optJSONObject(it) }
                     LazyColumn(modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(historyEntries) { entry ->
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Button(enabled = !busy, onClick = {
                                 val id = entry.optString("id")
                                 if (!id.matches(Regex("[0-9a-fA-F-]{36}"))) {
@@ -202,6 +311,29 @@ private fun AiWorkspace() {
                                 }
                             }, modifier = Modifier.fillMaxWidth()) {
                                 Text(entry.optString("title", "Saved conversation").take(150))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(enabled = !busy, onClick = {
+                                    val id = entry.optString("id")
+                                    if (!Regex("[0-9a-fA-F-]{36}").matches(id)) {
+                                        status = "Invalid saved conversation ID"
+                                    } else {
+                                        invoke("/api/v1/conversations/" + id + "/export?format=json") {
+                                            val payload = it.toString(2)
+                                            if (payload.toByteArray(Charsets.UTF_8).size > 1_250_000) {
+                                                status = "JSON export exceeds 1.25 MB"
+                                            } else {
+                                                pendingExportJson = payload
+                                                exportPicker.launch("goreecloud-conversation-" + id + ".json")
+                                            }
+                                        }
+                                    }
+                                }) { Text("Export JSON…") }
+                                Button(enabled = !busy, onClick = {
+                                    val id = entry.optString("id")
+                                    if (Regex("[0-9a-fA-F-]{36}").matches(id)) pendingDeleteId = id
+                                }) { Text("Delete…") }
+                            }
                             }
                         }
                     }
