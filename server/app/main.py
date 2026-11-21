@@ -72,6 +72,11 @@ class ImageRequest(BaseModel):
 class DocRequest(BaseModel):
     title: str = Field(min_length=1, max_length=150)
     body: str = Field(max_length=250000)
+    record_revision: bool = False
+
+
+class RestoreRevisionRequest(BaseModel):
+    approved: bool = False
 
 
 class AgentPlanRequest(BaseModel):
@@ -213,7 +218,8 @@ def read_document(document_id: UUID):
 
 @app.put("/api/v1/documents/{document_id}", dependencies=[Depends(require_owner)])
 def edit_document(document_id: UUID, request: DocRequest):
-    result = storage.update_document(str(document_id), request.title, request.body)
+    result = storage.update_document(
+        str(document_id), request.title, request.body, request.record_revision)
     if not result:
         raise HTTPException(404, "Document not found")
     return result
@@ -338,6 +344,35 @@ def agent_run(request: AgentRunRequest):
     return {"action": request.action, "result": item, "executed": True}
 
 
+@app.get("/api/v1/documents/{document_id}/revisions", dependencies=[Depends(require_owner)])
+def document_revisions(document_id: UUID):
+    revisions = storage.list_document_revisions(str(document_id))
+    if revisions is None:
+        raise HTTPException(404, "Document not found")
+    return {"revisions": revisions, "limit_per_document": 20}
+
+
+@app.get("/api/v1/documents/{document_id}/revisions/{revision_id}",
+         dependencies=[Depends(require_owner)])
+def document_revision(document_id: UUID, revision_id: UUID):
+    revision = storage.get_document_revision(str(document_id), str(revision_id))
+    if revision is None:
+        raise HTTPException(404, "Document revision not found")
+    return revision
+
+
+@app.post("/api/v1/documents/{document_id}/revisions/{revision_id}/restore",
+          dependencies=[Depends(require_owner)])
+def restore_document_revision(document_id: UUID, revision_id: UUID,
+                              request: RestoreRevisionRequest):
+    if not request.approved:
+        raise HTTPException(403, "Restoring a document revision requires explicit approval")
+    document = storage.restore_document_revision(str(document_id), str(revision_id))
+    if document is None:
+        raise HTTPException(404, "Document or revision not found")
+    return document
+
+
 @app.get("/api/v1/mcp/tools", dependencies=[Depends(require_owner)])
 async def list_mcp_tools():
     return await mcp_tools.access_mcp()
@@ -388,6 +423,7 @@ class ResearchRequest(BaseModel):
 def privacy_status():
     return {
         "cloud_consent_default": False,
+        "document_revision_history": "opt-in-per-save-max-20",
         "conversation_persistence": "opt-in",
         "conversation_retention_days": storage.conversation_retention_days(),
         "consent_receipt_retention_days": storage._consent_retention_days(),
@@ -558,7 +594,7 @@ def integration_capabilities():
         "api_version": "v1-preview",
         "status": "local-development-not-deployed",
         "capabilities": ["chat", "chat-stream", "document-search", "document-research",
-                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import"],
+                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import", "document-revisions"],
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "data_classification": "private-by-default",
         "cloud_processing": "explicit-per-request-consent",

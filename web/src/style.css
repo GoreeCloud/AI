@@ -90,3 +90,8 @@ button.secondary{background:var(--gc-surface-tonal)!important;color:var(--gc-tex
 .saved-chat .doc-link{width:100%}
 .saved-chat-actions{display:flex;gap:6px;flex-wrap:wrap}
 .saved-chat-actions button{min-height:32px!important;padding:5px 9px!important;font-size:11px}
+
+.revision-entry{display:flex;gap:8px;align-items:stretch;margin-top:8px;flex-wrap:wrap}
+.revision-entry .doc-link{flex:1;min-width:155px}
+.controls section[aria-label="Document history"]{border-top:1px solid var(--gc-outline-soft);padding-top:14px}
+.controls section[aria-label="Read-only revision preview"] pre{max-height:260px;overflow:auto}

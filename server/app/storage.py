@@ -49,6 +49,12 @@ def _connection():
         if db.execute("PRAGMA user_version").fetchone()[0] < 1:
             db.execute("INSERT INTO document_fts(document_fts) VALUES ('rebuild')")
             db.execute("PRAGMA user_version=1")
+        db.execute("""CREATE TABLE IF NOT EXISTS document_revisions (
+            id TEXT PRIMARY KEY, document_id TEXT NOT NULL,
+            title TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL,
+            FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE)""")
+        db.execute("""CREATE INDEX IF NOT EXISTS document_revision_order
+            ON document_revisions(document_id, created_at DESC)""")
         db.execute("""CREATE TABLE IF NOT EXISTS conversations (
             id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL)""")
@@ -119,13 +125,76 @@ def get_document(doc_id: str) -> dict | None:
         return dict(row) if row else None
 
 
-def update_document(doc_id: str, title: str, body: str) -> dict | None:
+def _snapshot_document(db, current: dict) -> str:
+    """Private, bounded opt-in history. Store exactly the previous version."""
+    revision_id = str(uuid.uuid4())
+    db.execute(
+        "INSERT INTO document_revisions VALUES (?, ?, ?, ?, ?)",
+        (revision_id, current["id"], current["title"], current["body"], _now()),
+    )
+    db.execute("""
+        DELETE FROM document_revisions
+         WHERE document_id=? AND id NOT IN (
+            SELECT id FROM document_revisions WHERE document_id=?
+            ORDER BY created_at DESC, rowid DESC LIMIT 20
+         )
+    """, (current["id"], current["id"]))
+    return revision_id
+
+
+def update_document(doc_id: str, title: str, body: str,
+                    record_revision: bool = False) -> dict | None:
     with _connection() as db:
-        cursor = db.execute(
-            "UPDATE documents SET title=?, body=?, updated_at=? WHERE id=?",
-            (title, body, _now(), doc_id))
-        if cursor.rowcount != 1:
+        db.execute("BEGIN IMMEDIATE")
+        previous = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+        if previous is None:
             return None
+        if previous["title"] != title or previous["body"] != body:
+            if record_revision:
+                _snapshot_document(db, dict(previous))
+            db.execute("UPDATE documents SET title=?, body=?, updated_at=? WHERE id=?",
+                       (title, body, _now(), doc_id))
+    return get_document(doc_id)
+
+
+def list_document_revisions(doc_id: str) -> list[dict] | None:
+    with _connection() as db:
+        if db.execute("SELECT 1 FROM documents WHERE id=?", (doc_id,)).fetchone() is None:
+            return None
+        return [dict(row) for row in db.execute("""
+            SELECT id, document_id, title, created_at,
+                   length(body) AS body_characters
+              FROM document_revisions WHERE document_id=?
+             ORDER BY created_at DESC, rowid DESC LIMIT 20
+        """, (doc_id,))]
+
+
+def get_document_revision(doc_id: str, revision_id: str) -> dict | None:
+    with _connection() as db:
+        row = db.execute("""
+            SELECT id, document_id, title, body, created_at
+              FROM document_revisions WHERE document_id=? AND id=?
+        """, (doc_id, revision_id)).fetchone()
+        return dict(row) if row else None
+
+
+def restore_document_revision(doc_id: str, revision_id: str) -> dict | None:
+    """Atomic explicit restore with an undo snapshot of the displaced content."""
+    with _connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        current = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+        target = db.execute(
+            "SELECT title, body FROM document_revisions WHERE document_id=? AND id=?",
+            (doc_id, revision_id),
+        ).fetchone()
+        if current is None or target is None:
+            return None
+        if current["title"] != target["title"] or current["body"] != target["body"]:
+            _snapshot_document(db, dict(current))
+            db.execute(
+                "UPDATE documents SET title=?, body=?, updated_at=? WHERE id=?",
+                (target["title"], target["body"], _now(), doc_id),
+            )
     return get_document(doc_id)
 
 

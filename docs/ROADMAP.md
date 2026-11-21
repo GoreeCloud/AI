@@ -7,6 +7,8 @@ separately before marking any item complete.
 
 - OpenRouter/Ollama router, optional local fallback, stream/cancel API,
   consent-gated cloud routing and bounded request-count budget.
+- Opt-in per-save document version snapshots (20 per document) and approved
+  atomic rollback with a web history viewer; no cloud use or scheduler.
 - Explicit local conversation snapshots, SQLite FTS5 document and saved-message
   search, owner-authenticated rename and portable JSON/Markdown export,
   bounded local JSON import with fresh IDs, non-destructive web branching,
@@ -100,7 +102,7 @@ separately before marking any item complete.
 - Native Linux/Android conversation export/import, rename and branching parity
   (native save/list/search/open source-implemented); verified browser
   import/export, accessibility and local-database migration qualification.
-- Voice, transcription, TTS, editing history, media library and offline-first sync.
+- Voice, transcription, TTS, native revision/history parity, media library and offline-first sync.
 
 ## P2 — ecosystem adoption
 
