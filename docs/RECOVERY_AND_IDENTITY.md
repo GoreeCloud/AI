@@ -139,5 +139,13 @@ provider-side spending controls enforce their own caps. BYOK and concurrent
 requests require separate evaluation. Configure OpenRouter key guardrails in
 the provider account; do not infer any cap is configured merely from code.
 
+A deliberate authenticated GET to
+`/api/v1/usage/openrouter/{generation_id}` can read the provider-reported cost
+for a validated generation ID (when the server key has that upstream permission).
+Strict OIDC mode requires `goreecloud.ai.admin`. It sends only the ID to the
+fixed OpenRouter metadata URL and returns no prompts or full account records.
+It cannot prove actual invoice charges, enforce a USD maximum, reconcile
+cancelled/failed generations or replace provider-side key caps.
+
 **No public deployment:** Identity, GoreeShield, Wardveil, Mesh, TLS ingress,
 real provider testing, billing, and end-to-end recovery remain pending.

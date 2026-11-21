@@ -516,6 +516,13 @@ def integration_capabilities():
 
 
 
+@app.get("/api/v1/usage/openrouter/{generation_id}", dependencies=[Depends(require_owner)])
+async def openrouter_generation_metadata(generation_id: str, http_request: Request):
+    """Read provider-reported metadata for an explicitly chosen generation."""
+    require_capability(http_request, "admin")
+    return await providers.generation_cost(generation_id)
+
+
 @app.get("/api/v1/images/models", dependencies=[Depends(require_owner)])
 async def image_models():
     """A deliberate public catalog lookup; no prompts, keys or documents sent."""

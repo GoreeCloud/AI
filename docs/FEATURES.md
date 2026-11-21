@@ -6,7 +6,7 @@ GoreeCloud UI source and independently licensed dependencies. This is a
 
 | Capability | Current source status | Verification and limitations |
 | --- | --- | --- |
-| OpenRouter and Ollama text inference | Implemented in FastAPI | Consent-gated OpenRouter; local Ollama opt-in; network/provider compatibility needs live safe testing |
+| OpenRouter and Ollama text inference | Implemented in FastAPI; safe optional generation ID and owner-deliberate provider-reported USD cost metadata retrieval | Consent-gated OpenRouter; local Ollama opt-in; real cost/invoice/provider compatibility needs live safe testing |
 | Chat SSE streaming/cancel | Server stream and React stream/abort implemented | Mock tests and web build; native cancellation parity pending |
 | Image generation and catalog | Source-level backend and web/Android/Linux model selectors | Explicit paid approval; tested mock provider shape; real pricing, model and media compatibility unverified |
 | Document editing, import/export | SQLite CRUD with opt-in SQLCipher encrypted full database/FTS5, export and resource-limited Linux imports with optional Bubblewrap | Live encryption needs activation/verified key custody; native file-picker parity pending |
