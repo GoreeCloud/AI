@@ -99,8 +99,10 @@ separately before marking any item complete.
   routing profiles and physical-device native streaming/cancellation
   qualification; Android Compose and Linux Qt SSE are source-implemented,
   but live-provider, lifecycle and real-device acceptance remain open.
-- Native Linux/Android conversation export/import, rename and branching parity
-  (native save/list/search/open source-implemented); verified browser
+- Native Android conversation rename and Markdown export; Linux JSON import/export,
+  plus both clients' message-level branching (native history save/list/search/open,
+  Qt rename/delete, Android JSON import/export/delete source-implemented);
+  verified browser
   import/export, accessibility and local-database migration qualification.
 - Voice, transcription, TTS, native revision/history parity, media library and offline-first sync.
 

@@ -28,6 +28,7 @@ ApplicationWindow {
     property var mcpTools: []
     property string renderedImage: ""
     property var imageModels: []
+    property string selectedSavedChatId: ""
 
     function saveCurrentConversation() {
         if (window.busy || threadModel.count < 1 || threadModel.count > 64) {
@@ -215,6 +216,62 @@ ApplicationWindow {
             window.activeStreamRow = -1
             window.busy = false
             window.feedback = "Stream cancelled; provider usage may already be billable."
+        }
+    }
+
+    Dialog {
+        id: renameSavedChatDialog
+        title: "Rename saved conversation"
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        parent: Overlay.overlay
+        x: (parent.width - width) / 2
+        y: (parent.height - height) / 2
+        TextField {
+            id: renamedChatTitle
+            width: 320
+            maximumLength: 150
+            placeholderText: "Saved conversation title"
+            Accessible.name: "New conversation name"
+        }
+        onAccepted: {
+            if (!/^[0-9a-fA-F-]{36}$/.test(window.selectedSavedChatId) ||
+                renamedChatTitle.text.trim().length === 0 ||
+                renamedChatTitle.text.trim().length > 150) {
+                window.feedback = "Select a valid saved conversation and nonempty title."
+                return
+            }
+            window.request("PATCH", "/api/v1/conversations/" + window.selectedSavedChatId,
+                {title: renamedChatTitle.text.trim()}, function(_reply) {
+                    window.feedback = "Saved conversation renamed locally."
+                    window.refreshSavedConversations(chatHistorySearch.text)
+                })
+        }
+    }
+
+    Dialog {
+        id: deleteSavedChatDialog
+        title: "Delete saved conversation?"
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        parent: Overlay.overlay
+        x: (parent.width - width) / 2
+        y: (parent.height - height) / 2
+        Label {
+            width: 300
+            wrapMode: Text.WordWrap
+            text: "This deletes the local saved snapshot. Existing backups and exported files are unchanged."
+        }
+        onAccepted: {
+            if (!/^[0-9a-fA-F-]{36}$/.test(window.selectedSavedChatId)) {
+                window.feedback = "Invalid saved conversation reference."
+                return
+            }
+            window.request("DELETE", "/api/v1/conversations/" + window.selectedSavedChatId,
+                null, function(_reply) {
+                    window.feedback = "Local conversation deleted. Backups are unchanged."
+                    window.refreshSavedConversations(chatHistorySearch.text)
+                })
         }
     }
 
@@ -661,11 +718,34 @@ ApplicationWindow {
                             model: ListModel { id: savedChatList }
                             clip: true
                             spacing: 8
-                            delegate: Button {
+                            delegate: RowLayout {
                                 width: ListView.view.width
-                                text: title
-                                Accessible.name: "Open saved conversation " + title
-                                onClicked: window.openSavedConversation(id)
+                                spacing: 8
+                                Button {
+                                    Layout.fillWidth: true
+                                    text: title
+                                    Accessible.name: "Open saved conversation " + title
+                                    onClicked: window.openSavedConversation(id)
+                                }
+                                Button {
+                                    text: "Rename"
+                                    enabled: !window.busy
+                                    Accessible.name: "Rename " + title
+                                    onClicked: {
+                                        window.selectedSavedChatId = id
+                                        renamedChatTitle.text = title
+                                        renameSavedChatDialog.open()
+                                    }
+                                }
+                                Button {
+                                    text: "Delete"
+                                    enabled: !window.busy
+                                    Accessible.name: "Delete " + title
+                                    onClicked: {
+                                        window.selectedSavedChatId = id
+                                        deleteSavedChatDialog.open()
+                                    }
+                                }
                             }
                         }
                         Button {

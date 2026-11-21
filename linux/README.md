@@ -45,7 +45,11 @@ search. Qt REST queries are explicitly allowed only for the bounded conversation
 search route; unknown query strings, redirects, credential-bearing endpoints
 and unbounded payloads remain rejected. GET JSON arrays now support native
 library lists. Opening a snapshot resets cloud consent. JSON/Markdown export,
-import, renaming and native branching still require further client parity. It is a native
+import and native branching still require further client parity.
+History now also supports explicit local rename and confirmed delete using
+bounded Qt Network PATCH/DELETE calls; the bridge handles 204 no-content
+success without reading an empty JSON response. Synthetic localhost tests
+cover these methods and credential-preserving redirect refusal. It is a native
 preview, not a packaged binary or fully feature-parity product. It does not yet
 support reference-image file selection or durable image downloads.
 

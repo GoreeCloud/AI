@@ -19,11 +19,22 @@ class TestApiHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._reply("POST")
 
+    def do_PATCH(self):
+        self._reply("PATCH")
+
+    def do_DELETE(self):
+        self._reply("DELETE")
+
     def _reply(self, method):
         self.server.calls.append((method, self.path, self.headers.get("Authorization", "")))
         if self.server.mode == "redirect":
             self.send_response(302)
             self.send_header("Location", "http://127.0.0.1:1/forbidden-relay")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if self.server.mode == "no-content":
+            self.send_response(204)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -112,6 +123,23 @@ class QtRestBoundaryTests(unittest.TestCase):
         self.drain()
         self.assertEqual(self.results, [(17, {"ok": True, "kind": "POST"})])
         self.assertEqual(self.server.calls[0][1], "/api/v1/agents/plan")
+
+    def test_scoped_patch_and_delete_support_history_operations(self):
+        conversation = "/api/v1/conversations/3c8d8d41-5a44-4831-8cc0-7caeb05729ae"
+        self.request(method="PATCH", path=conversation, body='{"title":"New name"}')
+        self.drain()
+        self.assertEqual(self.errors, [])
+        self.assertEqual(self.results, [(17, {"ok": True, "kind": "PATCH"})])
+        self.assertEqual(self.server.calls[0][0], "PATCH")
+        self.results.clear()
+        self.server.calls.clear()
+        self.server.mode = "no-content"
+        self.request(method="DELETE", path=conversation)
+        self.drain()
+        self.assertEqual(self.errors, [])
+        self.assertEqual(self.results, [(17, {})])
+        self.assertEqual(self.server.calls[0][0], "DELETE")
+        self.assertEqual(self.server.calls[0][2], "Bearer local-fixture-token")
 
     def test_refuses_external_redirect_without_following_it(self):
         self.server.mode = "redirect"

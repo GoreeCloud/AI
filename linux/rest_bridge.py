@@ -80,7 +80,7 @@ class SafeRestBridge(QObject):
                     or not owner_token.isascii() or "\r" in owner_token
                     or "\n" in owner_token):
                 raise ValueError("Invalid owner credential")
-            if method not in ("GET", "POST", "PUT", "DELETE"):
+            if method not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
                 raise ValueError("Unsupported API method")
             if json_body:
                 if method == "GET":
@@ -90,7 +90,7 @@ class SafeRestBridge(QObject):
                     raise ValueError("Invalid or oversized API body")
             else:
                 payload = b""
-                if method in ("POST", "PUT"):
+                if method in ("POST", "PUT", "PATCH"):
                     raise ValueError("Write requires JSON object")
             request = QNetworkRequest(QUrl(base + path))
             request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute,
@@ -108,6 +108,8 @@ class SafeRestBridge(QObject):
                 reply = self.manager.post(request, payload)
             elif method == "PUT":
                 reply = self.manager.put(request, payload)
+            elif method == "PATCH":
+                reply = self.manager.sendCustomRequest(request, b"PATCH", payload)
             else:
                 reply = self.manager.deleteResource(request)
             self._request_id = request_id
@@ -152,6 +154,9 @@ class SafeRestBridge(QObject):
             return
         if redirect is not None or status is None or not 200 <= int(status) < 300:
             self.failed.emit(request_id, "API request rejected or redirect refused")
+            return
+        if int(status) == 204:
+            self.succeeded.emit(request_id, "{}")
             return
         try:
             result = json.loads(data.decode("utf-8", errors="strict"))
