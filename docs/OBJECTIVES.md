@@ -40,7 +40,8 @@ See README and THIRD_PARTY_NOTICES.md.
 The source provides an authenticated FastAPI preview, React web UI, Qt Linux
 UI, Android Compose UI, consent-gated cloud routing, local SQLite documents
 with source-tested opt-in SQLCipher full-DB/FTS5 encryption, offline
-migration and non-overwriting key rotation,
+migration and non-overwriting key rotation, plus explicit local retention
+preview/apply CLI and uninstalled timer templates,
 and conversations, metadata-only approval receipts, synthetic backup/restore
 tests, bounded parser subprocesses with opt-in Bubblewrap isolation, and
 offline pinned-JWKS authentication.

@@ -35,7 +35,8 @@ separately before marking any item complete.
 - Optional Bubblewrap parser isolation (read-only runtime, no network or
   host data mounts) with synthetic Linux checks; default subprocess retained.
 - Owner-approved retention cleanup, metadata-only cloud admission receipts
-  with owner-controlled review/clear, opt-in SQLCipher encrypted live
+  and separate opt-in, content-free, atomic local retention maintenance CLI
+  with uninstalled systemd example; opt-in SQLCipher encrypted live
   SQLite/FTS5, non-overwriting offline migration and source-preserving
   encrypted-to-encrypted key rotation, and AES-GCM backup/restore for either
   storage mode (synthetic-tested).
@@ -48,8 +49,8 @@ separately before marking any item complete.
 1. Complete source-authenticated GoreeCloud Identity issuer integration beyond
    the offline pinned-JWKS and opt-in capability-scoped adapter; delegated
    multi-user scopes, TLS ingress, MFA and anti-abuse before public exposure.
-2. GoreeShield enforced consent policy and scheduled retention beyond
-   local approval/admission receipts and explicit snapshot/receipt purge;
+2. GoreeShield enforced consent policy and verified runtime scheduling beyond
+   the implemented opt-in local-only retention CLI and uninstalled timer template;
    qualify/activate optional SQLCipher with real operator key custody, encrypted
    deployment and rollback, harden backup custody, data minimization and
    verified erasure behavior.
