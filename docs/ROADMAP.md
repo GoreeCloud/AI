@@ -22,6 +22,8 @@ separately before marking any item complete.
 
 - Optional signed RS256/JWKS owner-scope verifier (offline pinned keys).
 - Optional capped OpenRouter key preflight with provider-owned limit.
+- Optional Bubblewrap parser isolation (read-only runtime, no network or
+  host data mounts) with synthetic Linux checks; default subprocess retained.
 - Owner-approved retention cleanup, metadata-only cloud admission receipts
   with owner-controlled review/clear, and offline AES-GCM backup/restore.
 - Protected preview capability metadata for future Mesh contracts.
@@ -37,9 +39,9 @@ separately before marking any item complete.
    local approval/admission receipts and explicit snapshot/receipt purge;
    encrypt the live database, harden
    backup custody, data minimization and verified erasure behavior.
-3. Wardveil scans and real untrusted-document sandboxing beyond the tested
-   subprocess limits; enforce OS identity and network isolation, prompt/tool
-   injection boundaries, MCP worker isolation and content-free security audit.
+3. Wardveil production-qualify opt-in Bubblewrap import isolation with
+   dedicated host UID, seccomp and cgroup controls; add malware scanning,
+   prompt/tool injection boundaries, MCP worker isolation, and content-free audit.
 4. Require/verify provider-enforced per-key credit caps, then add real
    monetary reservations and usage/billing reconciliation across workers;
    present preflight is not a dollar spend guarantee.

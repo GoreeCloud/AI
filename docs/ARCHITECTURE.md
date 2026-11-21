@@ -44,8 +44,11 @@ production deployment.
   with 512 MiB virtual memory, 6 CPU seconds, 10-second wall timeout, sanitized
   worker environment and 6 MB input/25 MB DOCX-expanded/250k-character output
   bounds plus a two-slot per-API-process import admission semaphore.
-  It is **not a sandbox**: the worker retains same OS UID, filesystem
-  permissions and network namespace; full Wardveil isolation is still required.
+  Default process mode shares host UID, filesystem and network; optional
+  GOREECLOUD_AI_IMPORT_ISOLATION=bwrap runs the worker behind Linux
+  namespaces, read-only interpreter/code, isolated /tmp and no network.
+  Requested bwrap failures do not downgrade to process mode. No complete
+  Wardveil/production acceptance is implied. See docs/SECURITY_IMPORTS.md.
 - Sensitive HTTP responses have Cache-Control no-store, nosniff and
   no-referrer headers. Web and Linux clients permit only HTTPS or loopback HTTP.
   Android release is HTTPS-only; emulator HTTP is debug-only.
@@ -60,10 +63,10 @@ production deployment.
   isolation or operational key lifecycle yet.
 - **GoreeShield:** no production policy engine, encrypted storage, fine-grained
   consent record, private-data retention schedule or cryptographic erasure.
-- **Wardveil:** a resource-limited Linux import subprocess isolates crashes
-  and bounded parser execution from the API process. No OS user/container sandbox,
-  network denial, credential broker, malware inspection, threat monitoring or
-  independent security acceptance.
+- **Wardveil:** Linux parser subprocess resource bounds plus optional,
+  synthetic-tested Bubblewrap namespace/filesystem/network isolation. No
+  dedicated host UID, seccomp policy, workload cgroup, credential broker,
+  malware inspection, threat monitoring or independent security acceptance.
 - **GoreeCloud Mesh:** no production capability registry, service-to-service
   authentication adapter or resource policy propagation.
 - **GoreeCloud UI:** web tokens and pinned MIT-licensed Android Material 3

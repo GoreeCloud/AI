@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
-from . import mcp_tools, providers, storage
+from . import import_sandbox, mcp_tools, providers, storage
 from .security import require_owner
 
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
@@ -235,13 +235,13 @@ def export_document(document_id: UUID, format: Literal["md", "docx"] = "md"):
 
 
 async def parse_document_isolated(contents: bytes, suffix: str, timeout_seconds: float = 10.0) -> dict:
-    """Bound parser CPU/memory/time in a separate Linux process; NOT a sandbox."""
+    """Bound parser time/resources, optionally using mandatory network-denied Bubblewrap."""
     if not sys.platform.startswith("linux"):
         raise HTTPException(503, "Document extraction requires a Linux API host")
     worker = Path(__file__).with_name("extract_worker.py")
     try:
         process = await asyncio.create_subprocess_exec(
-            sys.executable, "-I", str(worker), suffix,
+            *import_sandbox.parser_command(worker, suffix),
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             env={"LANG": "C.UTF-8", "PYTHONNOUSERSITE": "1"},
@@ -260,6 +260,10 @@ async def parse_document_isolated(contents: bytes, suffix: str, timeout_seconds:
             await process.wait()
     if len(output) > 1_200_000:
         raise HTTPException(502, "Document parser output exceeded limit")
+    if process.returncode and not output and import_sandbox.import_mode() == "bwrap":
+        # Sandbox setup or worker execution failed. Never retry outside the
+        # chosen security boundary; avoid disclosing kernel/host paths.
+        raise HTTPException(503, "Document sandbox is unavailable on this host")
     try:
         result = json.loads(output)
     except (ValueError, TypeError) as exc:
@@ -371,6 +375,7 @@ def privacy_status():
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "provider_key_cap_required": os.getenv("GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY", "false").lower() == "true",
         "document_storage": "local-plaintext-sqlite",
+        "document_import_isolation": import_sandbox.import_mode(),
         "search": "local-fts5",
         "cloud_requests": storage.cloud_quota(),
         "goreeshield_enforced": False,
