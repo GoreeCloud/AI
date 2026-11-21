@@ -55,7 +55,11 @@ def _check_path(path: Path, mode: str, *, create: bool) -> None:
             path.chmod(0o600)
         with path.open("rb") as stream:
             first = stream.read(len(SQLITE_HEADER))
-        if first and first.startswith(SQLITE_HEADER) != (mode == "plaintext"):
+        # A just-created SQLite file may still have a partial header while
+        # another connection is initializing it. Only classify complete headers;
+        # the DB engine will enforce locking and key checks on concurrent opens.
+        if (len(first) == len(SQLITE_HEADER)
+                and first.startswith(SQLITE_HEADER) != (mode == "plaintext")):
             raise HTTPException(503, "Database encryption mode and file format disagree")
     elif create:
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -64,9 +68,12 @@ def _check_path(path: Path, mode: str, *, create: bool) -> None:
             flags |= os.O_NOFOLLOW
         try:
             fd = os.open(path, flags, 0o600)
-        except FileExistsError as exc:
-            raise HTTPException(503, "Database path changed during initialization") from exc
-        os.close(fd)
+        except FileExistsError:
+            # Another authorized request created the private file concurrently.
+            # Verify its real path/mode and leave schema/key locking to SQLite.
+            _check_path(path, mode, create=False)
+        else:
+            os.close(fd)
     else:
         raise HTTPException(503, "Database does not exist")
 
