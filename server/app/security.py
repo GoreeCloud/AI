@@ -24,6 +24,7 @@ _ROUTE_CAPABILITIES: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/models/catalog"): "read",
     ("POST", "/api/v1/chat/context-preview"): "read",
     ("POST", "/api/v1/chat/context-digest-preview"): "read",
+    ("POST", "/api/v1/chat/local-summary"): "inference",
     ("GET", "/api/v1/cache/status"): "read",
     ("POST", "/api/v1/cache/clear"): "admin",
     ("GET", "/api/v1/images/models"): "read",

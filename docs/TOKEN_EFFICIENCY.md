@@ -64,9 +64,31 @@ The declared window may be sourced from the model catalog or entered by the
 owner; it is not proof of provider tokenizer equivalence or guaranteed fit.
 See docs/CONTEXT_COMPACTION.md.
 
+## Approved reviewable local summaries
+
+POST /api/v1/chat/local-summary generates a **model-authored** summary draft
+from the older user/assistant turns only, up to 12 KB, using exclusively the
+server's configured loopback HTTP Ollama model. Explicit approved=true is
+mandatory and strict OIDC capability is inference; the route refuses remote
+Ollama even if the operator approved remote inference elsewhere. The result
+is returned for owner review/edit, never persisted, auto-inserted into
+history, or sent to OpenRouter. The browser can insert the reviewed result
+into its unsent prompt and deliberately switch the next request to latest-4
+context mode, resetting cloud consent.
+
+The request itself consumes local inference compute/tokens, and model output
+can be incorrect or omit important caveats. Optional
+reuse_local_summary_cache=true stores only the bounded summary output in
+ephemeral process RAM for at most 300 seconds, separate from ordinary chat
+and research caches. The approved admin clear route also clears summary
+entries in the handling API worker. Source details and threat boundaries
+are in docs/LOCAL_SUMMARIES.md.
+
 ## Protected API controls
 
 - POST /api/v1/chat/context-preview: strict OIDC read capability, no model.
+- POST /api/v1/chat/local-summary: strict OIDC inference capability, explicit
+  local-model approval; never a cloud request and never auto-persisted.
 - GET /api/v1/cache/status: strict OIDC read capability, counts only.
 - POST /api/v1/cache/clear: strict OIDC admin, explicit approved=true required.
   Affects only the current worker and never the OpenRouter edge cache.
