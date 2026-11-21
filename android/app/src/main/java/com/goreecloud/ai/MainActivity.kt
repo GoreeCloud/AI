@@ -44,6 +44,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
 import com.goreecloud.ui.material3.GoreeCloudExpressiveTheme
 import com.goreecloud.ui.material3.GoreeAccent
 import com.goreecloud.ui.material3.GoreeDestination
@@ -72,6 +73,9 @@ private fun AiWorkspace() {
     var streamingControl by remember { mutableStateOf<StreamControl?>(null) }
     var streamingJob by remember { mutableStateOf<Job?>(null) }
     val chat = remember { mutableStateListOf<Pair<String, String>>() }
+    var showChatLibrary by remember { mutableStateOf(false) }
+    var savedChats by remember { mutableStateOf(JSONArray()) }
+    var chatSearch by remember { mutableStateOf("") }
     var prompt by remember { mutableStateOf("") }
     var imagePrompt by remember { mutableStateOf("") }
     var imageModel by remember { mutableStateOf("bytedance-seed/seedream-4.5") }
@@ -141,7 +145,67 @@ private fun AiWorkspace() {
             HorizontalDivider()
 
             when (current) {
-                0 -> Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
+                0 -> if (showChatLibrary) Column(
+                    modifier = Modifier.fillMaxSize().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Saved conversations", style = MaterialTheme.typography.titleLarge)
+                    Text("Private local snapshots · cloud consent is never restored from history",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(enabled = !busy, onClick = { showChatLibrary = false }) {
+                            Text("Back to chat")
+                        }
+                        Button(enabled = !busy, onClick = {
+                            invoke("/api/v1/conversations") {
+                                savedChats = it.optJSONArray("items") ?: JSONArray()
+                                status = "Local saved conversations loaded"
+                            }
+                        }) { Text("Refresh") }
+                    }
+                    OutlinedTextField(value = chatSearch, onValueChange = {
+                        chatSearch = it.take(200)
+                    }, label = { Text("Search saved titles and messages") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Button(enabled = !busy && chatSearch.trim().length in 2..200, onClick = {
+                        val encoded = URLEncoder.encode(chatSearch.trim(), "UTF-8")
+                        invoke("/api/v1/search/conversations?q=" + encoded) {
+                            savedChats = it.optJSONArray("results") ?: JSONArray()
+                            status = savedChats.length().toString() + " matching local conversations"
+                        }
+                    }) { Text("Search locally") }
+                    val historyEntries = (0 until savedChats.length()).mapNotNull { savedChats.optJSONObject(it) }
+                    LazyColumn(modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(historyEntries) { entry ->
+                            Button(enabled = !busy, onClick = {
+                                val id = entry.optString("id")
+                                if (!id.matches(Regex("[0-9a-fA-F-]{36}"))) {
+                                    status = "Invalid saved conversation ID"
+                                } else {
+                                    invoke("/api/v1/conversations/" + id) { reply ->
+                                        val loaded = reply.optJSONArray("messages") ?: JSONArray()
+                                        chat.clear()
+                                        for (i in 0 until loaded.length()) {
+                                            val message = loaded.optJSONObject(i) ?: continue
+                                            val role = message.optString("role")
+                                            val text = message.optString("content")
+                                            if ((role == "user" || role == "assistant") && text.isNotBlank()) {
+                                                chat.add(role to text)
+                                            }
+                                        }
+                                        cloudConsent = false
+                                        showChatLibrary = false
+                                        status = "Loaded local snapshot · cloud approval reset"
+                                    }
+                                }
+                            }, modifier = Modifier.fillMaxWidth()) {
+                                Text(entry.optString("title", "Saved conversation").take(150))
+                            }
+                        }
+                    }
+                } else Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
                     LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(chat.toList()) { (role, text) ->
                             Surface(color = if (role == "user") MaterialTheme.colorScheme.surfaceVariant
@@ -160,8 +224,33 @@ private fun AiWorkspace() {
                         Button(onClick = { provider = if (provider == "auto") "ollama" else "auto" }) {
                             Text(if (provider == "auto") "Auto · OpenRouter" else "Local · Ollama")
                         }
-                        Button(enabled = !busy, onClick = { chat.clear() }) { Text("New chat") }
+                        Button(enabled = !busy, onClick = {
+                            chat.clear()
+                            cloudConsent = false
+                        }) { Text("New chat") }
                     }
+                    Button(enabled = !busy, onClick = {
+                        showChatLibrary = true
+                        invoke("/api/v1/conversations") {
+                            savedChats = it.optJSONArray("items") ?: JSONArray()
+                            status = "Local saved conversations loaded"
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Saved conversations") }
+                    Button(enabled = !busy && chat.isNotEmpty() && chat.size <= 64 &&
+                        chat.sumOf { it.second.length } <= 250000, onClick = {
+                        val first = chat.firstOrNull { it.first == "user" }?.second
+                            ?: "Saved conversation"
+                        val messages = JSONArray()
+                        chat.forEach { (role, content) ->
+                            if (content.isNotBlank())
+                                messages.put(JSONObject().put("role", role).put("content", content))
+                        }
+                        invoke("/api/v1/conversations", JSONObject()
+                            .put("title", first.take(100).ifBlank { "Saved conversation" })
+                            .put("messages", messages)) {
+                            status = "Saved local snapshot · no cloud request"
+                        }
+                    }) { Text("Save conversation locally") }
                     OutlinedTextField(value = model, onValueChange = { model = it },
                         label = { Text("Model ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {

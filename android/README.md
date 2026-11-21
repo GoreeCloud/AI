@@ -32,7 +32,13 @@ OpenRouter Image API model capabilities via the owner-authenticated API;
 discovery does not itself authorize paid generation. Markdown documents,
 agent plans and manual MCP discovery/calls have
 development UI screens. Browser-only or unfinished native parity includes
-conversation save history, file import/export and image reference picking.
+conversation JSON import/export, renaming, file import/export and image reference picking.
+The Chat screen now includes an explicit local-snapshot save control and a
+saved-conversations view with refresh, bounded local FTS search, and opening
+previously saved messages. Opening a snapshot or starting a new chat clears
+cloud-processing consent. No local snapshot is uploaded automatically and
+the owner token remains in memory only. These native history controls are
+source-tested/build-checked, not qualified on a physical device.
 
 The debug source-set manifest now references a network security XML rule
 allowing cleartext **only** to the Android emulator's `10.0.2.2` loopback

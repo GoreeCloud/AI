@@ -39,7 +39,13 @@ non-streaming request implementation remains available for server-supported
 local fallback. The Qt Quick interface
 supports streamed and complete-response chat with cancel, model routing,
 read-only discovered image models, image generation preview, Markdown document CRUD,
-agent planning and MCP tool discovery/explicit invocation. It is a native
+agent planning and MCP tool discovery/explicit invocation. A new native History
+tab supports owner-approved chat snapshots, listing, opening and local FTS
+search. Qt REST queries are explicitly allowed only for the bounded conversation
+search route; unknown query strings, redirects, credential-bearing endpoints
+and unbounded payloads remain rejected. GET JSON arrays now support native
+library lists. Opening a snapshot resets cloud consent. JSON/Markdown export,
+import, renaming and native branching still require further client parity. It is a native
 preview, not a packaged binary or fully feature-parity product. It does not yet
 support reference-image file selection or durable image downloads.
 

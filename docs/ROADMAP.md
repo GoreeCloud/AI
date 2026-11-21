@@ -15,11 +15,14 @@ separately before marking any item complete.
   pinned GoreeCloud UI Material 3 Expressive source adapter.
 - Native Android and Linux image studios can browse and choose server-reported
   image models without triggering paid generation.
-- Android Compose has streamed chat/cancellation, host-side SSE framing tests
+- Android Compose now has opt-in local conversation snapshot save/list/search/open
+  alongside streamed chat/cancellation, host-side SSE framing tests
   and no new cloud consent bypass; debug source set scopes local unencrypted
   development HTTP to the emulator alias only. Release HTTPS-only policy is
   source-tested; real emulator and provider qualification remain pending.
-- Native Qt Linux chat uses Qt Network SSE streaming and explicit cancellation
+- Native Qt Linux chat now includes local conversation save/list/search/open,
+  with strictly allowlisted search query URLs and JSON-list response support;
+  uses Qt Network SSE streaming and explicit cancellation
   with bounded frame decoding, redirect refusal and synthetic localhost tests.
   All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
   of QML XMLHttpRequest. Real desktop/provider acceptance remains pending.
@@ -94,7 +97,8 @@ separately before marking any item complete.
   routing profiles and physical-device native streaming/cancellation
   qualification; Android Compose and Linux Qt SSE are source-implemented,
   but live-provider, lifecycle and real-device acceptance remain open.
-- Native Linux/Android saved-conversation library UI parity; verified browser
+- Native Linux/Android conversation export/import, rename and branching parity
+  (native save/list/search/open source-implemented); verified browser
   import/export, accessibility and local-database migration qualification.
 - Voice, transcription, TTS, editing history, media library and offline-first sync.
 

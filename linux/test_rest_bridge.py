@@ -29,6 +29,8 @@ class TestApiHandler(BaseHTTPRequestHandler):
             return
         if self.server.mode == "invalid":
             data = b'{"private-but-not-returned":'
+        elif self.server.mode == "array":
+            data = b'[{"id":"synthetic","title":"Saved conversation"}]'
         elif self.server.mode == "oversized":
             data = b'{"very_long":"' + b"x" * 512 + b'"}'
         else:
@@ -96,6 +98,15 @@ class QtRestBoundaryTests(unittest.TestCase):
             ("GET", "/api/v1/documents", "Bearer local-fixture-token")
         ])
 
+    def test_json_array_responses_support_bounded_library_lists(self):
+        self.server.mode = "array"
+        self.request(path="/api/v1/conversations")
+        self.drain()
+        self.assertEqual(self.results, [(17, [
+            {"id": "synthetic", "title": "Saved conversation"}
+        ])])
+        self.assertEqual(self.errors, [])
+
     def test_synthetic_post_retains_json_contract(self):
         self.request(method="POST", path="/api/v1/agents/plan", body='{"synthetic":"only"}')
         self.drain()
@@ -142,6 +153,36 @@ class QtRestBoundaryTests(unittest.TestCase):
         self.request(token="bad\r\nCredential: injected")
         self.assertTrue(self.errors)
         self.assertFalse(self.server.calls)
+
+    def test_conversation_search_query_is_strictly_bounded(self):
+        for path in (
+            "/api/v1/search/conversations?q=aurora",
+            "/api/v1/search/conversations?q=caf%C3%A9+night&limit=10",
+            "/api/v1/search/conversations?q=100%25+verified",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(checked_route(path), path)
+        for path in (
+            "/api/v1/search/conversations?q=x",
+            "/api/v1/search/conversations?q=hello&q=world",
+            "/api/v1/search/conversations?q=hello&token=secret",
+            "/api/v1/search/conversations?q=hello&limit=999",
+            "/api/v1/search/conversations?q=hello&limit=-1",
+            "/api/v1/search/conversations?q=hello%ZZ",
+            "/api/v1/search/conversations?q=%0Asecret",
+            "/api/v1/search/conversations?q=%FF",
+            "/api/v1/chat?q=hello",
+            "/api/v1/search/conversations?q=hello#fragment",
+        ):
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                checked_route(path)
+        self.request(path="/api/v1/search/conversations?q=caf%C3%A9+night&limit=3")
+        self.drain()
+        self.assertEqual(self.errors, [])
+        self.assertEqual(len(self.server.calls), 1)
+        self.assertEqual(self.server.calls[0][0], "GET")
+        self.assertIn("/api/v1/search/conversations?q=", self.server.calls[0][1])
+        self.assertEqual(self.server.calls[0][2], "Bearer local-fixture-token")
 
     def test_nonloopback_http_denied(self):
         self.request(endpoint="http://example.invalid:80")
