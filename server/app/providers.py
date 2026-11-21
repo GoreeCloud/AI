@@ -273,15 +273,20 @@ async def verify_cloud_key_budget() -> None:
 
 
 async def image_catalog() -> dict:
-    """Read the public fixed-origin OpenRouter Image API catalog without prompts.
+    """Get provider-public model metadata via server-only authenticated GET.
 
-    A catalog lookup does not generate media or use a paid request admission.
-    Only bounded, validated model capability metadata is returned to clients.
+    No prompt or paid generation request is sent. Provider credentials remain
+    on the server; clients receive bounded, validated capability metadata.
     """
     url = OPENROUTER + "/images/models"
+    key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        raise HTTPException(503, "OpenRouter API key is not configured")
     try:
         async with httpx.AsyncClient(timeout=12, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
-            async with client.stream("GET", url) as response:
+            async with client.stream("GET", url, headers={
+                "Authorization": "Bearer " + key, "Accept": "application/json"
+            }) as response:
                 if response.status_code != 200:
                     raise ValueError("catalog source unavailable")
                 raw = bytearray()

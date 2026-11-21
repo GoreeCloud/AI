@@ -81,10 +81,12 @@ production deployment.
 
 ## Provider model discovery
 
-- Authenticated GET `/api/v1/images/models` fetches OpenRouter's public
-  fixed-origin image-model catalog only upon an operator/client request.
-  The response is size-limited and reduced to model ID, name, stream and
-  reference capabilities. No documents, prompts or owner keys leave the API.
+- Owner-authenticated GET /api/v1/images/models fetches the fixed-origin
+  OpenRouter image-model catalog only upon an operator/client request.
+  The backend sends its **server-only OpenRouter key** as required by the
+  provider's API; the public model metadata is size-limited and reduced
+  to model ID/name/stream/reference capabilities. No documents, prompts,
+  owner bearer tokens or provider API keys are returned to clients.
 - Browser UI offers a discoverable model selector while retaining an explicit
   model ID field; discovery never automatically starts a paid generation.
 - Generated image bytes are checked for allowed PNG/JPEG/WebP signatures and

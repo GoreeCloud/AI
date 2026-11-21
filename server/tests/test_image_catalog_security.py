@@ -12,6 +12,11 @@ from app.main import app
 OWNER = {"Authorization": "Bearer test-owner-token"}
 
 
+@pytest.fixture(autouse=True)
+def catalog_key(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-catalog-key")
+
+
 def mock_transport(monkeypatch, handler):
     original = httpx.AsyncClient
     transport = httpx.MockTransport(handler)
@@ -40,7 +45,8 @@ async def test_image_catalog_is_bounded_and_sanitized(monkeypatch):
     assert result["models"][0]["supports_reference"] is True
     assert result["models"][1]["supports_streaming"] is True
     assert "operator_secret" not in str(result)
-    assert seen == [("GET", "https://openrouter.ai/api/v1/images/models", None)]
+    assert seen == [("GET", "https://openrouter.ai/api/v1/images/models",
+                     "Bearer test-catalog-key")]
 
 
 @pytest.mark.asyncio
@@ -123,3 +129,13 @@ async def test_invalid_json_from_provider_is_safe(monkeypatch):
 def test_catalog_api_requires_owner(monkeypatch):
     client = TestClient(app)
     assert client.get("/api/v1/images/models").status_code == 401
+
+
+
+@pytest.mark.asyncio
+async def test_image_catalog_requires_configured_server_only_key(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(HTTPException) as error:
+        await providers.image_catalog()
+    assert error.value.status_code == 503
+    assert "key" in str(error.value.detail).lower()
