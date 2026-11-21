@@ -22,16 +22,23 @@ class UpstreamFailure(Exception):
         super().__init__(f"{provider} returned {status}")
 
 
-async def _post(url: str, body: dict, key: str | None = None, timeout: float = 90.0) -> dict:
+async def _post(url: str, body: dict, key: str | None = None, timeout: float = 90.0,
+                cache_headers: dict[str, str] | None = None) -> dict:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = "Bearer " + key
+    if cache_headers:
+        headers.update(cache_headers)
+    cache_status = None
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
             async with client.stream("POST", url, json=body, headers=headers) as response:
                 if response.status_code != 200:
                     raise UpstreamFailure("provider", response.status_code,
                                           transient=response.status_code in (429, 502, 503, 504))
+                if cache_headers:
+                    marker = response.headers.get("X-OpenRouter-Cache-Status", "").upper()
+                    cache_status = marker if marker in ("HIT", "MISS") else None
                 limit = 24_000_000
                 raw = bytearray()
                 async for chunk in response.aiter_bytes(chunk_size=65536):
@@ -44,6 +51,8 @@ async def _post(url: str, body: dict, key: str | None = None, timeout: float = 9
         result = json.loads(raw)
         if not isinstance(result, dict):
             raise ValueError("Upstream JSON must be an object")
+        if cache_headers:
+            result["_goreecloud_cache_status"] = cache_status
         return result
     except (ValueError, UnicodeError) as exc:
         raise UpstreamFailure("provider") from exc
@@ -68,7 +77,31 @@ def local_url() -> str:
     return endpoint
 
 
-async def chat(messages: list[dict], model: str, provider: str, allow_local_fallback: bool) -> dict:
+def _provider_cache_headers(enabled: bool) -> dict[str, str]:
+    # OpenRouter's opt-in response cache is provider-side retention, not local
+    # RAM caching, and does not change GoreeCloud's HTTP no-store response.
+    return {"X-OpenRouter-Cache": "true", "X-OpenRouter-Cache-TTL": "300"} if enabled else {}
+
+
+def _cache_token_report(usage: dict) -> dict:
+    if not isinstance(usage, dict):
+        return {}
+    details = usage.get("prompt_tokens_details")
+    if not isinstance(details, dict):
+        return {}
+    values = {}
+    for name in ("cached_tokens", "cache_write_tokens"):
+        value = details.get(name)
+        if type(value) is int and 0 <= value <= 100_000_000:
+            values[name] = value
+    return values
+
+
+async def chat(messages: list[dict], model: str, provider: str,
+               allow_local_fallback: bool, provider_response_cache: bool = False,
+               provider_prompt_cache: bool = False,
+               cache_session_id: str | None = None,
+               max_output_tokens: int = 2048) -> dict:
     selected = provider
     if selected == "auto":
         selected = "openrouter" if os.getenv("OPENROUTER_API_KEY") else "ollama"
@@ -77,16 +110,47 @@ async def chat(messages: list[dict], model: str, provider: str, allow_local_fall
         if not key:
             raise HTTPException(503, "OpenRouter API key missing")
         try:
-            result = await _post(OPENROUTER + "/chat/completions", {
+            body = {
                 "model": model if model != "local" else "openrouter/auto",
-                "messages": messages, "max_tokens": 2048, "stream": False
-            }, key)
-            return {
+                "messages": messages, "max_tokens": max_output_tokens, "stream": False
+            }
+            if provider_prompt_cache:
+                body["cache_control"] = {"type": "ephemeral"}
+                if cache_session_id:
+                    body["session_id"] = cache_session_id
+            if provider_response_cache:
+                result = await _post(
+                    OPENROUTER + "/chat/completions", body, key,
+                    cache_headers=_provider_cache_headers(True),
+                )
+            else:
+                result = await _post(OPENROUTER + "/chat/completions", body, key)
+            usage = result.get("usage", {})
+            report = {
                 "provider": "openrouter", "model": result.get("model", model),
-                "content": _extract_content(result), "usage": result.get("usage", {}),
+                "content": _extract_content(result), "usage": usage,
                 **({"generation_id": validated_generation_id(result.get("id"))}
                    if validated_generation_id(result.get("id")) else {})
             }
+            if provider_response_cache:
+                marker = result.get("_goreecloud_cache_status")
+                report["provider_response_cache"] = {
+                    "requested": True,
+                    "status": marker if marker in ("HIT", "MISS") else "UNKNOWN",
+                }
+            if provider_prompt_cache:
+                report["provider_prompt_cache"] = {
+                    "requested": True,
+                    "reported_token_details": _cache_token_report(usage),
+                }
+            if provider_response_cache and report["provider_response_cache"]["status"] == "HIT":
+                # Cached provider bodies may replay prior usage and generation IDs.
+                # Never misattribute a previous paid generation to a new cache read.
+                report["usage"] = {}
+                report.pop("generation_id", None)
+                if provider_prompt_cache:
+                    report["provider_prompt_cache"]["reported_token_details"] = {}
+            return report
         except UpstreamFailure as exc:
             if not (allow_local_fallback and exc.transient and os.getenv("OLLAMA_MODEL")):
                 raise HTTPException(502, "OpenRouter request failed (see upstream service)") from exc
@@ -96,9 +160,10 @@ async def chat(messages: list[dict], model: str, provider: str, allow_local_fall
         if not local_model:
             raise HTTPException(503, "Configure OLLAMA_MODEL for local inference")
         try:
-            result = await _post(local_url() + "/api/chat", {
-                "model": local_model, "messages": messages, "stream": False
-            })
+            payload = {"model": local_model, "messages": messages, "stream": False}
+            if max_output_tokens != 2048:
+                payload["options"] = {"num_predict": max_output_tokens}
+            result = await _post(local_url() + "/api/chat", payload)
         except UpstreamFailure as exc:
             raise HTTPException(502, "Local model is unavailable") from exc
         return {
@@ -164,7 +229,11 @@ async def image_request(prompt: str, model: str, reference: str | None) -> dict:
     }
 
 
-async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncIterator[dict]:
+async def stream_chat(messages: list[dict], model: str, provider: str,
+                      provider_response_cache: bool = False,
+                      provider_prompt_cache: bool = False,
+                      cache_session_id: str | None = None,
+                      max_output_tokens: int = 2048) -> AsyncIterator[dict]:
     """Stream bounded structured events; caller authenticates and authorizes cloud access.
 
     This request does not retry or switch providers mid-stream. Cancellation of the
@@ -177,8 +246,13 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
             return
         url = OPENROUTER + "/chat/completions"
         body = {"model": model if model != "local" else "openrouter/auto",
-                "messages": messages, "max_tokens": 2048, "stream": True}
-        headers = {"Authorization": "Bearer " + key}
+                "messages": messages, "max_tokens": max_output_tokens, "stream": True}
+        if provider_prompt_cache:
+            body["cache_control"] = {"type": "ephemeral"}
+            if cache_session_id:
+                body["session_id"] = cache_session_id
+        headers = {"Authorization": "Bearer " + key,
+                   **_provider_cache_headers(provider_response_cache)}
     elif provider == "ollama":
         selected = model if model not in ("openrouter/auto", "local") else os.getenv("OLLAMA_MODEL", "")
         if not selected:
@@ -186,6 +260,8 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
             return
         url = local_url() + "/api/chat"
         body = {"model": selected, "messages": messages, "stream": True}
+        if max_output_tokens != 2048:
+            body["options"] = {"num_predict": max_output_tokens}
         headers = {}
     else:
         yield {"type": "error", "message": "Invalid selected provider"}
@@ -194,6 +270,8 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
     produced = 0
     final_model = body["model"]
     generation_id = None
+    cache_status = None
+    usage_tokens = {}
     try:
         async with httpx.AsyncClient(timeout=90, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
             async with client.stream("POST", url, json=body, headers=headers) as response:
@@ -204,6 +282,9 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
                     generation_id = validated_generation_id(
                         getattr(response, "headers", {}).get("X-Generation-Id")
                     )
+                    if provider_response_cache:
+                        marker = response.headers.get("X-OpenRouter-Cache-Status", "").upper()
+                        cache_status = marker if marker in ("HIT", "MISS") else "UNKNOWN"
                 async for line in response.aiter_lines():
                     if len(line) > 100_000:
                         yield {"type": "error", "message": "Upstream response exceeded limit"}
@@ -229,6 +310,8 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
                         continue
                     if provider == "openrouter":
                         generation_id = validated_generation_id(event.get("id")) or generation_id
+                        if provider_prompt_cache:
+                            usage_tokens = _cache_token_report(event.get("usage", {})) or usage_tokens
                     final_model = str(event.get("model") or final_model)[:128]
                     if provider == "openrouter":
                         choices = event.get("choices") or []
@@ -247,8 +330,15 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
         yield {"type": "error", "message": "Inference provider is unreachable"}
         return
     done = {"type": "done", "provider": provider, "model": final_model}
-    if provider == "openrouter" and generation_id:
+    if provider == "openrouter" and generation_id and cache_status != "HIT":
         done["generation_id"] = generation_id
+    if provider == "openrouter" and provider_response_cache:
+        done["provider_response_cache"] = {"requested": True, "status": cache_status}
+    if provider == "openrouter" and provider_prompt_cache:
+        done["provider_prompt_cache"] = {
+            "requested": True,
+            "reported_token_details": {} if cache_status == "HIT" else usage_tokens,
+        }
     yield done
 
 

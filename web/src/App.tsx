@@ -11,6 +11,13 @@ type SearchHit = { id: string; title: string; excerpt: string }
 type ConsentReceipt = { id: string; created_at: string; kind: string; approval: string }
 type ImageCatalogEntry = { id: string; name: string; supports_reference: boolean; supports_streaming: boolean }
 type TextModelEntry = { id: string; name: string; context_length: number | null; supports_tools: boolean }
+type ContextPreview = {
+  mode: string; messages_original: number; messages_sent: number; messages_omitted: number;
+  estimated_input_tokens_original: number; estimated_input_tokens_sent: number;
+  estimated_input_tokens_reduced: number; sent_to_provider: boolean;
+}
+type CacheStatus = { mode: string; entries: number; hits: number; misses: number;
+  max_entries: number; ttl_seconds: number }
 
 function apiOrigin(value: string): string {
   const url = new URL(value)
@@ -34,6 +41,15 @@ export default function App() {
   const [fallback, setFallback] = useState(false)
   const [cloudConsent, setCloudConsent] = useState(false)
   const [streaming, setStreaming] = useState(true)
+  const [contextMode, setContextMode] = useState<'full' | 'last_n'>('full')
+  const [contextMessages, setContextMessages] = useState(8)
+  const [maxOutputTokens, setMaxOutputTokens] = useState(2048)
+  const [contextPreview, setContextPreview] = useState<ContextPreview | null>(null)
+  const [localResponseCache, setLocalResponseCache] = useState(false)
+  const [providerResponseCache, setProviderResponseCache] = useState(false)
+  const [providerPromptCache, setProviderPromptCache] = useState(false)
+  const [cacheSessionId, setCacheSessionId] = useState(() => globalThis.crypto?.randomUUID?.() || null)
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null)
   const streamAbort = useRef<AbortController | null>(null)
   const [savedChats, setSavedChats] = useState<SavedConversation[]>([])
   const [chatQuery, setChatQuery] = useState('')
@@ -107,19 +123,82 @@ export default function App() {
     finally { setBusy(false) }
   }
 
+  function resetCacheConsent() {
+    setLocalResponseCache(false)
+    setProviderResponseCache(false)
+    setProviderPromptCache(false)
+    setContextPreview(null)
+    setCacheSessionId(globalThis.crypto?.randomUUID?.() || null)
+  }
+
+  function chatPayload(history: Message[]) {
+    return {
+      messages: history, provider, model,
+      allow_local_fallback: fallback, allow_cloud_processing: cloudConsent,
+      context_mode: contextMode, context_messages: contextMessages,
+      max_output_tokens: maxOutputTokens,
+      local_response_cache: localResponseCache && !streaming,
+      provider_response_cache: providerResponseCache,
+      provider_prompt_cache: providerPromptCache,
+      cache_session_id: providerPromptCache ? cacheSessionId : null
+    }
+  }
+
+  async function previewChatContext() {
+    const history: Message[] = prompt.trim()
+      ? [...messages, { role: 'user', content: prompt.trim() }] : messages
+    if (!history.length) return
+    await action(async () => {
+      const reply = await api<ContextPreview>('/api/v1/chat/context-preview', 'POST',
+        chatPayload(history))
+      setContextPreview(reply)
+      setNotice('Context estimated entirely on your API server, with no model request.')
+    })
+  }
+
+  async function inspectCache() {
+    await action(async () => {
+      setCacheStatus(await api<CacheStatus>('/api/v1/cache/status'))
+      setNotice('Current API process memory-cache counters loaded.')
+    })
+  }
+
+  async function clearLocalCache() {
+    if (!window.confirm('Clear temporary responses in this API worker? ' +
+      'This does not clear OpenRouter or other worker caches.')) return
+    await action(async () => {
+      await api('/api/v1/cache/clear', 'POST', { approved: true })
+      setCacheStatus(await api<CacheStatus>('/api/v1/cache/status'))
+      setNotice('Temporary answers cleared from the current API worker.')
+    })
+  }
+
   function send(e: FormEvent) {
     e.preventDefault()
     if (!prompt.trim() || busy) return
     const next: Message[] = [...messages, { role: 'user', content: prompt.trim() }]
     setMessages(next); setPrompt('')
     void action(async () => {
-      const payload = { messages: next, provider, model,
-        allow_local_fallback: fallback, allow_cloud_processing: cloudConsent }
+      const payload = chatPayload(next)
+      setContextPreview(null)
       if (!streaming) {
-        const reply = await api<{ content: string; provider: string; model: string }>(
-          '/api/v1/chat', 'POST', payload)
+        const reply = await api<{
+          content: string; provider: string; model: string;
+          cache?: { mode: string; hit: boolean };
+          provider_response_cache?: { status: string };
+          provider_prompt_cache?: { reported_token_details: {
+            cached_tokens?: number; cache_write_tokens?: number
+          } }
+        }>('/api/v1/chat', 'POST', payload)
         setMessages([...next, { role: 'assistant', content: reply.content }])
-        setNotice('Response via ' + reply.provider + ' · ' + reply.model)
+        const cacheInfo = reply.cache?.hit
+          ? ' · local RAM cache HIT · no provider request'
+          : reply.provider_response_cache
+            ? ' · OpenRouter response cache ' + reply.provider_response_cache.status
+            : ''
+        const promptReuse = reply.provider_prompt_cache?.reported_token_details?.cached_tokens
+        setNotice('Response via ' + reply.provider + ' · ' + reply.model + cacheInfo +
+          (promptReuse ? ' · ' + promptReuse + ' provider-reported cached input tokens' : ''))
         return
       }
       const controller = new AbortController()
@@ -152,7 +231,9 @@ export default function App() {
           for (const record of records) {
             if (!record.startsWith('data: ')) continue
             const event = JSON.parse(record.slice(6)) as
-              { type: string; content?: string; message?: string; provider?: string; model?: string }
+              { type: string; content?: string; message?: string; provider?: string; model?: string;
+                provider_response_cache?: { status: string };
+                provider_prompt_cache?: { reported_token_details?: { cached_tokens?: number } } }
             if (event.type === 'error') throw Error(event.message || 'Upstream stream error')
             if (event.type === 'delta' && event.content) {
               output += event.content
@@ -161,7 +242,12 @@ export default function App() {
             }
             if (event.type === 'done') {
               complete = true
-              setNotice('Stream complete · ' + event.provider + ' · ' + event.model)
+              const providerCache = event.provider_response_cache
+                ? ' · OpenRouter response cache ' + event.provider_response_cache.status : ''
+              const cachedTokens = event.provider_prompt_cache?.reported_token_details?.cached_tokens
+              setNotice('Stream complete · ' + event.provider + ' · ' + event.model +
+                providerCache +
+                (cachedTokens ? ' · ' + cachedTokens + ' provider-reported cached input tokens' : ''))
             }
           }
         }
@@ -277,6 +363,7 @@ export default function App() {
       const saved = await api<SavedConversation>('/api/v1/conversations/' + id)
       setMessages(saved.messages || [])
       setCloudConsent(false)
+      resetCacheConsent()
       setNotice('Loaded local conversation snapshot.')
     })
   }
@@ -347,6 +434,7 @@ export default function App() {
     if (busy) return
     setMessages(messages.slice(0, index + 1))
     setCloudConsent(false)
+    resetCacheConsent()
     setNotice('Branched in this tab; save explicitly to retain the new conversation.')
   }
 
@@ -579,7 +667,13 @@ export default function App() {
           </form>
         </div>
         <aside className="controls"><h2>Model routing</h2>
-          <label>Provider<select value={provider} onChange={e => setProvider(e.target.value)}>
+          <label>Provider<select value={provider} onChange={e => {
+            setProvider(e.target.value)
+            if (e.target.value === 'ollama') {
+              setProviderResponseCache(false); setProviderPromptCache(false)
+            }
+            setCloudConsent(false)
+          }}>
             <option value="auto">Auto · OpenRouter first</option>
             <option value="openrouter">OpenRouter</option>
             <option value="ollama">Ollama local</option>
@@ -598,6 +692,7 @@ export default function App() {
                 if (!selected) return
                 setModel(selected.id); setProvider('openrouter')
                 setCloudConsent(false); setFallback(false)
+                setProviderPromptCache(false); setProviderResponseCache(false)
                 setNotice('Model selected · cloud processing consent remains off.')
               }}>
                 <option value="">Choose a model to fill its ID</option>
@@ -609,7 +704,9 @@ export default function App() {
             {textCatalogTruncated && <small>Catalog response was capped to 250 entries;
               use the official model catalog for additional choices.</small>}
           </>}
-          <label>Model ID<input value={model} onChange={e => setModel(e.target.value)} /></label>
+          <label>Model ID<input value={model} onChange={e => {
+            setModel(e.target.value); setProviderPromptCache(false); setCloudConsent(false)
+          }} /></label>
           <label className="check"><input type="checkbox" checked={cloudConsent}
             onChange={e => setCloudConsent(e.target.checked)} /> Allow selected text to leave this server for OpenRouter inference</label>
           <label className="check"><input type="checkbox" checked={fallback} disabled={streaming}
@@ -617,9 +714,71 @@ export default function App() {
           <label className="check"><input type="checkbox" checked={streaming}
             onChange={e => { setStreaming(e.target.checked); if (e.target.checked) setFallback(false) }} /> Stream responses with cancel control</label>
           <p>Without cloud consent, Auto uses a configured local model or refuses the request. Paid calls consume a daily request slot.</p>
+          <section className="token-efficiency" aria-label="Token efficiency controls">
+            <div className="heading"><h2>Token efficiency</h2>
+              <button type="button" className="secondary" disabled={busy || (!prompt.trim() && !messages.length)}
+                onClick={() => void previewChatContext()}>Preview context</button></div>
+            <label>History sent to the model
+              <select value={contextMode === 'full' ? 'full' : String(contextMessages)}
+                onChange={e => {
+                  const value = e.target.value
+                  setContextMode(value === 'full' ? 'full' : 'last_n')
+                  if (value !== 'full') setContextMessages(Number(value))
+                  setContextPreview(null)
+                }}>
+                <option value="full">Full history (existing behavior)</option>
+                <option value="4">Latest 4 user/assistant messages</option>
+                <option value="8">Latest 8 user/assistant messages</option>
+                <option value="16">Latest 16 user/assistant messages</option>
+              </select>
+            </label>
+            <label>Maximum response tokens
+              <select value={maxOutputTokens}
+                onChange={e => setMaxOutputTokens(Number(e.target.value))}>
+                <option value={256}>Short · up to 256</option>
+                <option value={512}>Concise · up to 512</option>
+                <option value={1024}>Standard · up to 1,024</option>
+                <option value={2048}>Full · up to 2,048 (original default)</option>
+              </select></label>
+            {contextPreview && <p role="status">Estimated input tokens:
+              {' '}{contextPreview.estimated_input_tokens_original.toLocaleString()} full →{' '}
+              {contextPreview.estimated_input_tokens_sent.toLocaleString()} selected,
+              approximately {contextPreview.estimated_input_tokens_reduced.toLocaleString()} reduced.
+              {' '}{contextPreview.messages_omitted} messages omitted. System messages stay.
+              This heuristic is not the model tokenizer or a billing estimate.</p>}
+            <label className="check"><input type="checkbox" checked={localResponseCache}
+              disabled={busy || streaming}
+              onChange={e => setLocalResponseCache(e.target.checked)} />
+              Reuse identical complete responses in this server's RAM for 5 minutes
+            </label>
+            {streaming && <small>Turn streaming off to enable local RAM response reuse.</small>}
+            <label className="check"><input type="checkbox" checked={providerResponseCache}
+              disabled={busy || provider === 'ollama'}
+              onChange={e => setProviderResponseCache(e.target.checked)} />
+              Allow OpenRouter to cache identical requests for 5 minutes
+            </label>
+            <label className="check"><input type="checkbox" checked={providerPromptCache}
+              disabled={busy || provider === 'ollama' || !model.startsWith('anthropic/')}
+              onChange={e => setProviderPromptCache(e.target.checked)} />
+              Enable explicit Anthropic prompt-prefix caching via OpenRouter
+            </label>
+            <small>OpenRouter caches are provider-managed and may retain content.
+              Prompt caching can have a higher first-write charge. Other providers
+              may implicitly cache even without this option. Your cloud-consent
+              checkbox is still required for any cloud request.</small>
+            <div className="actions">
+              <button type="button" className="secondary" disabled={busy}
+                onClick={() => void inspectCache()}>RAM cache status</button>
+              <button type="button" className="secondary danger" disabled={busy}
+                onClick={() => void clearLocalCache()}>Clear RAM cache</button>
+            </div>
+            {cacheStatus && <small role="status">Current worker: {cacheStatus.entries}/
+              {cacheStatus.max_entries} entries · {cacheStatus.hits} hits ·
+              {' '}{cacheStatus.misses} misses. Does not include provider caching.</small>}
+          </section>
           <div className="actions">
             <button type="button" className="secondary" disabled={busy}
-              onClick={() => { setMessages([]); setCloudConsent(false) }}>New chat</button>
+              onClick={() => { setMessages([]); setCloudConsent(false); resetCacheConsent() }}>New chat</button>
             <button type="button" disabled={busy || messages.length === 0} onClick={() => void saveCurrentChat()}>Save locally</button>
           </div>
           <div className="heading"><h2>Saved conversations</h2>

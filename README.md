@@ -12,8 +12,8 @@ Open WebUI, AnythingLLM or LibreChat.
 
 | Surface | Implemented in source | Still missing |
 |---|---|---|
-| Shared API | Owner or opt-in scoped signed JWT, OpenRouter/Ollama, SSE/images, deliberate owner-only generation-cost metadata and sanitized read-only text model discovery | Verified Identity issuer, invoice-level cost reconciliation, dollar cap and live providers |
-| Web | React/TypeScript chat stream/cancel, consent, searchable saved chats, explicit JSON/Markdown export and JSON import, rename, in-memory branching, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification and native conversation-library UI parity |
+| Shared API | Owner/scoped JWT, OpenRouter/Ollama SSE, optional last-N context, bounded output token caps, opt-in server RAM response reuse and OpenRouter cache hints, model discovery | Real billing savings, full provider cache support, production key custody, multiworker cache sharing and real-provider acceptance |
+| Web | React/TypeScript chat stream/cancel, token-efficiency preview and caching controls, consent, saved chats/import/export, documents, search/RAG, model catalogs, images, agents and MCP | Cross-browser/visual qualification and native token-efficiency/client parity |
 | Linux | Native Qt Quick with bounded SSE and redirect-refusing authenticated Qt Network REST, local saved-conversation save/list/search/open/rename/delete, chat cancellation, images, documents, approved MCP and consent | Real desktop/accessibility, signed packages, provider acceptance and file import/export parity |
 | Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, SSE/cancel, local conversation save/list/search/open, Android picker JSON import/export and approved delete, images/docs/agents/MCP | Physical device/emulator networking, signed release, accessibility, native rename and Markdown parity |
 | Documents | SQLite CRUD/FTS5 with optional SQLCipher; opt-in bounded revisions and approved rollback; upload preflight, isolated parser, export and cited retrieval | Deployed encryption, malware scanning, native revision parity and semantic search |
@@ -59,6 +59,11 @@ For local development set GOREECLOUD_AI_CORS_ORIGINS=http://127.0.0.1:5173
 on the API. Open http://127.0.0.1:5173, enter the server URL and owner token
 (managed in memory only). Browser requests to non-loopback HTTP endpoints
 are refused. Chat streams are cancellable; opt-in saved chats stay in SQLite.
+The token-efficiency controls default to full history and no caching: you may
+explicitly preview approximate context savings, send the latest N exchanges,
+reduce output tokens, or allow temporary RAM/OpenRouter response caching and
+explicit Anthropic prompt-prefix caching. These separate controls are not
+verified dollar savings and do not relax cloud-processing consent.
 
 ## Linux / Android
 
@@ -71,8 +76,20 @@ acceptance. Neither native client has its own provider/API key.
 
 Protected routes require Authorization: Bearer OWNER_TOKEN.
 
-- POST /api/v1/chat — text response; consent is required for cloud.
+- POST /api/v1/chat — text response; consent is required for cloud. Optional
+  context_mode=last_n, context_messages (1–32), max_output_tokens (64–2048),
+  local_response_cache (non-stream only), provider_response_cache,
+  provider_prompt_cache (explicit Anthropic breakpoint), and bounded
+  cache_session_id are opt-in. See docs/TOKEN_EFFICIENCY.md.
 - POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
+  Supports context limits, output caps, and provider-managed caching but not
+  replay from the local RAM cache.
+- POST /api/v1/chat/context-preview — no inference; returns only approximate
+  token and message counts for selected context, without returning prompt text.
+- GET /api/v1/cache/status — owner-only counters for the current API worker.
+- POST /api/v1/cache/clear with approved=true — clear that worker's
+  ephemeral response cache; strict OIDC requires admin, and provider caches
+  or other API worker caches are not affected.
 - POST /api/v1/images — explicitly approved paid generation/compatible reference edits (bounded image response, PNG/JPEG/WebP).
 - GET /api/v1/images/models — deliberate owner-authenticated model catalog lookup using the server-only OpenRouter API key; no prompt or paid generation request.
 - GET /api/v1/usage/openrouter/{generation_id} — owner/admin-capability only,

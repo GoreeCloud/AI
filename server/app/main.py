@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
-from . import database, import_sandbox, mcp_tools, providers, storage, upload_validation
+from . import database, import_sandbox, mcp_tools, providers, storage, token_savings, upload_validation
 from .security import require_capability, require_owner
 
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
@@ -54,6 +54,16 @@ class ChatRequest(BaseModel):
     provider: Literal["auto", "openrouter", "ollama"] = "auto"
     allow_local_fallback: bool = False
     allow_cloud_processing: bool = False
+    context_mode: Literal["full", "last_n"] = "full"
+    context_messages: int = Field(default=8, ge=1, le=32)
+    max_output_tokens: int = Field(default=2048, ge=64, le=2048)
+    local_response_cache: bool = False
+    provider_response_cache: bool = False
+    provider_prompt_cache: bool = False
+    cache_session_id: str | None = Field(
+        default=None, min_length=8, max_length=64,
+        pattern=r"^[A-Za-z0-9._-]{8,64}$",
+    )
 
     @model_validator(mode="after")
     def bound_prompt_size(self):
@@ -139,31 +149,132 @@ async def text_model_catalog():
     return await providers.text_model_catalog()
 
 
+def chat_context(request: ChatRequest) -> list[dict]:
+    return token_savings.select_context(
+        [message.model_dump() for message in request.messages],
+        request.context_mode, request.context_messages,
+    )
+
+
+@app.post("/api/v1/chat/context-preview", dependencies=[Depends(require_owner)])
+def chat_context_preview(request: ChatRequest):
+    """Local-only counter; never contacts a provider or writes request content."""
+    return token_savings.preview(
+        [message.model_dump() for message in request.messages],
+        request.context_mode, request.context_messages,
+    )
+
+
+@app.get("/api/v1/cache/status", dependencies=[Depends(require_owner)])
+def cache_status():
+    """Metadata only; no hashes, prompt text or response bodies."""
+    return token_savings.response_cache.status()
+
+
+class CacheClearRequest(BaseModel):
+    approved: bool = False
+
+
+@app.post("/api/v1/cache/clear", dependencies=[Depends(require_owner)])
+def clear_cache(request: CacheClearRequest, http_request: Request):
+    require_capability(http_request, "admin")
+    if not request.approved:
+        raise HTTPException(403, "Clearing the in-memory cache requires explicit approval")
+    return {
+        "cleared": token_savings.response_cache.clear(),
+        "scope": "current-api-worker",
+        "note": "Does not affect other workers or provider-managed caches",
+    }
+
+
 @app.post("/api/v1/chat", dependencies=[Depends(require_owner)])
 async def chat(request: ChatRequest, http_request: Request):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         require_capability(http_request, "cloud")
+    token_savings.validate_cache_mode(
+        selected, request.provider_response_cache,
+        request.provider_prompt_cache, request.model, request.cache_session_id,
+    )
+    messages = chat_context(request)
+    digest = None
+    if request.local_response_cache:
+        digest = token_savings.response_cache.key(
+            messages, selected, request.model, request.allow_local_fallback,
+            request.max_output_tokens, request.provider_response_cache, request.provider_prompt_cache,
+            request.cache_session_id,
+        )
+        entry = token_savings.response_cache.get(digest)
+        if entry is not None:
+            return {
+                "provider": entry.provider, "model": entry.model,
+                "content": entry.content, "usage": {},
+                "cache": {
+                    "mode": "local-process-memory", "hit": True,
+                    "provider_contacted": False, "new_usage_reported": False,
+                },
+            }
+    # Only an actual upstream request consumes a cloud admission/paid-key check.
+    if selected == "openrouter":
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat", approved=request.allow_cloud_processing)
-    return await providers.chat([m.model_dump() for m in request.messages],
-                                request.model, selected, request.allow_local_fallback)
+    # Preserve the existing four-argument provider contract when no provider
+    # cache option was requested (including synthetic test adapters).
+    if (request.provider_response_cache or request.provider_prompt_cache
+            or request.max_output_tokens != 2048):
+        output = await providers.chat(
+            messages, request.model, selected, request.allow_local_fallback,
+            provider_response_cache=request.provider_response_cache,
+            provider_prompt_cache=request.provider_prompt_cache,
+            cache_session_id=request.cache_session_id,
+            max_output_tokens=request.max_output_tokens,
+        )
+    else:
+        output = await providers.chat(
+            messages, request.model, selected, request.allow_local_fallback
+        )
+    if digest is not None:
+        # Do not retain local-fallback answers as cloud model cache entries.
+        can_store = output.get("provider") == selected
+        saved = token_savings.response_cache.put(digest, output) if can_store else False
+        output["cache"] = {
+            "mode": "local-process-memory", "hit": False, "stored": saved,
+            "provider_contacted": True,
+        }
+    return output
 
 
 @app.post("/api/v1/chat/stream", dependencies=[Depends(require_owner)])
 async def chat_stream(request: ChatRequest, http_request: Request):
     if request.allow_local_fallback:
         raise HTTPException(422, "Fallback is only supported for non-streaming inference")
+    if request.local_response_cache:
+        raise HTTPException(422, "Local response reuse is only available for complete responses")
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         require_capability(http_request, "cloud")
+    token_savings.validate_cache_mode(
+        selected, request.provider_response_cache,
+        request.provider_prompt_cache, request.model, request.cache_session_id,
+    )
+    messages = chat_context(request)
+    if selected == "openrouter":
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat-stream", approved=request.allow_cloud_processing)
 
     async def events():
-        async for message in providers.stream_chat(
-            [m.model_dump() for m in request.messages], request.model, selected
-        ):
+        if (request.provider_response_cache or request.provider_prompt_cache
+                or request.max_output_tokens != 2048):
+            stream = providers.stream_chat(
+                messages, request.model, selected,
+                provider_response_cache=request.provider_response_cache,
+                provider_prompt_cache=request.provider_prompt_cache,
+                cache_session_id=request.cache_session_id,
+                max_output_tokens=request.max_output_tokens,
+            )
+        else:
+            stream = providers.stream_chat(messages, request.model, selected)
+        async for message in stream:
             yield "data: " + json.dumps(message, ensure_ascii=True) + "\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream",
@@ -429,6 +540,9 @@ def privacy_status():
     return {
         "cloud_consent_default": False,
         "document_revision_history": "opt-in-per-save-max-20",
+        "chat_context_trimming": "opt-in-last-n-preserve-system",
+        "local_response_cache": "opt-in-ephemeral-process-memory",
+        "provider_cache": "explicit-opt-in-may-retain-upstream",
         "conversation_persistence": "opt-in",
         "conversation_retention_days": storage.conversation_retention_days(),
         "consent_receipt_retention_days": storage._consent_retention_days(),
@@ -599,7 +713,8 @@ def integration_capabilities():
         "api_version": "v1-preview",
         "status": "local-development-not-deployed",
         "capabilities": ["chat", "chat-stream", "document-search", "document-research",
-                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import", "document-revisions", "text-model-catalog"],
+                         "image-generation", "manual-mcp", "conversation-search", "conversation-export", "conversation-rename", "conversation-import", "document-revisions", "text-model-catalog", "chat-context-preview", "local-response-cache",
+                          "provider-response-cache", "provider-prompt-cache"],
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "data_classification": "private-by-default",
         "cloud_processing": "explicit-per-request-consent",
