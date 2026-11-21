@@ -22,7 +22,8 @@ separately before marking any item complete.
 
 - Optional signed RS256/JWKS owner-scope verifier (offline pinned keys).
 - Optional capped OpenRouter key preflight with provider-owned limit.
-- Owner-approved retention cleanup and offline AES-GCM backup/restore.
+- Owner-approved retention cleanup, metadata-only cloud admission receipts
+  with owner-controlled review/clear, and offline AES-GCM backup/restore.
 - Protected preview capability metadata for future Mesh contracts.
 - These do not establish GoreeCloud Identity/OIDC integration, complete
   GoreeShield enforcement, Wardveil certification, or backup operations.
@@ -32,8 +33,9 @@ separately before marking any item complete.
 1. Complete the source-authenticated GoreeCloud Identity issuer and claims
    integration beyond the pinned JWKS verifier; per-route delegated scopes,
    TLS ingress, MFA and anti-abuse controls before public exposure.
-2. GoreeShield enforced consent records and retention scheduling beyond the
-   explicitly approved snapshot purge; encrypt the live database, harden
+2. GoreeShield enforced consent policy and scheduled retention beyond
+   local approval/admission receipts and explicit snapshot/receipt purge;
+   encrypt the live database, harden
    backup custody, data minimization and verified erasure behavior.
 3. Wardveil scans and real untrusted-document sandboxing beyond the tested
    subprocess limits; enforce OS identity and network isolation, prompt/tool

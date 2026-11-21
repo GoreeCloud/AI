@@ -6,7 +6,7 @@
 | Web | Build, browsers, accessibility | TypeScript build covers image catalog selector; browser and accessibility verification pending |
 | Linux | Qt startup, real desktop, packaging | Qt source includes image model discovery; headless smoke/real desktop acceptance pending |
 | Android | Material3 Expressive build, emulator/device, signing | Image model discovery uses native Compose; debug build/device acceptance pending |
-| GoreeShield | Privacy consent records, retention/encryption | Opt-in consent and explicitly approved snapshot retention purge; live DB unencrypted |
+| GoreeShield | Privacy consent records, retention/encryption | Explicit cloud approvals, metadata-only admission receipts/owner clear, snapshot retention purge; policy integration and live DB encryption pending |
 | Wardveil | Threat assessment, sandbox, scans | Linux subprocess import limits and tests; OS sandbox and runtime security acceptance remain pending |
 | Identity | OIDC/OAuth source contract and scopes | Offline pinned-JWKS RS256 adapter tested; no verified GoreeCloud Identity issuer/deployment |
 | Mesh | Authenticated service integration | Authenticated read-only capability manifest; not a registered Mesh adapter |

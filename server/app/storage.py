@@ -62,6 +62,10 @@ def _connection():
         db.execute("""CREATE TABLE IF NOT EXISTS paid_call_admissions (
             id TEXT PRIMARY KEY, day TEXT NOT NULL, kind TEXT NOT NULL)""")
         db.execute("CREATE INDEX IF NOT EXISTS paid_call_day ON paid_call_admissions(day)")
+        db.execute("""CREATE TABLE IF NOT EXISTS cloud_consent_receipts (
+            id TEXT PRIMARY KEY, created_at TEXT NOT NULL, kind TEXT NOT NULL,
+            approval TEXT NOT NULL)""")
+        db.execute("CREATE INDEX IF NOT EXISTS consent_receipt_created ON cloud_consent_receipts(created_at)")
         db.commit()
         if not path.exists():
             raise RuntimeError("Database could not be initialized")
@@ -188,19 +192,69 @@ def cloud_quota() -> dict:
             "note": "Request count guard, not a currency spending limit."}
 
 
-def admit_cloud_call(kind: str) -> None:
-    """Atomic daily request-count budget; rejected/failed calls still consume a slot."""
+def _consent_retention_days() -> int:
+    try:
+        days = int(os.getenv("GOREECLOUD_AI_CONSENT_RECEIPT_RETENTION_DAYS", "30"))
+        if not 1 <= days <= 365:
+            raise ValueError("days outside allowed range")
+        return days
+    except ValueError as exc:
+        raise HTTPException(503, "Invalid cloud consent receipt retention configuration") from exc
+
+
+def admit_cloud_call(kind: str, *, approved: bool = False) -> None:
+    """Atomic cloud admission and content-free consent receipt.
+
+    This proves only admission after approval, not actual network transfer,
+    generation, billing, provider use, or user identity.
+    """
+    if approved is not True:
+        raise HTTPException(403, "Explicit cloud-processing approval required")
+    if kind not in ("chat", "chat-stream", "image", "agent-plan", "research"):
+        raise HTTPException(422, "Invalid cloud request kind")
     limit = _daily_limit()
-    day = datetime.now(UTC).date().isoformat()
-    cutoff = (datetime.now(UTC) - timedelta(days=14)).date().isoformat()
+    keep = _consent_retention_days()
+    now = datetime.now(UTC)
+    day = now.date().isoformat()
+    cutoff = (now - timedelta(days=14)).date().isoformat()
+    receipts_cutoff = (now - timedelta(days=keep)).isoformat()
+    request_id = str(uuid.uuid4())
     with _connection() as db:
         db.execute("BEGIN IMMEDIATE")
         admitted = db.execute(
             "SELECT COUNT(*) FROM paid_call_admissions WHERE day=?", (day,)).fetchone()[0]
         if admitted >= limit:
             raise HTTPException(429, "Daily external-provider request limit reached")
-        db.execute("INSERT INTO paid_call_admissions VALUES (?, ?, ?)", (str(uuid.uuid4()), day, kind))
+        db.execute("INSERT INTO paid_call_admissions VALUES (?, ?, ?)", (request_id, day, kind))
+        db.execute(
+            "INSERT INTO cloud_consent_receipts VALUES (?, ?, ?, ?)",
+            (request_id, now.isoformat(), kind,
+             "paid-image-approval" if kind == "image" else "cloud-processing-consent"),
+        )
         db.execute("DELETE FROM paid_call_admissions WHERE day < ?", (cutoff,))
+        db.execute("DELETE FROM cloud_consent_receipts WHERE created_at < ?", (receipts_cutoff,))
+
+
+def list_cloud_consent_receipts(limit: int = 100) -> dict:
+    if not 1 <= limit <= 200:
+        raise HTTPException(422, "Consent receipt limit must be 1-200")
+    cutoff = (datetime.now(UTC) - timedelta(days=_consent_retention_days())).isoformat()
+    with _connection() as db:
+        db.execute("DELETE FROM cloud_consent_receipts WHERE created_at < ?", (cutoff,))
+        rows = db.execute(
+            "SELECT id,created_at,kind,approval FROM cloud_consent_receipts "
+            "ORDER BY created_at DESC LIMIT ?", (limit,),
+        )
+        result = [dict(row) for row in rows]
+    return {"receipts": result,
+            "note": "Cloud call admissions after explicit approval; not proof of transfer or billing."}
+
+
+def clear_cloud_consent_receipts() -> dict:
+    with _connection() as db:
+        count = db.execute("DELETE FROM cloud_consent_receipts").rowcount
+    return {"deleted_receipts": count,
+            "note": "Consent admission metadata cleared; paid request quota is unchanged."}
 
 
 

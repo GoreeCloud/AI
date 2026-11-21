@@ -28,6 +28,15 @@ production deployment.
   (GOREECLOUD_AI_DAILY_CLOUD_REQUEST_LIMIT). This is **not** a currency cap:
   provider pricing, token bills and charge reconciliation are independent.
   Failed requests may still consume an admission slot.
+- Each accepted cloud admission also creates a locally stored metadata-only
+  receipt in the same SQLite transaction, but only after an explicit positive
+  approval argument. Kinds include chat, chat-stream, image, agent-plan and
+  research. No prompt, model response, provider key, caller IP, account ID or
+  text is saved. Receipts are retained for 30 days by default, configurable
+  between 1 and 365, pruned on later admissions or owner review, and may be
+  explicitly cleared without refunding request quota. An admission is **not**
+  proof that transfer, provider completion or billing occurred; SQLite live
+  rows, freed pages and backups are not encrypted or securely erased.
 - Owner shared-token check, no prompt logging, bounded streamed JSON responses,
   validated base64 image formats, fixed upstream OpenRouter URL,
   disabled redirects, bounded requests, reference validation and PDF/DOCX

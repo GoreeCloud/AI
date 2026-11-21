@@ -129,7 +129,7 @@ async def chat(request: ChatRequest):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         await providers.verify_cloud_key_budget()
-        storage.admit_cloud_call("chat")
+        storage.admit_cloud_call("chat", approved=request.allow_cloud_processing)
     return await providers.chat([m.model_dump() for m in request.messages],
                                 request.model, selected, request.allow_local_fallback)
 
@@ -141,7 +141,7 @@ async def chat_stream(request: ChatRequest):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         await providers.verify_cloud_key_budget()
-        storage.admit_cloud_call("chat-stream")
+        storage.admit_cloud_call("chat-stream", approved=request.allow_cloud_processing)
 
     async def events():
         async for message in providers.stream_chat(
@@ -181,7 +181,7 @@ async def images(request: ImageRequest):
         raise HTTPException(403, "Image requests require explicit paid-call approval")
     reference = checked_reference(request.reference_data_url)
     await providers.verify_cloud_key_budget()
-    storage.admit_cloud_call("image")
+    storage.admit_cloud_call("image", approved=request.approve_paid_generation)
     return await providers.image_request(request.prompt, request.model, reference)
 
 
@@ -302,7 +302,7 @@ async def agent_plan(request: AgentPlanRequest):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         await providers.verify_cloud_key_budget()
-        storage.admit_cloud_call("agent-plan")
+        storage.admit_cloud_call("agent-plan", approved=request.allow_cloud_processing)
     answer = await providers.chat([
         {"role": "system", "content": (
             "You plan tasks for a user-operated assistant. Return a short numbered plan. "
@@ -367,6 +367,7 @@ def privacy_status():
         "cloud_consent_default": False,
         "conversation_persistence": "opt-in",
         "conversation_retention_days": storage.conversation_retention_days(),
+        "consent_receipt_retention_days": storage._consent_retention_days(),
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
         "provider_key_cap_required": os.getenv("GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY", "false").lower() == "true",
         "document_storage": "local-plaintext-sqlite",
@@ -435,7 +436,7 @@ async def research_answer(request: ResearchRequest):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
         await providers.verify_cloud_key_budget()
-        storage.admit_cloud_call("research")
+        storage.admit_cloud_call("research", approved=request.allow_cloud_processing)
     excerpts = [
         {"source_id": item["id"], "title": item["title"][:150],
          "excerpt": item["excerpt"][:1800]}
@@ -500,3 +501,20 @@ def integration_capabilities():
 async def image_models():
     """A deliberate public catalog lookup; no prompts, keys or documents sent."""
     return await providers.image_catalog()
+
+
+
+@app.get("/api/v1/privacy/consent-receipts", dependencies=[Depends(require_owner)])
+def consent_receipts(limit: int = 100):
+    return storage.list_cloud_consent_receipts(limit)
+
+
+class ClearReceiptsRequest(BaseModel):
+    approved: bool = False
+
+
+@app.post("/api/v1/privacy/consent-receipts/clear", dependencies=[Depends(require_owner)])
+def clear_consent_receipts(request: ClearReceiptsRequest):
+    if not request.approved:
+        raise HTTPException(403, "Clearing cloud consent receipts requires explicit approval")
+    return storage.clear_cloud_consent_receipts()

@@ -18,7 +18,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
 | Documents | SQLite CRUD, resource-limited Linux subprocess PDF/DOCX/text extraction, Markdown/DOCX export, FTS5 retrieval and source IDs | Full parser sandbox, encryption, semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator allowlisted manual Streamable HTTP MCP | Multi-step autonomous agents, OAuth, worker sandbox |
-| Privacy | Cloud opt-in, local snapshots, delete APIs, request count quota, opt-in retention purge and encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
+| Privacy | Cloud opt-in, metadata-only cloud-admission receipts, owner-controlled receipt clearing, local snapshots, count quota, retention purge, encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
 
 OpenRouter is an external model provider and may charge per request, token, image
 or other unit. The daily request admission limit is **not a money limit**.
@@ -76,6 +76,8 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - GET /api/v1/images/models — deliberate owner-authenticated model catalog lookup using the server-only OpenRouter API key; no prompt or paid generation request.
 - GET /api/v1/models — configured routes.
 - GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
+- GET /api/v1/privacy/consent-receipts — owner-only bounded, content-free approvals/admission metadata.
+- POST /api/v1/privacy/consent-receipts/clear — explicitly approved receipt deletion; does not refund quota.
 - POST /api/v1/privacy/purge-expired — explicitly approved retention deletion.
 - GET /api/v1/integrations/capabilities — authenticated preview capability metadata.
 - GET/POST /api/v1/documents and GET/PUT/DELETE /api/v1/documents/{uuid}.

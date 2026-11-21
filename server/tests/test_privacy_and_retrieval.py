@@ -211,7 +211,7 @@ def test_atomic_cloud_quota_under_parallel_requests(monkeypatch):
 
     def attempt():
         try:
-            storage.admit_cloud_call("chat")
+            storage.admit_cloud_call("chat", approved=True)
             return True
         except HTTPException as exc:
             assert exc.status_code == 429
