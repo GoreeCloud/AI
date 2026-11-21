@@ -18,7 +18,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
 | Documents | SQLite CRUD and FTS5 with optional SQLCipher at-rest encryption, bounded Linux import subprocess/opt-in Bubblewrap isolation, export and cited retrieval | Deployed encrypted mode, complete sandbox qualification and semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
-| Privacy | Cloud opt-in, metadata-only approval receipts, local snapshots, request-count cap, opt-in SQLCipher-encrypted SQLite/FTS and AES-GCM offline backup | Live encryption activation/migration, policy acceptance, secure erasure and five-MIPS qualification |
+| Privacy | Cloud opt-in, metadata-only approval receipts, local snapshots, request-count cap, opt-in SQLCipher-encrypted SQLite/FTS, non-overwriting offline key rotation, AES-GCM offline backup | Live encryption activation, operator key custody, policy acceptance, secure erasure and five-MIPS qualification |
 
 OpenRouter is an external model provider and may charge per request, token, image
 or other unit. The daily request admission limit is **not a money limit**.
@@ -112,8 +112,12 @@ plaintext/ciphertext mode mismatch; it never silently rewrites old data.
 Stop the API, securely back up the original, and migrate offline into a
 **new** path using `python -m app.migrate_sqlcipher`, then configure the new
 key/mode/path. The old plaintext source is deliberately **preserved** for
-operator-controlled retention and destruction. Backups of encrypted storage
-are additionally AES-GCM encrypted and require two separate keys. This is
+operator-controlled retention and destruction. A second explicit offline
+`python -m app.rotate_sqlcipher --source OLD --output NEW` command can rotate
+SQLCipher keys into a **new** encrypted database, preserving the old file.
+It requires `GOREECLOUD_AI_NEW_DB_KEY` supplied by the secret manager and a
+stopped API; no in-place rewrite or automatic key replacement occurs. Backups
+of encrypted storage are additionally AES-GCM encrypted and require two separate keys. This is
 source-tested, NOT a deployed GoreeShield policy, secure erasure, key escrow,
 or off-host recovery. See docs/RECOVERY_AND_IDENTITY.md.
 Deletion removes live rows/index entries but is not verified secure erasure of pages

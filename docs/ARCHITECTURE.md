@@ -149,7 +149,11 @@ production deployment.
 ## Database upgrade and privacy
 
 Before upgrading an existing SQLite database, privately back it up and test
-restore in isolation. SQLCipher mode deliberately fails on plaintext input and
+restore in isolation. An additional offline SQLCipher-to-SQLCipher key
+rotation exports into a distinct new-key encrypted destination; the source
+remains unchanged. Old snapshots still require their original database key.
+See docs/RECOVERY_AND_IDENTITY.md for source-preserving rollback and custody.
+SQLCipher mode deliberately fails on plaintext input and
 on wrong/missing keys. Migrate only with the API stopped using
 `python -m app.migrate_sqlcipher --source OLD --output NEW` with a 32-byte
 secret-manager-provided database key; the source is retained until explicitly
