@@ -1,4 +1,5 @@
 """Wardveil-preview Bubblewrap import sandbox contract and synthetic live tests."""
+import json
 import shutil
 import subprocess
 import sys
@@ -11,18 +12,17 @@ from app import import_sandbox
 from app.main import parse_document_isolated
 
 
-def _require_working_bwrap():
-    binary = shutil.which("bwrap")
-    if not binary:
+def _require_working_bwrap(monkeypatch):
+    if not shutil.which("bwrap"):
         pytest.skip("Bubblewrap binary is absent on this runner")
-    smoke = subprocess.run([
-        binary, "--unshare-all", "--die-with-parent", "--new-session",
-        "--clearenv", "--ro-bind", "/usr", "/usr",
-        "--ro-bind-try", "/lib", "/lib",
-        "--ro-bind-try", "/lib64", "/lib64",
-        "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
-        "--", "/usr/bin/true",
-    ], capture_output=True, timeout=6, env={"LANG": "C.UTF-8"})
+    # Probe the *same* Python/venv mount topology as the real parser; a
+    # /usr/bin/true smoke check would miss missing hosted Python runtimes.
+    monkeypatch.setenv("GOREECLOUD_AI_IMPORT_ISOLATION", "bwrap")
+    worker = Path(__file__).resolve().parents[1] / "app/extract_worker.py"
+    command = import_sandbox.parser_command(worker, "txt")
+    smoke = subprocess.run(command, input=b"synthetic preflight",
+                           capture_output=True, timeout=8,
+                           env={"LANG": "C.UTF-8"})
     if smoke.returncode:
         explanation = smoke.stderr.decode("utf-8", errors="replace").lower()
         if any(marker in explanation for marker in (
@@ -30,9 +30,10 @@ def _require_working_bwrap():
             "no permissions to create new namespace",
             "creating new namespace failed",
         )):
-            pytest.skip("Runner kernel denies unprivileged namespace creation")
-        pytest.fail("Bubblewrap installed but namespace smoke check failed")
-    return binary
+            pytest.skip("Host kernel denies required unprivileged namespaces")
+        detail = explanation.strip().splitlines()[-1][:180] if explanation.strip() else "no output"
+        pytest.fail("Required Bubblewrap interpreter probe failed: " + detail)
+    assert json.loads(smoke.stdout)["text"] == "synthetic preflight"
 
 
 @pytest.mark.parametrize("name", ["", "best", "bwrap ", "disabled"])
@@ -75,14 +76,14 @@ def test_sandbox_command_excludes_host_secrets(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_real_opt_in_sandbox_extracts_synthetic_text(monkeypatch):
-    _require_working_bwrap()
+    _require_working_bwrap(monkeypatch)
     monkeypatch.setenv("GOREECLOUD_AI_IMPORT_ISOLATION", "bwrap")
     result = await parse_document_isolated("A synthetic résumé".encode(), "txt")
     assert result == {"text": "A synthetic résumé", "truncated": False}
 
 
 def test_real_sandbox_denies_host_path_and_network(tmp_path, monkeypatch):
-    _require_working_bwrap()
+    _require_working_bwrap(monkeypatch)
     marker = tmp_path / "synthetic-private-host-note.txt"
     marker.write_text("known dummy", encoding="utf-8")
     probe = tmp_path / "probe.py"

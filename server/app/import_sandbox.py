@@ -72,6 +72,17 @@ def parser_command(worker: Path, suffix: str) -> list[str]:
         "--dir", "/app",
         "--ro-bind", str(worker.resolve(strict=True)), "/app/extract_worker.py",
     ]
+    # GitHub Actions setup-python can install its interpreter under
+    # /opt/hostedtoolcache/Python rather than /usr. Mount only that verified
+    # public toolchain prefix, never all of /opt, host HOME or project files.
+    base = Path(sys.base_prefix).resolve(strict=True)
+    if not base.is_relative_to(Path("/usr")):
+        if not base.is_relative_to(Path("/opt/hostedtoolcache/Python")):
+            raise HTTPException(503, "Unsupported Python base installation for sandbox")
+        for parent in reversed(base.parents):
+            if parent != Path("/"):
+                args.extend(["--dir", str(parent)])
+        args.extend(["--ro-bind", str(base), str(base)])
     if sys.prefix != sys.base_prefix:
         args.extend(["--ro-bind", str(prefix), "/goree-runtime"])
     args.extend(["--chdir", "/", "--", interpreter, "-I",
