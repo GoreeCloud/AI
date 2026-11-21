@@ -58,6 +58,29 @@ def _connection():
             content TEXT NOT NULL, created_at TEXT NOT NULL,
             FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE)""")
         db.execute("CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation_id, created_at)")
+        # Upgrade existing local stores without rewriting their saved messages.
+        # The external-content FTS5 index is rebuilt exactly once on creation.
+        has_fts = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='message_fts'"
+        ).fetchone() is not None
+        db.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING
+            fts5(content, content='messages', content_rowid='rowid')""")
+        db.executescript("""
+            CREATE TRIGGER IF NOT EXISTS message_insert AFTER INSERT ON messages BEGIN
+                INSERT INTO message_fts(rowid, content) VALUES (new.rowid, new.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS message_delete AFTER DELETE ON messages BEGIN
+                INSERT INTO message_fts(message_fts, rowid, content)
+                VALUES ('delete', old.rowid, old.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS message_update AFTER UPDATE ON messages BEGIN
+                INSERT INTO message_fts(message_fts, rowid, content)
+                VALUES ('delete', old.rowid, old.content);
+                INSERT INTO message_fts(rowid, content) VALUES (new.rowid, new.content);
+            END;
+        """)
+        if not has_fts:
+            db.execute("INSERT INTO message_fts(message_fts) VALUES ('rebuild')")
         db.execute("""CREATE TABLE IF NOT EXISTS paid_call_admissions (
             id TEXT PRIMARY KEY, day TEXT NOT NULL, kind TEXT NOT NULL)""")
         db.execute("CREATE INDEX IF NOT EXISTS paid_call_day ON paid_call_admissions(day)")
@@ -164,6 +187,52 @@ def get_conversation(conversation_id: str) -> dict | None:
             SELECT role,content FROM messages WHERE conversation_id=?
             ORDER BY created_at, rowid""", (conversation_id,)).fetchall()
         return {**dict(row), "messages": [dict(message) for message in messages]}
+
+
+
+def rename_conversation(conversation_id: str, title: str) -> dict | None:
+    """Rename an explicitly saved snapshot, without changing its message history."""
+    new_title = title.strip()
+    if not new_title or len(new_title) > 150:
+        raise HTTPException(422, "Conversation title must be 1-150 non-space characters")
+    with _connection() as db:
+        changed = db.execute(
+            "UPDATE conversations SET title=?, updated_at=? WHERE id=?",
+            (new_title, _now(), conversation_id),
+        ).rowcount
+    return get_conversation(conversation_id) if changed else None
+
+
+def search_conversations(query: str, limit: int = 20) -> list[dict]:
+    """Private local full-text search. Never invokes an inference provider.
+
+    Bound the query and match terms. SQLite MATCH is constructed from quoted
+    lexical tokens, not arbitrary FTS operators supplied by the caller.
+    """
+    if not 2 <= len(query) <= 200 or not 1 <= limit <= 50:
+        raise HTTPException(422, "Search must be 2-200 characters with limit 1-50")
+    tokens = re.findall(r"[^\W_]{2,}", query, re.UNICODE)[:8]
+    if not tokens:
+        return []
+    expression = " OR ".join('"' + term + '"*' for term in tokens)
+    escaped = query.casefold().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    with _connection() as db:
+        rows = db.execute("""
+            SELECT c.id, c.title, c.created_at, c.updated_at,
+                   COUNT(m.id) AS message_count
+              FROM conversations c
+              LEFT JOIN messages m ON m.conversation_id=c.id
+             WHERE lower(c.title) LIKE ? ESCAPE '\\'
+                OR c.id IN (
+                    SELECT DISTINCT linked.conversation_id
+                      FROM message_fts
+                      JOIN messages linked ON linked.rowid=message_fts.rowid
+                     WHERE message_fts MATCH ?
+                )
+             GROUP BY c.id
+             ORDER BY c.updated_at DESC, c.id ASC LIMIT ?
+        """, (f"%{escaped}%", expression, limit)).fetchall()
+    return [dict(row) for row in rows]
 
 
 def delete_conversation(conversation_id: str) -> bool:

@@ -84,3 +84,9 @@ button.secondary{background:var(--gc-surface-tonal)!important;color:var(--gc-tex
 .research-answer{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
 .controls section[aria-label="Document answer"]{border-top:1px solid var(--gc-outline-soft);padding-top:14px}
 .controls section[aria-label="Document answer"] .doc-link{display:block;width:100%;margin-top:8px}
+
+.branch-action{min-height:34px!important;padding:6px 12px!important;font-size:12px}
+.saved-chat{flex-direction:column;gap:7px}
+.saved-chat .doc-link{width:100%}
+.saved-chat-actions{display:flex;gap:6px;flex-wrap:wrap}
+.saved-chat-actions button{min-height:32px!important;padding:5px 9px!important;font-size:11px}
