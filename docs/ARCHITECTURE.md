@@ -16,7 +16,14 @@ production deployment.
   Excerpts are sent to OpenRouter only when expressly consented, else Ollama.
 - MCP tools require server-configured HTTPS/loopback endpoint, name allowlist,
   authenticated owner request and explicit per-call approval. Model-produced
-  text never automatically invokes MCP.
+  text never automatically invokes MCP. The MCP boundary checks the allowlist
+  before opening a connection, rejects argument depth >16, JSON payloads over
+  256 KB and non-finite values, and admits at most two sessions per API worker.
+  Session initialization/discovery are individually bounded at 10 seconds,
+  tool calls at 30 seconds, and admission at 0.5 seconds. Results expose at
+  most 10 text blocks of 12k characters each with explicit truncation/media
+  omission flags; discovery lists at most 100 tool names. Output is untrusted
+  data, never implicit authorization for another action.
 
 ## Implemented controls
 
@@ -74,7 +81,9 @@ production deployment.
 - **GoreeCloud UI:** web tokens and pinned MIT-licensed Android Material 3
   Expressive source adapter integrated; interactive/native visual acceptance open.
 - No provider-cost reconciliation, currency reservations, vector RAG,
-  autonomous tool agents or MCP OAuth. An offline encrypted snapshot/restore
+  autonomous tool agents, MCP OAuth, cross-worker global quotas or MCP
+  server-process sandboxing. SDK transport parsing, redirects and remote
+  provider behavior are not fully controlled by these application bounds. An offline encrypted snapshot/restore
   tool exists and is synthetic-tested, not a production backup policy.
 
 ## Optional security features

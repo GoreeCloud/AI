@@ -91,6 +91,11 @@ class MCPToolCall(BaseModel):
     arguments: dict = Field(default_factory=dict)
     approved: bool = False
 
+    @model_validator(mode="after")
+    def bound_mcp_arguments(self):
+        mcp_tools.validate_arguments(self.arguments)
+        return self
+
 
 @app.get("/api/health")
 def health():

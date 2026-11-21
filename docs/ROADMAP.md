@@ -24,6 +24,9 @@ separately before marking any item complete.
   opt-in per-route read/write/inference/cloud/paid/tools/admin capabilities
   and fail-closed unknown protected routes (offline pinned keys).
 - Optional capped OpenRouter key preflight with provider-owned limit.
+- Manual MCP call admission/argument/output/time bounds, early operator
+  allowlist check and opaque media omission; no real server interoperability
+  acceptance or isolated MCP worker.
 - Optional Bubblewrap parser isolation (read-only runtime, no network or
   host data mounts) with synthetic Linux checks; default subprocess retained.
 - Owner-approved retention cleanup, metadata-only cloud admission receipts
@@ -43,7 +46,8 @@ separately before marking any item complete.
    backup custody, data minimization and verified erasure behavior.
 3. Wardveil production-qualify opt-in Bubblewrap import isolation with
    dedicated host UID, seccomp and cgroup controls; add malware scanning,
-   prompt/tool injection boundaries, MCP worker isolation, and content-free audit.
+   prompt/tool injection boundaries, MCP worker isolation and delegated
+   authorization beyond bounded manual calls, and content-free audit.
 4. Require/verify provider-enforced per-key credit caps, then add real
    monetary reservations and usage/billing reconciliation across workers;
    present preflight is not a dollar spend guarantee.
