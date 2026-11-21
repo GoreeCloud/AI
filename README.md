@@ -73,7 +73,7 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/chat — text response; consent is required for cloud.
 - POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
 - POST /api/v1/images — explicitly approved paid generation/compatible reference edits (bounded image response, PNG/JPEG/WebP).
-- GET /api/v1/images/models — deliberate public OpenRouter image-model capability lookup; no prompt or generation billing.
+- GET /api/v1/images/models — deliberate owner-authenticated model catalog lookup using the server-only OpenRouter API key; no prompt or paid generation request.
 - GET /api/v1/models — configured routes.
 - GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
 - POST /api/v1/privacy/purge-expired — explicitly approved retention deletion.

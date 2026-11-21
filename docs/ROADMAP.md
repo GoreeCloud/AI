@@ -11,6 +11,8 @@ separately before marking any item complete.
   source-linked responses and document/conversation deletion.
 - Web, Linux Qt Quick and Android Kotlin Compose clients, including the
   pinned GoreeCloud UI Material 3 Expressive source adapter.
+- Native Android and Linux image studios can browse and choose server-reported
+  image models without triggering paid generation.
 - OpenRouter public image-model discovery, web selector, bounded provider
   response streaming and image format checks with no paid test calls.
 - API mock tests, web typecheck/bundle, Linux offscreen QML boot and Android
