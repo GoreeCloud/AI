@@ -18,6 +18,8 @@ from dataclasses import dataclass
 
 from fastapi import HTTPException
 
+from . import context_compaction
+
 MAX_ENTRIES = 64
 MAX_RESPONSE_CHARS = 120_000
 TTL_SECONDS = 300
@@ -30,13 +32,27 @@ def estimate_tokens(messages: list[dict]) -> int:
                for message in messages)
 
 
-def select_context(messages: list[dict], mode: str, keep_last: int) -> list[dict]:
-    """Preserve system instructions in their original order and latest N turns.
+def recommended_input_budget(model_context_window: int, max_output_tokens: int) -> int:
+    """Conservative caller-declared window; never substitutes for provider tokenizer."""
+    safety_margin = max(256, (model_context_window + 9) // 10)
+    return max(0, model_context_window - safety_margin - max_output_tokens)
 
-    Only user/assistant history is trimmed. This does not summarize dropped text.
-    """
+
+def select_context(messages: list[dict], mode: str, keep_last: int,
+                   compact_max_characters: int = 1200,
+                   model_context_window: int | None = None,
+                   max_output_tokens: int = 2048) -> list[dict]:
+    """Keep all system messages, optionally trim, extract or budget old context."""
     if mode == "full":
         return messages
+    if mode == "budget":
+        if model_context_window is None:
+            raise HTTPException(422, "Context window must be supplied for budget mode")
+        return context_compaction.choose_under_budget(
+            messages, keep_last,
+            recommended_input_budget(model_context_window, max_output_tokens),
+            estimate_tokens,
+        )
     count = 0
     selected: set[int] = set()
     for idx in range(len(messages) - 1, -1, -1):
@@ -45,21 +61,48 @@ def select_context(messages: list[dict], mode: str, keep_last: int) -> list[dict
         elif count < keep_last:
             selected.add(idx)
             count += 1
-    return [message for idx, message in enumerate(messages) if idx in selected]
+    reduced = [message for idx, message in enumerate(messages) if idx in selected]
+    if mode != "compact":
+        return reduced
+    extracted = context_compaction.digest(messages, selected, compact_max_characters)
+    if not extracted:
+        return reduced
+    # Treat extracted text as *untrusted, lossy user context*, NOT a system rule.
+    first_recent = next((i for i in range(len(messages))
+                         if i in selected and messages[i]["role"] != "system"), len(messages))
+    output = []
+    for i, message in enumerate(messages):
+        if i == first_recent:
+            output.append({"role": "user", "content": extracted})
+        if i in selected:
+            output.append(message)
+    return output
 
 
-def preview(messages: list[dict], mode: str, keep_last: int) -> dict:
-    selected = select_context(messages, mode, keep_last)
+def preview(messages: list[dict], mode: str, keep_last: int,
+            compact_max_characters: int = 1200,
+            model_context_window: int | None = None,
+            max_output_tokens: int = 2048) -> dict:
+    selected = select_context(messages, mode, keep_last, compact_max_characters,
+                              model_context_window, max_output_tokens)
     original = estimate_tokens(messages)
     used = estimate_tokens(selected)
+    budget = (recommended_input_budget(model_context_window, max_output_tokens)
+              if model_context_window is not None else None)
     return {
         "mode": mode,
         "messages_original": len(messages),
         "messages_sent": len(selected),
-        "messages_omitted": len(messages) - len(selected),
+        "messages_omitted": len(messages) - sum(1 for item in selected
+            if item in messages),
         "estimated_input_tokens_original": original,
         "estimated_input_tokens_sent": used,
         "estimated_input_tokens_reduced": max(0, original - used),
+        "has_extractive_digest": mode == "compact" and any(
+            item["content"].startswith(context_compaction.INTRO) for item in selected),
+        "declared_model_context_window": model_context_window,
+        "recommended_input_budget": budget,
+        "estimated_budget_fits": None if budget is None else used <= budget,
         "estimate_method": "utf8-bytes-divided-by-four-plus-message-overhead; not a tokenizer",
         "sent_to_provider": False,
         "saved_to_disk": False,

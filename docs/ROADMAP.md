@@ -33,7 +33,10 @@ separately before marking any item complete.
   All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
   of QML XMLHttpRequest. Real desktop/provider acceptance remains pending.
 - Opt-in token-efficiency stack: approximate local context preview, last-N
-  history trimming preserving system content, adjustable output token limits,
+  history trimming, deterministic extractive older-history context with
+  inspectable local digest, declared model-window budget auto-fit with hard
+  rejection if the latest prompt cannot fit, all preserving system messages;
+  adjustable output token limits,
   300-second bounded exact-response reuse in RAM, explicit OpenRouter
   response cache hints and Anthropic prompt cache breakpoints. Original
   behavior stays the default; no automatic cloud cache retention.
