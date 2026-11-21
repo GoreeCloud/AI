@@ -12,7 +12,7 @@
 | Mesh | Authenticated service integration | Authenticated read-only capability manifest; not a registered Mesh adapter |
 | Billing | Hard USD limit and actual provider reconciliation | Count guard + optional per-key credit-cap preflight; no USD reservation/reconciliation |
 | Recovery | Encrypted backup and restore exercise | AES-256-GCM offline backup/restore with synthetic test; external recovery planning open |
-| Dependencies | Locks, SBOM and redistribution notices | Locked Python production-dependency vulnerability audit added to CI; complete SBOM, license and Android/Qt review open |
+| Dependencies | Locks, SBOM and redistribution notices | SHA-pinned CI actions, locked Python/web vulnerability scans and Python/npm lockfile component inventories; Android/Qt, licenses, provenance and complete SBOM open |
 | Deployment | TLS, auth, monitoring, rollback | None verified |
 
 No Stable or production release without all applicable approvals.
