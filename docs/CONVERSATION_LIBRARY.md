@@ -28,7 +28,11 @@ The **default local store remains plaintext SQLite**, unless the operator has ex
 
 Deletes remove saved records and current FTS entries but are **not secure erasure** of SQLite pages, backups, exported files or provider copies. Do not run first-open schema changes against important real data without a tested private backup and isolated restore. No automatic retention changes, cloud transfers, identity-issuer deployment, GoreeShield runtime policy, or Wardveil production certification are implied.
 
-The web client exposes these features. Existing Linux Qt and Android Compose clients can continue calling their prior endpoints; native UI parity for the new library actions remains an open task.
+The web client exposes the complete set above. The native Linux Qt and Android
+Compose clients additionally provide save/list/search/open for opt-in local
+snapshots, with cloud consent reset when opening history or starting a new
+chat. Native rename, JSON/Markdown export/import and message-level branching
+remain open for parity; neither native client is qualified on real devices.
 
 ## Development validation
 

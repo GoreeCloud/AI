@@ -28,6 +28,89 @@ ApplicationWindow {
     property var mcpTools: []
     property string renderedImage: ""
     property var imageModels: []
+
+    function saveCurrentConversation() {
+        if (window.busy || threadModel.count < 1 || threadModel.count > 64) {
+            feedback = "Save 1–64 complete messages as a local snapshot."
+            return
+        }
+        var messages = []
+        var firstUser = ""
+        var total = 0
+        for (var i = 0; i < threadModel.count; i++) {
+            var item = threadModel.get(i)
+            if (item.text.length === 0)
+                continue
+            var role = item.role === "You" ? "user" : "assistant"
+            if (!firstUser && role === "user")
+                firstUser = item.text
+            total += item.text.length
+            messages.push({role: role, content: item.text})
+        }
+        if (messages.length < 1 || total > 250000) {
+            feedback = "Conversation exceeds local snapshot limits."
+            return
+        }
+        window.request("POST", "/api/v1/conversations", {
+            title: (firstUser || "Saved conversation").slice(0, 100),
+            messages: messages
+        }, function(_reply) {
+            window.feedback = "Saved privately on the configured local server. No cloud call."
+        })
+    }
+
+    function refreshSavedConversations(term) {
+        if (window.busy)
+            return
+        var text = term.trim()
+        if (text.length === 1 || text.length > 200) {
+            feedback = "Enter at least 2 and at most 200 characters for local search."
+            return
+        }
+        var searching = text.length >= 2
+        var encoded = encodeURIComponent(text).replace(/[!'()*]/g, function(character) {
+            return "%" + character.charCodeAt(0).toString(16).toUpperCase()
+        })
+        var path = searching ? "/api/v1/search/conversations?q=" + encoded :
+            "/api/v1/conversations"
+        window.request("GET", path, null, function(reply) {
+            var entries = searching ? reply.results : reply
+            savedChatList.clear()
+            if (!Array.isArray(entries))
+                throw new Error("Invalid local library response")
+            for (var i = 0; i < entries.length && i < 200; i++) {
+                var entry = entries[i]
+                if (entry && typeof entry.id === "string" && typeof entry.title === "string")
+                    savedChatList.append({id: entry.id, title: entry.title.slice(0, 150)})
+            }
+            window.feedback = savedChatList.count + " local saved conversations listed."
+        })
+    }
+
+    function openSavedConversation(conversationId) {
+        if (!/^[0-9a-fA-F-]{36}$/.test(conversationId)) {
+            feedback = "Invalid local conversation reference."
+            return
+        }
+        window.request("GET", "/api/v1/conversations/" + conversationId, null, function(reply) {
+            if (!Array.isArray(reply.messages))
+                throw new Error("Invalid stored messages")
+            threadModel.clear()
+            for (var i = 0; i < reply.messages.length && i < 64; i++) {
+                var item = reply.messages[i]
+                if (item && (item.role === "user" || item.role === "assistant") &&
+                    typeof item.content === "string" && item.content.length) {
+                    threadModel.append({
+                        role: item.role === "user" ? "You" : "GoreeCloud AI",
+                        text: item.content
+                    })
+                }
+            }
+            window.cloudConsent = false
+            tabs.currentIndex = 0
+            window.feedback = "Opened saved local conversation; cloud consent reset."
+        })
+    }
     property int restRequestCounter: 0
     property var restPendingCallbacks: ({})
 
@@ -176,6 +259,7 @@ ApplicationWindow {
             TabButton { text: "Documents" }
             TabButton { text: "Agents" }
             TabButton { text: "MCP tools" }
+            TabButton { text: "History" }
         }
 
         Label {
@@ -294,9 +378,25 @@ ApplicationWindow {
                         }
                         Item { Layout.fillHeight: true }
                         Button {
+                            text: "Save conversation locally"
+                            enabled: !window.busy && threadModel.count > 0
+                            onClicked: window.saveCurrentConversation()
+                        }
+                        Button {
+                            text: "Saved conversations"
+                            enabled: !window.busy
+                            onClicked: {
+                                tabs.currentIndex = 5
+                                window.refreshSavedConversations("")
+                            }
+                        }
+                        Button {
                             text: "New conversation"
                             enabled: !window.busy
-                            onClicked: threadModel.clear()
+                            onClicked: {
+                                threadModel.clear()
+                                window.cloudConsent = false
+                            }
                         }
                     }
                 }
@@ -513,6 +613,65 @@ ApplicationWindow {
                         ScrollView {
                             Layout.fillWidth: true; Layout.fillHeight: true
                             TextArea { id: toolResults; readOnly: true; wrapMode: TextEdit.Wrap }
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Rectangle {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    color: "#171D2A"; radius: 20
+                    ColumnLayout {
+                        anchors.fill: parent; anchors.margins: 20; spacing: 12
+                        Label {
+                            text: "Private saved conversations"
+                            color: "#F2F4FB"; font.pixelSize: 20
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Only explicitly saved local snapshots appear here. Opening one resets cloud consent."
+                            color: "#CED5E5"; wrapMode: Text.WordWrap
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            TextField {
+                                id: chatHistorySearch
+                                Layout.fillWidth: true
+                                placeholderText: "Search saved chats"
+                                maximumLength: 200
+                                Accessible.name: "Search local chat history"
+                            }
+                            Button {
+                                text: "Search"
+                                enabled: !window.busy && chatHistorySearch.text.trim().length >= 2
+                                onClicked: window.refreshSavedConversations(chatHistorySearch.text)
+                            }
+                            Button {
+                                text: "Refresh"
+                                enabled: !window.busy
+                                onClicked: {
+                                    chatHistorySearch.text = ""
+                                    window.refreshSavedConversations("")
+                                }
+                            }
+                        }
+                        ListView {
+                            Layout.fillWidth: true; Layout.fillHeight: true
+                            model: ListModel { id: savedChatList }
+                            clip: true
+                            spacing: 8
+                            delegate: Button {
+                                width: ListView.view.width
+                                text: title
+                                Accessible.name: "Open saved conversation " + title
+                                onClicked: window.openSavedConversation(id)
+                            }
+                        }
+                        Button {
+                            text: "Save current chat locally"
+                            enabled: !window.busy && threadModel.count > 0
+                            onClicked: window.saveCurrentConversation()
                         }
                     }
                 }

@@ -5,6 +5,7 @@ which may follow redirects with bearer credentials. No secrets are logged.
 """
 import json
 import re
+from urllib.parse import parse_qs
 
 from chat_stream import checked_endpoint
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
@@ -16,9 +17,39 @@ _MAX_RESPONSE = 16_000_000
 
 
 def checked_route(path: str) -> str:
-    if (not isinstance(path, str) or len(path) > 256
-            or not _ROUTE.fullmatch(path) or "//" in path or ".." in path.split("/")):
+    """Allow only known API paths and a bounded conversation-search query.
+
+    Never permit arbitrary query strings on routes that might log credentials,
+    accept state changes, or direct network calls.
+    """
+    if not isinstance(path, str) or len(path) > 950:
         raise ValueError("Unsupported API route")
+    if "?" not in path:
+        if (len(path) > 256 or not _ROUTE.fullmatch(path)
+                or "//" in path or ".." in path.split("/")):
+            raise ValueError("Unsupported API route")
+        return path
+    base, _, query = path.partition("?")
+    if (base != "/api/v1/search/conversations"
+            or not query or len(query) > 860
+            or not re.fullmatch(r"[a-zA-Z0-9_.~%+&=-]+", query)
+            or re.search(r"%(?![0-9a-fA-F]{2})", query)):
+        raise ValueError("Unsupported API search query")
+    try:
+        params = parse_qs(query, keep_blank_values=True, strict_parsing=True,
+                          encoding="utf-8", errors="strict", max_num_fields=2)
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError("Unsupported API search query") from exc
+    if (set(params) - {"q", "limit"} or len(params.get("q", [])) != 1
+            or len(params.get("limit", [])) > 1):
+        raise ValueError("Unsupported API search query")
+    value = params["q"][0]
+    if not 2 <= len(value) <= 200 or any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError("Unsupported API search query")
+    if "limit" in params:
+        amount = params["limit"][0]
+        if not amount.isascii() or not amount.isdecimal() or not 1 <= int(amount) <= 50:
+            raise ValueError("Unsupported API search query")
     return path
 
 
@@ -124,8 +155,8 @@ class SafeRestBridge(QObject):
             return
         try:
             result = json.loads(data.decode("utf-8", errors="strict"))
-            if not isinstance(result, dict):
-                raise ValueError("Expected JSON object")
+            if not isinstance(result, (dict, list)):
+                raise ValueError("Expected JSON object or list")
             self.succeeded.emit(request_id, json.dumps(result, separators=(",", ":"),
                                                      ensure_ascii=False))
         except (ValueError, UnicodeError, TypeError, RecursionError):
