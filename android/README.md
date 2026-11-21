@@ -26,7 +26,13 @@ tests cover bounded SSE frames and cancellation state; physical-device
 streaming, background lifecycle, accessibility and live-provider testing
 remain unverified.
 
-Native chat supports local/cloud consent; images have separate paid-request
+Native chat supports local/cloud consent, selectable full/4/8/16 message
+history sent to the model, 256–2048 response-token caps, and deliberate
+opt-in to local complete-answer RAM reuse or OpenRouter response caching.
+These are server options; the app retains no cached model output on-device.
+Opening or starting a new chat resets caching consent; cloud consent remains
+separately required. The source and pure policy tests do not prove real
+provider cache hits or on-device behavior. Images have separate paid-request
 approval. The image studio can now deliberately list and select read-only
 OpenRouter Image API model capabilities via the owner-authenticated API;
 discovery does not itself authorize paid generation. Markdown documents,

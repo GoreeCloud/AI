@@ -100,9 +100,19 @@ internal object AiApi {
     }
 
     fun chatBody(history: List<Pair<String, String>>, provider: String, model: String,
-                 fallback: Boolean, cloudConsent: Boolean) =
+                 fallback: Boolean, cloudConsent: Boolean,
+                 recentContextMessages: Int = 0, maxOutputTokens: Int = 2048,
+                 reuseLocalResponse: Boolean = false,
+                 providerResponseCache: Boolean = false) =
         JSONObject().put("messages", JSONArray().apply {
             history.forEach { (role, content) -> put(JSONObject().put("role", role).put("content", content)) }
         }).put("provider", provider).put("model", model).put("allow_local_fallback", fallback)
           .put("allow_cloud_processing", cloudConsent)
+          .put("context_mode", if (recentContextMessages > 0) "last_n" else "full")
+          .put("context_messages", NativeTokenPolicy.recentCount(recentContextMessages))
+          .put("max_output_tokens", NativeTokenPolicy.outputCap(maxOutputTokens))
+          .put("local_response_cache", reuseLocalResponse)
+          .put("provider_response_cache",
+               NativeTokenPolicy.providerResponseCache(provider, cloudConsent,
+                   providerResponseCache))
 }

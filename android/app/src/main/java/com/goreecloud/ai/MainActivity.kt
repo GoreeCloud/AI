@@ -77,6 +77,10 @@ private fun AiWorkspace() {
     var fallback by remember { mutableStateOf(false) }
     var cloudConsent by remember { mutableStateOf(false) }
     var streamResponses by remember { mutableStateOf(true) }
+    var recentContextMessages by remember { mutableStateOf(0) }
+    var maxOutputTokens by remember { mutableStateOf(2048) }
+    var reuseLocalResponse by remember { mutableStateOf(false) }
+    var providerResponseCache by remember { mutableStateOf(false) }
     var streamingControl by remember { mutableStateOf<StreamControl?>(null) }
     var streamingJob by remember { mutableStateOf<Job?>(null) }
     val chat = remember { mutableStateListOf<Pair<String, String>>() }
@@ -305,6 +309,8 @@ private fun AiWorkspace() {
                                             }
                                         }
                                         cloudConsent = false
+                                        reuseLocalResponse = false
+                                        providerResponseCache = false
                                         showChatLibrary = false
                                         status = "Loaded local snapshot · cloud approval reset"
                                     }
@@ -353,12 +359,19 @@ private fun AiWorkspace() {
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { provider = if (provider == "auto") "ollama" else "auto" }) {
+                        Button(onClick = {
+                            provider = if (provider == "auto") "ollama" else "auto"
+                            cloudConsent = false
+                            reuseLocalResponse = false
+                            providerResponseCache = false
+                        }) {
                             Text(if (provider == "auto") "Auto · OpenRouter" else "Local · Ollama")
                         }
                         Button(enabled = !busy, onClick = {
                             chat.clear()
                             cloudConsent = false
+                            reuseLocalResponse = false
+                            providerResponseCache = false
                         }) { Text("New chat") }
                     }
                     Button(enabled = !busy, onClick = {
@@ -397,6 +410,38 @@ private fun AiWorkspace() {
                         Checkbox(checked = streamResponses, onCheckedChange = { streamResponses = it })
                         Text("Stream answer · cancel anytime", style = MaterialTheme.typography.bodySmall)
                     }
+                    Text("Token efficiency", style = MaterialTheme.typography.titleSmall)
+                    Button(enabled = !busy, onClick = {
+                        recentContextMessages = when (recentContextMessages) {
+                            0 -> 4; 4 -> 8; 8 -> 16; else -> 0
+                        }
+                    }) {
+                        Text(if (recentContextMessages == 0) "History: full"
+                             else "History: last $recentContextMessages messages")
+                    }
+                    Button(enabled = !busy, onClick = {
+                        maxOutputTokens = when (maxOutputTokens) {
+                            2048 -> 1024; 1024 -> 512; 512 -> 256; else -> 2048
+                        }
+                    }) { Text("Maximum answer: $maxOutputTokens tokens") }
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Checkbox(checked = reuseLocalResponse,
+                            enabled = !busy && (!streamResponses || fallback),
+                            onCheckedChange = { reuseLocalResponse = it })
+                        Text("Reuse identical complete answers in server RAM (5 min)",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Checkbox(checked = providerResponseCache,
+                            enabled = !busy && provider != "ollama",
+                            onCheckedChange = { providerResponseCache = it })
+                        Text("Allow OpenRouter to cache identical requests (5 min)",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text("Caches default off. Plaintext answers may stay in API RAM; " +
+                        "OpenRouter caching may retain prompts. Cloud consent is separate.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (streamResponses && fallback) {
                         Text("Local fallback uses a complete non-streaming response.",
                             style = MaterialTheme.typography.bodySmall,
@@ -421,7 +466,9 @@ private fun AiWorkspace() {
                                 streamingJob = scope.launch {
                                     try {
                                         ChatStream.run(endpoint, token,
-                                            AiApi.chatBody(history, provider, model, false, cloudConsent),
+                                            AiApi.chatBody(history, provider, model, false, cloudConsent,
+                                                recentContextMessages, maxOutputTokens,
+                                                false, providerResponseCache),
                                             control) { event ->
                                             when (event.optString("type")) {
                                                 "delta" -> if (index < chat.size &&
@@ -448,7 +495,9 @@ private fun AiWorkspace() {
                                 }
                             } else {
                                 invoke("/api/v1/chat",
-                                    AiApi.chatBody(history, provider, model, fallback, cloudConsent)) {
+                                    AiApi.chatBody(history, provider, model, fallback, cloudConsent,
+                                        recentContextMessages, maxOutputTokens,
+                                        reuseLocalResponse, providerResponseCache)) {
                                     chat.add("assistant" to it.optString("content"))
                                     status = "Answered via " + it.optString("provider")
                                 }

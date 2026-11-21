@@ -38,6 +38,13 @@ prompts or tokens through logging or command-line arguments. The regular
 non-streaming request implementation remains available for server-supported
 local fallback. The Qt Quick interface
 supports streamed and complete-response chat with cancel, model routing,
+native context-window latest-4/8/16 message trimming, 256–2048-token
+output cap selection, explicitly opt-in local complete-answer RAM caching
+and OpenRouter edge response cache headers (separate cloud consent). These
+are server options; no response cache data is saved in the desktop client.
+Opening or starting a new conversation resets cache-consent toggles.
+No live model or physical desktop token-savings acceptance was performed.
+It also supports
 read-only discovered image models, image generation preview, Markdown document CRUD,
 agent planning and MCP tool discovery/explicit invocation. A new native History
 tab supports owner-approved chat snapshots, listing, opening and local FTS
