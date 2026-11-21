@@ -20,6 +20,10 @@ ApplicationWindow {
     property bool allowFallback: false
     property bool cloudConsent: false
     property bool streamResponses: true
+    property int recentContextMessages: 0
+    property int maxOutputTokens: 2048
+    property bool reuseLocalResponse: false
+    property bool useProviderResponseCache: false
     property int activeStreamRow: -1
     property bool busy: false
     property string feedback: ""
@@ -108,6 +112,8 @@ ApplicationWindow {
                 }
             }
             window.cloudConsent = false
+            window.reuseLocalResponse = false
+            window.useProviderResponseCache = false
             tabs.currentIndex = 0
             window.feedback = "Opened saved local conversation; cloud consent reset."
         })
@@ -169,7 +175,13 @@ ApplicationWindow {
             model: model,
             provider: provider,
             allow_local_fallback: allowFallback,
-            allow_cloud_processing: cloudConsent
+            allow_cloud_processing: cloudConsent,
+            context_mode: recentContextMessages > 0 ? "last_n" : "full",
+            context_messages: recentContextMessages > 0 ? recentContextMessages : 8,
+            max_output_tokens: maxOutputTokens,
+            local_response_cache: reuseLocalResponse && !(streamResponses && !allowFallback),
+            provider_response_cache: useProviderResponseCache &&
+                cloudConsent && provider !== "ollama"
         }
         if (streamResponses && !allowFallback) {
             if (token.length === 0) {
@@ -419,6 +431,44 @@ ApplicationWindow {
                             Accessible.name: "Stream chat response"
                         }
                         Label {
+                            text: "Token efficiency"; font.bold: true
+                            color: "#F2F4FB"
+                        }
+                        Label { text: "History context"; color: "#CED5E5" }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            model: ["Full history", "Latest 4 messages", "Latest 8 messages", "Latest 16 messages"]
+                            onCurrentIndexChanged: window.recentContextMessages = [0, 4, 8, 16][currentIndex]
+                            Accessible.name: "Conversation history sent to model"
+                        }
+                        Label { text: "Maximum response tokens"; color: "#CED5E5" }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            model: ["2048 (default)", "1024", "512", "256"]
+                            onCurrentIndexChanged: window.maxOutputTokens = [2048, 1024, 512, 256][currentIndex]
+                            Accessible.name: "Maximum generated tokens"
+                        }
+                        CheckBox {
+                            text: "Reuse identical complete answers (5m RAM)"
+                            checked: window.reuseLocalResponse
+                            enabled: !window.streamResponses || window.allowFallback
+                            onToggled: window.reuseLocalResponse = checked
+                            Accessible.name: "Opt in to local response cache"
+                        }
+                        CheckBox {
+                            text: "Allow OpenRouter response caching (5m)"
+                            checked: window.useProviderResponseCache
+                            enabled: window.provider !== "ollama"
+                            onToggled: window.useProviderResponseCache = checked
+                            Accessible.name: "Opt in to OpenRouter response caching"
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap; color: "#CED5E5"; font.pixelSize: 11
+                            text: "Cache choices default off. RAM caches hold plaintext model output temporarily. " +
+                                "Provider caches may retain private text; cloud consent remains separate."
+                        }
+                        Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             color: "#CED5E5"
@@ -453,6 +503,8 @@ ApplicationWindow {
                             onClicked: {
                                 threadModel.clear()
                                 window.cloudConsent = false
+                                window.reuseLocalResponse = false
+                                window.useProviderResponseCache = false
                             }
                         }
                     }
