@@ -19,6 +19,8 @@ ApplicationWindow {
     property string model: "openrouter/auto"
     property bool allowFallback: false
     property bool cloudConsent: false
+    property bool streamResponses: true
+    property int activeStreamRow: -1
     property bool busy: false
     property string feedback: ""
     property string documentId: ""
@@ -78,16 +80,59 @@ ApplicationWindow {
             var current = threadModel.get(i)
             chain.push({role: current.role === "You" ? "user" : "assistant", content: current.text})
         }
-        request("POST", "/api/v1/chat", {
+        var payload = {
             messages: chain,
             model: model,
             provider: provider,
             allow_local_fallback: allowFallback,
             allow_cloud_processing: cloudConsent
-        }, function(reply) {
-            threadModel.append({role: "GoreeCloud AI", text: reply.content})
-            feedback = "Answered via " + reply.provider + " · " + reply.model
-        })
+        }
+        if (streamResponses && !allowFallback) {
+            if (token.length === 0) {
+                feedback = "Enter an owner token before sending a request."
+                return
+            }
+            activeStreamRow = threadModel.count
+            threadModel.append({role: "GoreeCloud AI", text: ""})
+            busy = true
+            feedback = "Receiving streamed answer…"
+            streamBridge.start(endpoint, token, JSON.stringify(payload))
+        } else {
+            request("POST", "/api/v1/chat", payload, function(reply) {
+                threadModel.append({role: "GoreeCloud AI", text: reply.content})
+                feedback = "Answered via " + reply.provider + " · " + reply.model
+            })
+        }
+    }
+
+    Connections {
+        target: streamBridge
+        function onDelta(value) {
+            if (window.activeStreamRow < 0 || window.activeStreamRow >= threadModel.count)
+                return
+            var row = threadModel.get(window.activeStreamRow)
+            threadModel.setProperty(window.activeStreamRow, "text", row.text + value)
+        }
+        function onCompleted(resultProvider, resultModel) {
+            window.activeStreamRow = -1
+            window.busy = false
+            window.feedback = "Answered via " + resultProvider + " · " + resultModel
+        }
+        function onFailed(message) {
+            if (window.activeStreamRow >= 0 &&
+                window.activeStreamRow < threadModel.count &&
+                threadModel.get(window.activeStreamRow).text.length === 0) {
+                threadModel.remove(window.activeStreamRow)
+            }
+            window.activeStreamRow = -1
+            window.busy = false
+            window.feedback = message
+        }
+        function onStopped() {
+            window.activeStreamRow = -1
+            window.busy = false
+            window.feedback = "Stream cancelled; provider usage may already be billable."
+        }
     }
 
     header: ToolBar {
@@ -181,10 +226,20 @@ ApplicationWindow {
                             implicitHeight: 95
                             Accessible.name: "Chat message"
                         }
-                        Button {
-                            text: window.busy ? "Working..." : "Send"
-                            enabled: !window.busy && chatPrompt.text.trim().length > 0
-                            onClicked: window.sendChat()
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Button {
+                                text: window.busy ? "Working..." :
+                                    (window.streamResponses && !window.allowFallback ? "Stream answer" : "Send")
+                                enabled: !window.busy && chatPrompt.text.trim().length > 0
+                                onClicked: window.sendChat()
+                            }
+                            Button {
+                                text: "Cancel stream"
+                                visible: window.busy && window.activeStreamRow >= 0
+                                enabled: visible
+                                onClicked: streamBridge.cancel()
+                            }
                         }
                     }
                 }
@@ -216,6 +271,21 @@ ApplicationWindow {
                             checked: window.allowFallback
                             onToggled: window.allowFallback = checked
                         }
+                        CheckBox {
+                            text: "Stream answer with cancel"
+                            checked: window.streamResponses
+                            onToggled: window.streamResponses = checked
+                            Accessible.name: "Stream chat response"
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: "#CED5E5"
+                            font.pixelSize: 11
+                            text: window.allowFallback && window.streamResponses ?
+                                "Local fallback requires a non-streaming request." :
+                                "Streaming may incur provider usage before cancellation."
+                        }
                         Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -223,7 +293,11 @@ ApplicationWindow {
                             text: "Paid OpenRouter calls require a configured provider key. Local model selection never routes to cloud."
                         }
                         Item { Layout.fillHeight: true }
-                        Button { text: "New conversation"; onClicked: threadModel.clear() }
+                        Button {
+                            text: "New conversation"
+                            enabled: !window.busy
+                            onClicked: threadModel.clear()
+                        }
                     }
                 }
             }

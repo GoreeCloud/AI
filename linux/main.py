@@ -1,7 +1,8 @@
 """Native Linux entry point. No key is persisted on disk by this client."""
-from pathlib import Path
 import sys
+from pathlib import Path
 
+from chat_stream import ChatStreamBridge
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
@@ -12,6 +13,8 @@ def main() -> int:
     app.setApplicationName("GoreeCloud AI")
     app.setOrganizationName("GoreeCloud")
     engine = QQmlApplicationEngine()
+    bridge = ChatStreamBridge()
+    engine.rootContext().setContextProperty("streamBridge", bridge)
     path = Path(__file__).resolve().parent / "Main.qml"
     engine.load(QUrl.fromLocalFile(str(path)))
     if not engine.rootObjects():

@@ -15,6 +15,9 @@ separately before marking any item complete.
   image models without triggering paid generation.
 - Android Compose has streamed chat/cancellation, host-side SSE framing tests
   and no new cloud consent bypass; real device/provider qualification pending.
+- Native Qt Linux chat uses Qt Network SSE streaming and explicit cancellation
+  with bounded frame decoding, redirect refusal and synthetic localhost tests;
+  real desktop and provider acceptance remain pending.
 - OpenRouter public image-model discovery, web selector, bounded provider
   response streaming and image format checks with no paid test calls.
 - API mock tests, web typecheck/bundle, Linux offscreen QML boot and Android
@@ -78,9 +81,9 @@ separately before marking any item complete.
 - Tool-capable agents with durable state, approvals, budgets, operation audit,
   sandbox execution, MCP delegated auth and policy decision points.
 - OpenRouter model/image capability discovery, costs, pricing/version policy,
-  routing profiles and Linux/native parity for streaming/cancellation;
-  Android SSE is source-implemented but real-device and lifecycle acceptance
-  remain open.
+  routing profiles and physical-device native streaming/cancellation
+  qualification; Android Compose and Linux Qt SSE are source-implemented,
+  but live-provider, lifecycle and real-device acceptance remain open.
 - Voice, transcription, TTS, editing history, media library and offline-first sync.
 
 ## P2 — ecosystem adoption
