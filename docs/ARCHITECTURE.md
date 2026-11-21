@@ -7,6 +7,12 @@ production deployment.
 
 - React web, Qt Quick 6.12 Linux and Kotlin Compose Android use an authenticated
   versioned FastAPI API, with server-only OpenRouter keys and local Ollama.
+- Linux native chat streaming uses Qt Network with manual redirect refusal,
+  bounded incremental SSE parser (500KB total wire input, max 100KB line
+  and 120K response characters), and an explicit QNetworkReply abort.
+  It retains separate cloud consent, non-streaming local fallback, and no
+  disk-based client secret storage. Synthetic loopback and headless Qt
+  tests do not establish real provider/device or lifecycle acceptance.
 - Chat history stays in client memory unless saved as an explicit local snapshot.
 - Documents and conversation snapshots remain plaintext SQLite by default.
   Optional SQLCipher encrypts the entire live database, including FTS5
