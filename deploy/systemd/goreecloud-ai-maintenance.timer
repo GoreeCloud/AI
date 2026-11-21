@@ -1,0 +1,13 @@
+# SAMPLE ONLY: Do NOT enable automatically.
+[Unit]
+Description=Opt-in GoreeCloud AI local data retention timer
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 UTC
+AccuracySec=5m
+RandomizedDelaySec=20m
+Persistent=false
+Unit=goreecloud-ai-maintenance.service
+
+[Install]
+WantedBy=timers.target

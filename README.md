@@ -18,7 +18,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Android | Kotlin Compose with pinned GoreeCloud UI Material 3 Expressive, incremental SSE chat/cancel, images, docs, agents and MCP | Physical device, signed release and file-picker parity |
 | Documents | SQLite CRUD and FTS5 with optional SQLCipher at-rest encryption, bounded Linux import subprocess/opt-in Bubblewrap isolation, export and cited retrieval | Deployed encrypted mode, complete sandbox qualification and semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
-| Privacy | Cloud opt-in, metadata-only approval receipts, local snapshots, request-count cap, opt-in SQLCipher-encrypted SQLite/FTS, non-overwriting offline key rotation, AES-GCM offline backup | Live encryption activation, operator key custody, policy acceptance, secure erasure and five-MIPS qualification |
+| Privacy | Consent-gated cloud processing, local snapshots and approval receipts, opt-in SQLCipher/FTS and backup, explicitly gated local retention CLI plus optional timer template | Deployment/key custody, hosted scheduler, secure erasure, policy acceptance and five-MIPS qualification |
 
 OpenRouter is an external model provider and may charge per request, token, image
 or other unit. The daily request admission limit is **not a money limit**.

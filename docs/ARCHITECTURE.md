@@ -71,7 +71,11 @@ production deployment.
   no-referrer headers. Web and Linux clients permit only HTTPS or loopback HTTP.
   Android release is HTTPS-only; emulator HTTP is debug-only.
 - Owner-only deletion removes live document rows/FTS terms and conversation
-  snapshots. SQLite freelist pages/backups are not securely wiped.
+  snapshots. A separate locally invoked retention CLI offers read-only preview
+  and opt-in transactional apply of expired snapshots, approval receipts and
+  older request admission rows; optional systemd templates are not installed.
+  No public API or default scheduled work was added, and SQLite pages/backups
+  are not securely wiped. See docs/PRIVACY_MAINTENANCE.md.
 
 ## Missing production gates
 

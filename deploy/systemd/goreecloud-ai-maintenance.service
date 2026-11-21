@@ -1,0 +1,31 @@
+# SAMPLE ONLY. Not installed, enabled, tested on the VPS, or a production unit.
+# Replace every host-specific path/identity after verifying permissions and backups.
+[Unit]
+Description=GoreeCloud AI local privacy retention maintenance (opt-in)
+Documentation=https://github.com/GoreeCloud/AI/blob/main/docs/PRIVACY_MAINTENANCE.md
+ConditionPathExists=/var/lib/goreecloud-ai/ai.sqlite3
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=goreecloud-ai
+Group=goreecloud-ai
+WorkingDirectory=/opt/goreecloud-ai/server
+EnvironmentFile=/etc/goreecloud/ai-maintenance.env
+ExecStart=/opt/goreecloud-ai/server/.venv/bin/python -m app.maintenance --apply
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/goreecloud-ai
+RestrictSUIDSGID=true
+LockPersonality=true
+LimitNOFILE=1024
+
+# Intentionally NOT adding secrets or a network access claim.
+# The operator must verify environment custody, Python runtime and SQLCipher,
+# the actual DB path and rollback before installing this template.
