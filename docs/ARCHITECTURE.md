@@ -57,10 +57,12 @@ production deployment.
 
 ## Missing production gates
 
-- **GoreeCloud Identity:** the optional pinned JWKS verifier checks RS256,
-  issuer, audience, owner subject and required scope. No verified GoreeCloud
-  Identity issuer/claims contract, MFA, delegated per-route scopes, tenant
-  isolation or operational key lifecycle yet.
+- **GoreeCloud Identity:** pinned-JWKS RS256 verifier checks issuer, audience,
+  exact owner subject and baseline scope; source-tested opt-in route capability
+  scopes distinguish read, write, inference, cloud, paid, tools and admin,
+  with fail-closed unknown routes. No verified GoreeCloud Identity issuer,
+  MFA, delegated multiuser permissions, session lifecycle, tenant isolation
+  or live trusted key-rotation contract yet.
 - **GoreeShield:** no production policy engine, encrypted storage, fine-grained
   consent record, private-data retention schedule or cryptographic erasure.
 - **Wardveil:** Linux parser subprocess resource bounds plus optional,
@@ -78,8 +80,11 @@ production deployment.
 ## Optional security features
 
 - Operator-controlled OIDC adapter verifies offline pinned RS256 JWKS keys,
-  issuer, audience, owner subject, expiry and owner scope. It is not yet
-  connected to the authoritative GoreeCloud Identity source issuer or sessions.
+  issuer, audience, owner subject, expiry and owner scope. Optional strict
+  capability checks deny operations outside their read/write/inference/cloud/
+  paid/tools/admin scopes. Default owner mode and the unextended signed-owner
+  preview remain backwards compatible. No authoritative issuer integration
+  or session lifecycle verification has occurred.
 - Optional OpenRouter provider-key budget preflight checks the remote
   key's assigned credit limit and remaining balance before cloud inference.
   It is not a local USD reservation or end-to-end billing guarantee.

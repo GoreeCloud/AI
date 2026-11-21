@@ -55,7 +55,29 @@ a trusted HTTPS issuer, resource audience, exact owner subject, scope and local
 mode-0600 JWKS JSON. The verifier accepts only RS256 signatures and validates
 token times, issuer, audience, owner and scope. It does **not** verify actual
 GoreeCloud Identity issuer integration, handle sessions, OIDC discovery,
-delegated per-route scopes or multi-tenant authorization.
+a verified GoreeCloud Identity issuer, provider sessions or multi-tenant
+authorization. Source-only optional per-route capability checks are available
+with GOREECLOUD_AI_OIDC_ENFORCE_CAPABILITY_SCOPES=true. In this mode a signed
+token must still have the existing owner subject and baseline required owner
+scope, **plus** the route scope:
+- goreecloud.ai.read: model/document/library metadata, retrieval search,
+  local export and preview/privacy status
+- goreecloud.ai.write: create/edit/delete documents and saved chats, import
+- goreecloud.ai.inference: chat, stream, agent plan and local document Q&A
+- goreecloud.ai.cloud: additionally required whenever inference selects
+  OpenRouter or a paid image call is made
+- goreecloud.ai.paid: paid image generation (also requires cloud capability,
+  per-image approval and provider budget preflight)
+- goreecloud.ai.tools: approved agent document reads and MCP discovery/calls
+- goreecloud.ai.admin: retention deletion and consent-receipt clearing
+
+The source checks exact space-delimited OAuth scope claims from the pinned
+RS256 JWT. Unknown protected routes fail closed when strict mode is enabled.
+This is **not** an end-to-end delegated Identity issuer/session contract; the
+single-owner subject still governs every request. The flag is opt-in to avoid
+breaking current developer-owner clients; it should be evaluated and explicitly
+enforced before any production integration. Cloud permission does not replace
+per-request content consent, and paid permission does not replace approval.
 
 GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY=true fails closed before cloud
 inference unless the pinned provider GET /api/v1/key endpoint reports a positive

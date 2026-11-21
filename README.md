@@ -12,7 +12,7 @@ Open WebUI, AnythingLLM or LibreChat.
 
 | Surface | Implemented in source | Still missing |
 |---|---|---|
-| Shared API | Owner token or optional offline-JWKS scoped signed-token adapter, OpenRouter/Ollama, streaming, SSE and images | Verified GoreeCloud Identity issuer, dollar-cost reconciliation, live providers |
+| Shared API | Owner token or optional pinned-JWKS RS256 JWT adapter with opt-in read/write/inference/cloud/paid/tools/admin scopes, OpenRouter/Ollama, streaming, SSE and images | Verified GoreeCloud Identity issuer, dollar-cost reconciliation, live providers |
 | Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
@@ -107,7 +107,13 @@ test evidence and remaining Wardveil protections.
 
 Optional scoped OIDC/JWT verification uses a pinned, operator-managed RS256
 public JWKS file. No fallback to the owner token is allowed while this mode
-is active. The integration with a real GoreeCloud Identity issuer is unverified.
+is active. Optional GOREECLOUD_AI_OIDC_ENFORCE_CAPABILITY_SCOPES=true requires
+both the baseline exact-owner scope and a route-specific AI capability scope:
+read, write, inference, tools, admin or paid. Cloud inference and paid images
+also require cloud capability plus their existing explicit consent/approval.
+Owner-token development mode remains unchanged. An unmapped protected route
+fails closed in strict mode. These are **source-tested adapter scopes**, not
+delegated user access, live GoreeCloud Identity integration, or MFA verification.
 
 Offline AES-256-GCM encrypted SQLite backups can be created and restored by
 the operator-only CLI; they do **not** encrypt the running database. An owner
@@ -126,6 +132,8 @@ Details, command examples and key handling:
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python linux/smoke.py
     cd android && gradle :app:assembleDebug
 
+The required tracked docs/ROADMAP.md, docs/FEATURES.md and
+docs/OBJECTIVES.md describe current capabilities and unsatisfied release gates.
 GitHub Actions checks all four tracks; Python production and web production
 dependency advisories are audited in CI. A deterministic two-ecosystem
 lockfile component inventory is uploaded as a short-retention CI artifact;

@@ -19,7 +19,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from . import import_sandbox, mcp_tools, providers, storage
-from .security import require_owner
+from .security import require_capability, require_owner
 
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
               openapi_url="/api/openapi.json")
@@ -125,9 +125,10 @@ def _selected_provider(requested: str, cloud_approved: bool) -> str:
 
 
 @app.post("/api/v1/chat", dependencies=[Depends(require_owner)])
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, http_request: Request):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        require_capability(http_request, "cloud")
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat", approved=request.allow_cloud_processing)
     return await providers.chat([m.model_dump() for m in request.messages],
@@ -135,11 +136,12 @@ async def chat(request: ChatRequest):
 
 
 @app.post("/api/v1/chat/stream", dependencies=[Depends(require_owner)])
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, http_request: Request):
     if request.allow_local_fallback:
         raise HTTPException(422, "Fallback is only supported for non-streaming inference")
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        require_capability(http_request, "cloud")
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("chat-stream", approved=request.allow_cloud_processing)
 
@@ -176,10 +178,11 @@ def checked_reference(value: str | None) -> str | None:
 
 
 @app.post("/api/v1/images", dependencies=[Depends(require_owner)])
-async def images(request: ImageRequest):
+async def images(request: ImageRequest, http_request: Request):
     if not request.approve_paid_generation:
         raise HTTPException(403, "Image requests require explicit paid-call approval")
     reference = checked_reference(request.reference_data_url)
+    require_capability(http_request, "cloud")
     await providers.verify_cloud_key_budget()
     storage.admit_cloud_call("image", approved=request.approve_paid_generation)
     return await providers.image_request(request.prompt, request.model, reference)
@@ -302,9 +305,10 @@ async def extract_document(file: UploadFile = File(...)):
 
 
 @app.post("/api/v1/agents/plan", dependencies=[Depends(require_owner)])
-async def agent_plan(request: AgentPlanRequest):
+async def agent_plan(request: AgentPlanRequest, http_request: Request):
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        require_capability(http_request, "cloud")
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("agent-plan", approved=request.allow_cloud_processing)
     answer = await providers.chat([
@@ -373,6 +377,7 @@ def privacy_status():
         "conversation_retention_days": storage.conversation_retention_days(),
         "consent_receipt_retention_days": storage._consent_retention_days(),
         "auth_mode": os.getenv("GOREECLOUD_AI_AUTH_MODE", "owner"),
+        "oidc_capability_scopes_enabled": os.getenv("GOREECLOUD_AI_OIDC_ENFORCE_CAPABILITY_SCOPES", "false").lower() == "true",
         "provider_key_cap_required": os.getenv("GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY", "false").lower() == "true",
         "document_storage": "local-plaintext-sqlite",
         "document_import_isolation": import_sandbox.import_mode(),
@@ -432,7 +437,7 @@ def remove_conversation(conversation_id: UUID):
 
 
 @app.post("/api/v1/research/answer", dependencies=[Depends(require_owner)])
-async def research_answer(request: ResearchRequest):
+async def research_answer(request: ResearchRequest, http_request: Request):
     """Retrieve local excerpts and provide explicit source IDs for review."""
     matches = storage.search_documents(request.question, request.max_sources)
     if not matches:
@@ -440,6 +445,7 @@ async def research_answer(request: ResearchRequest):
                 "sources": [], "provider": "none", "sent_to_cloud": False}
     selected = _selected_provider(request.provider, request.allow_cloud_processing)
     if selected == "openrouter":
+        require_capability(http_request, "cloud")
         await providers.verify_cloud_key_budget()
         storage.admit_cloud_call("research", approved=request.allow_cloud_processing)
     excerpts = [
