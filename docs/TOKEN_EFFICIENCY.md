@@ -10,7 +10,7 @@ billing savings, production availability or real-user data tests.
 | Context trimming | Full history | Optional last_n or compact extractive older snippets, and budget auto-fit with declared model_context_window; all preserve system messages in order | Request memory only; no persistent summary; can lose important context |
 | Context preview | Manually requested | Reports approximate input-token counts and omitted messages using UTF-8 bytes/4 plus message overhead | No model call or disk write; no message contents returned |
 | Output cap | max_output_tokens=2048 | Optional 64–2048 caps OpenRouter max_tokens and (when changed) Ollama options.num_predict | Lower values may truncate useful replies |
-| Local exact-response cache | local_response_cache=false | On identical completed requests, may skip inference and reuse the last model answer without replaying usage or generation ID | Plaintext model output in server process RAM up to 300s, 64 LRU entries; no disk, SQLite or cross-worker sharing |
+| Local exact-response cache | local_response_cache=false | On identical completed chat or provider-terminal SSE requests, may skip inference and replay the model answer without stale usage or generation ID | Plaintext model output in server process RAM up to 300s, 64 LRU entries; no disk, SQLite or cross-worker sharing |
 | OpenRouter response cache | provider_response_cache=false | Sends X-OpenRouter-Cache: true and X-OpenRouter-Cache-TTL: 300 to OpenRouter chat/stream | Provider-managed retention; reported HIT/MISS/UNKNOWN metadata; a HIT suppresses replayed provider usage/generation IDs, no independent dollar reconciliation |
 | OpenRouter explicit prompt caching | provider_prompt_cache=false | Explicit Anthropic-model-only cache_control ephemeral breakpoint, optional stable cache_session_id | Provider-side repeated prompt prefix; cache writes may cost more, and many short/changed prompts never hit |
 
@@ -94,7 +94,10 @@ are in docs/LOCAL_SUMMARIES.md.
   Affects only the current worker and never the OpenRouter edge cache.
 - POST /api/v1/chat and /api/v1/chat/stream: strict inference/cloud permission
   remains required. Unsupported provider cache combinations fail before
-  outbound contact. Local RAM cache is non-stream only.
+  outbound contact. Local RAM cache is available to completed non-stream and fully terminated SSE
+  streaming responses; interrupted/errored/unconfirmed upstream streams are
+  never stored. Replayed SSE emits bounded deltas and a cache-hit done event
+  without sending new model requests. See docs/STREAM_RESPONSE_CACHE.md.
 - Default request behavior is unchanged: full history, 2048 output-token cap,
   no local cache or explicit third-party cache, ordinary cloud consent gate.
 

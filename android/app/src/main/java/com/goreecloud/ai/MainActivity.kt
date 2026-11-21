@@ -426,9 +426,9 @@ private fun AiWorkspace() {
                     }) { Text("Maximum answer: $maxOutputTokens tokens") }
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Checkbox(checked = reuseLocalResponse,
-                            enabled = !busy && (!streamResponses || fallback),
+                            enabled = !busy,
                             onCheckedChange = { reuseLocalResponse = it })
-                        Text("Reuse identical complete answers in server RAM (5 min)",
+                        Text("Reuse completed streamed/ordinary answers in server RAM (5 min)",
                             style = MaterialTheme.typography.bodySmall)
                     }
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -468,7 +468,7 @@ private fun AiWorkspace() {
                                         ChatStream.run(endpoint, token,
                                             AiApi.chatBody(history, provider, model, false, cloudConsent,
                                                 recentContextMessages, maxOutputTokens,
-                                                false, providerResponseCache),
+                                                reuseLocalResponse, providerResponseCache),
                                             control) { event ->
                                             when (event.optString("type")) {
                                                 "delta" -> if (index < chat.size &&

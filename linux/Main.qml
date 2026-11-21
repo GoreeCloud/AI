@@ -179,7 +179,7 @@ ApplicationWindow {
             context_mode: recentContextMessages > 0 ? "last_n" : "full",
             context_messages: recentContextMessages > 0 ? recentContextMessages : 8,
             max_output_tokens: maxOutputTokens,
-            local_response_cache: reuseLocalResponse && !(streamResponses && !allowFallback),
+            local_response_cache: reuseLocalResponse,
             provider_response_cache: useProviderResponseCache &&
                 cloudConsent && provider !== "ollama"
         }
@@ -449,9 +449,9 @@ ApplicationWindow {
                             Accessible.name: "Maximum generated tokens"
                         }
                         CheckBox {
-                            text: "Reuse identical complete answers (5m RAM)"
+                            text: "Reuse completed answers, including streams (5m RAM)"
                             checked: window.reuseLocalResponse
-                            enabled: !window.streamResponses || window.allowFallback
+                            enabled: !window.busy
                             onToggled: window.reuseLocalResponse = checked
                             Accessible.name: "Opt in to local response cache"
                         }

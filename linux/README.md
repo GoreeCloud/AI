@@ -39,8 +39,9 @@ non-streaming request implementation remains available for server-supported
 local fallback. The Qt Quick interface
 supports streamed and complete-response chat with cancel, model routing,
 native context-window latest-4/8/16 message trimming, 256–2048-token
-output cap selection, explicitly opt-in local complete-answer RAM caching
-and OpenRouter edge response cache headers (separate cloud consent). These
+output cap selection, explicitly opt-in local full-answer or completed SSE
+stream RAM replay and OpenRouter edge response cache headers (separate cloud
+consent). Interrupted streams are never written into the replay cache. These
 are server options; no response cache data is saved in the desktop client.
 Opening or starting a new conversation resets cache-consent toggles.
 No live model or physical desktop token-savings acceptance was performed.

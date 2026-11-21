@@ -196,9 +196,9 @@ def test_fallback_does_not_populate_cloud_key(monkeypatch):
     assert client.get("/api/v1/cache/status", headers=OWNER).json()["entries"] == 0
 
 
-def test_stream_disallows_ram_response_reuse_and_strict_capability_matrix():
-    assert client.post("/api/v1/chat/stream", headers=OWNER,
-                       json=_body(local_response_cache=True)).status_code == 422
+def test_stream_cache_respects_strict_capability_matrix():
+    # Successful opt-in SSE replay and provider completion are exercised by
+    # test_stream_response_cache.py; preserve the read/admin route matrix.
     assert _ROUTE_CAPABILITIES[("POST", "/api/v1/chat/context-preview")] == "read"
     assert _ROUTE_CAPABILITIES[("GET", "/api/v1/cache/status")] == "read"
     assert _ROUTE_CAPABILITIES[("POST", "/api/v1/cache/clear")] == "admin"
