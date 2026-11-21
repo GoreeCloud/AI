@@ -7,7 +7,7 @@
 | Linux | Qt startup, real desktop, packaging | Headless smoke; desktop acceptance pending |
 | Android | Material3 Expressive build, emulator/device, signing | Debug build; device acceptance pending |
 | GoreeShield | Privacy consent records, retention/encryption | Opt-in consent and explicitly approved snapshot retention purge; live DB unencrypted |
-| Wardveil | Threat assessment, sandbox, scans | Source tests; not runtime qualified |
+| Wardveil | Threat assessment, sandbox, scans | Linux subprocess import limits and tests; OS sandbox and runtime security acceptance remain pending |
 | Identity | OIDC/OAuth source contract and scopes | Offline pinned-JWKS RS256 adapter tested; no verified GoreeCloud Identity issuer/deployment |
 | Mesh | Authenticated service integration | Authenticated read-only capability manifest; not a registered Mesh adapter |
 | Billing | Hard USD limit and actual provider reconciliation | Count guard + optional per-key credit-cap preflight; no USD reservation/reconciliation |

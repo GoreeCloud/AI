@@ -1,11 +1,14 @@
 """GoreeCloud AI owner-only API: paid calls and external tools are explicit actions."""
+import asyncio
 import base64
 import binascii
+import contextlib
 import io
 import json
 import os
 import re
-import zipfile
+import sys
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -20,6 +23,9 @@ from .security import require_owner
 
 app = FastAPI(title="GoreeCloud AI", version="0.1.0", docs_url="/api/docs",
               openapi_url="/api/openapi.json")
+# Limit simultaneous document parser processes per API worker. This is not a
+# global quota across Uvicorn workers or an OS-level cgroup control.
+import_slots = asyncio.Semaphore(2)
 
 origins = [x.strip() for x in os.getenv("GOREECLOUD_AI_CORS_ORIGINS", "").split(",") if x.strip()]
 if origins:
@@ -228,32 +234,67 @@ def export_document(document_id: UUID, format: Literal["md", "docx"] = "md"):
                              "X-Content-Type-Options": "nosniff"})
 
 
+async def parse_document_isolated(contents: bytes, suffix: str, timeout_seconds: float = 10.0) -> dict:
+    """Bound parser CPU/memory/time in a separate Linux process; NOT a sandbox."""
+    if not sys.platform.startswith("linux"):
+        raise HTTPException(503, "Document extraction requires a Linux API host")
+    worker = Path(__file__).with_name("extract_worker.py")
+    try:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, "-I", str(worker), suffix,
+            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            env={"LANG": "C.UTF-8", "PYTHONNOUSERSITE": "1"},
+        )
+    except OSError as exc:
+        raise HTTPException(503, "Document parser worker is unavailable") from exc
+    try:
+        try:
+            output, _ = await asyncio.wait_for(process.communicate(contents), timeout_seconds)
+        except TimeoutError as exc:
+            raise HTTPException(408, "Document extraction exceeded time limit") from exc
+    finally:
+        if process.returncode is None:
+            with contextlib.suppress(ProcessLookupError):
+                process.kill()
+            await process.wait()
+    if len(output) > 1_200_000:
+        raise HTTPException(502, "Document parser output exceeded limit")
+    try:
+        result = json.loads(output)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(422, "Document could not be parsed") from exc
+    if not isinstance(result, dict):
+        raise HTTPException(422, "Document could not be parsed")
+    if process.returncode:
+        if result.get("error") == "too_large":
+            raise HTTPException(413, "Expanded document exceeds supported import limit")
+        raise HTTPException(422, "Document could not be parsed")
+    if not isinstance(result.get("text"), str) or type(result.get("truncated")) is not bool:
+        raise HTTPException(502, "Document parser returned invalid output")
+    if len(result["text"]) > 250000:
+        raise HTTPException(502, "Document parser returned excessive text")
+    return result
+
+
 @app.post("/api/v1/documents/extract", dependencies=[Depends(require_owner)])
 async def extract_document(file: UploadFile = File(...)):
-    from pypdf import PdfReader
-    contents = await file.read(6_000_001)
-    if len(contents) > 6_000_000:
-        raise HTTPException(413, "Document exceeds 6MB limit")
-    if not file.filename or not file.filename.lower().endswith((".pdf", ".docx", ".txt", ".md")):
-        raise HTTPException(415, "Only PDF, DOCX and plain text are supported")
-    suffix = file.filename.lower().rsplit(".", 1)[-1]
     try:
-        if suffix == "pdf":
-            text = "\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(contents)).pages[:100])
-        elif suffix == "docx":
-            with zipfile.ZipFile(io.BytesIO(contents)) as archive:
-                entries = archive.infolist()
-                if len(entries) > 500 or sum(e.file_size for e in entries) > 25_000_000:
-                    raise HTTPException(413, "Expanded DOCX exceeds safe import limit")
-            text = "\n".join(p.text for p in Document(io.BytesIO(contents)).paragraphs)
-        else:
-            text = contents.decode("utf-8")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(422, "Document could not be parsed") from exc
-    return {"name": file.filename[:160], "text": text[:250000],
-            "truncated": len(text) > 250000}
+        await asyncio.wait_for(import_slots.acquire(), timeout=0.5)
+    except TimeoutError as exc:
+        raise HTTPException(429, "Document import capacity is currently busy") from exc
+    try:
+        contents = await file.read(6_000_001)
+        if len(contents) > 6_000_000:
+            raise HTTPException(413, "Document exceeds 6MB limit")
+        if not file.filename or not file.filename.lower().endswith((".pdf", ".docx", ".txt", ".md")):
+            raise HTTPException(415, "Only PDF, DOCX and plain text are supported")
+        suffix = file.filename.lower().rsplit(".", 1)[-1]
+        result = await parse_document_isolated(contents, suffix)
+        return {"name": file.filename[:160], "text": result["text"],
+                "truncated": result["truncated"]}
+    finally:
+        import_slots.release()
 
 
 @app.post("/api/v1/agents/plan", dependencies=[Depends(require_owner)])
