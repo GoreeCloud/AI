@@ -16,7 +16,10 @@ Run with JDK 17, Android SDK 37.1 and a supported Gradle toolchain:
     gradle :app:assembleDebug
 
 Native chat supports local/cloud consent; images have separate paid-request
-approval. Markdown documents, agent plans and manual MCP discovery/calls have
+approval. The image studio can now deliberately list and select read-only
+OpenRouter Image API model capabilities via the owner-authenticated API;
+discovery does not itself authorize paid generation. Markdown documents,
+agent plans and manual MCP discovery/calls have
 development UI screens. Browser-only or unfinished native parity includes
 conversation save history, file import/export, image reference picking and
 stream cancellation.

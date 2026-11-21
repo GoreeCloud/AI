@@ -25,6 +25,7 @@ ApplicationWindow {
     property var documents: []
     property var mcpTools: []
     property string renderedImage: ""
+    property var imageModels: []
 
     function request(method, path, payload, callback) {
         if (token.length === 0) {
@@ -255,6 +256,29 @@ ApplicationWindow {
                         anchors.fill: parent; anchors.margins: 20; spacing: 14
                         Label { text: "Creative controls"; color: "#F2F4FB"; font.pixelSize: 20 }
                         TextField { id: imageModel; Layout.fillWidth: true; text: "bytedance-seed/seedream-4.5"; Accessible.name: "Image model ID" }
+                        Button {
+                            text: "Browse available image models"
+                            enabled: !window.busy
+                            Accessible.name: "Discover image models without generating"
+                            onClicked: window.request("GET", "/api/v1/images/models", null, function(reply) {
+                                window.imageModels = reply.models || []
+                                window.feedback = "Image models listed. No paid generation requested."
+                            })
+                        }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            visible: window.imageModels.length > 0
+                            model: window.imageModels
+                            textRole: "name"
+                            Accessible.name: "Choose discovered image model"
+                            onActivated: function(index) {
+                                if (index >= 0 && index < window.imageModels.length) {
+                                    imageModel.text = window.imageModels[index].id
+                                    imageApproved.checked = false
+                                    window.feedback = "Model selected. Paid generation still needs approval."
+                                }
+                            }
+                        }
                         TextArea {
                             id: imagePrompt
                             Layout.fillWidth: true; Layout.preferredHeight: 165

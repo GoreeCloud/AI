@@ -70,6 +70,7 @@ private fun AiWorkspace() {
     var prompt by remember { mutableStateOf("") }
     var imagePrompt by remember { mutableStateOf("") }
     var imageModel by remember { mutableStateOf("bytedance-seed/seedream-4.5") }
+    var imageCatalog by remember { mutableStateOf(JSONArray()) }
     var approvePaid by remember { mutableStateOf(false) }
     var imageData by remember { mutableStateOf("") }
     var docTitle by remember { mutableStateOf("") }
@@ -181,6 +182,28 @@ private fun AiWorkspace() {
                 1 -> Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Image studio", style = MaterialTheme.typography.titleLarge)
+                    Button(enabled = !busy, onClick = {
+                        invoke("/api/v1/images/models") {
+                            imageCatalog = it.optJSONArray("models") ?: JSONArray()
+                            status = "Image models listed. No paid generation requested."
+                        }
+                    }) { Text("Browse available image models") }
+                    if (imageCatalog.length() > 0) {
+                        Text("Select a discovered image model:", style = MaterialTheme.typography.labelLarge)
+                        for (i in 0 until minOf(12, imageCatalog.length())) {
+                            val candidate = imageCatalog.optJSONObject(i) ?: continue
+                            val id = candidate.optString("id")
+                            if (id.isNotBlank()) {
+                                Button(enabled = !busy, onClick = {
+                                    imageModel = id
+                                    approvePaid = false
+                                    status = "Image model selected; paid generation still needs approval."
+                                }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(candidate.optString("name", id).take(90))
+                                }
+                            }
+                        }
+                    }
                     val bitmap = remember(imageData) { AiApi.decodeDataImage(imageData) }
                     if (bitmap != null) {
                         Image(bitmap = bitmap.asImageBitmap(), contentDescription = "Generated image",
