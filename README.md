@@ -12,13 +12,13 @@ Open WebUI, AnythingLLM or LibreChat.
 
 | Surface | Implemented in source | Still missing |
 |---|---|---|
-| Shared API | Owner-only FastAPI, OpenRouter/Ollama, chat streaming, SSE, image creation/edit endpoint | Identity/OIDC, billing-dollar caps, provider acceptance |
+| Shared API | Owner token or optional offline-JWKS scoped signed-token adapter, OpenRouter/Ollama, streaming, SSE and images | Verified GoreeCloud Identity issuer, dollar-cost reconciliation, live providers |
 | Web | React/TypeScript chat stream/cancel, consent, local conversation snapshots, documents, search/RAG, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
 | Documents | SQLite CRUD, PDF/DOCX/text extraction, Markdown/DOCX export, local FTS5 retrieval, source IDs | Full sandbox, encryption, semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator allowlisted manual Streamable HTTP MCP | Multi-step autonomous agents, OAuth, worker sandbox |
-| Privacy | Cloud opt-in, local snapshots, delete APIs, server-side request count quota | GoreeShield/Identity/Wardveil/Mesh enforcement |
+| Privacy | Cloud opt-in, local snapshots, delete APIs, request count quota, opt-in retention purge and encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
 
 OpenRouter is an external model provider and may charge per request, token, image
 or other unit. The daily request admission limit is **not a money limit**.
@@ -75,6 +75,8 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/images — paid generation/compatible reference edits.
 - GET /api/v1/models — configured routes.
 - GET /api/v1/quotas and /api/v1/privacy/status — count and preview controls.
+- POST /api/v1/privacy/purge-expired — explicitly approved retention deletion.
+- GET /api/v1/integrations/capabilities — authenticated preview capability metadata.
 - GET/POST /api/v1/documents and GET/PUT/DELETE /api/v1/documents/{uuid}.
 - GET /api/v1/search/documents?q=... — owner-only local FTS5 search.
 - POST /api/v1/research/answer — retrieved local source references with
@@ -92,6 +94,22 @@ SQLite files, FTS5 content and saved snapshots are **unencrypted**. Deletion
 removes live rows/index entries but is not verified secure erasure of pages
 or backups. Before migrating existing data, back up privately and test
 recovery. See docs/ARCHITECTURE.md for exact boundaries and risks.
+
+## Verified preview security additions
+
+Optional scoped OIDC/JWT verification uses a pinned, operator-managed RS256
+public JWKS file. No fallback to the owner token is allowed while this mode
+is active. The integration with a real GoreeCloud Identity issuer is unverified.
+
+Offline AES-256-GCM encrypted SQLite backups can be created and restored by
+the operator-only CLI; they do **not** encrypt the running database. An owner
+can explicitly approve retention cleanup of expired saved conversations.
+
+An optional OpenRouter provider-key credit-cap preflight prevents uncapped
+cloud requests when enabled and fails closed if the provider cannot confirm a
+cap. It is **not** a local dollar budget or charged-usage reconciliation.
+Details, command examples and key handling:
+[Recovery and Identity preview](docs/RECOVERY_AND_IDENTITY.md).
 
 ## Source, tests and governance
 

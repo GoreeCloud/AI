@@ -6,12 +6,12 @@
 | Web | Build, browsers, accessibility | Build tests; user tests pending |
 | Linux | Qt startup, real desktop, packaging | Headless smoke; desktop acceptance pending |
 | Android | Material3 Expressive build, emulator/device, signing | Debug build; device acceptance pending |
-| GoreeShield | Privacy consent records, retention/encryption | Preview opt-in only |
+| GoreeShield | Privacy consent records, retention/encryption | Opt-in consent and explicitly approved snapshot retention purge; live DB unencrypted |
 | Wardveil | Threat assessment, sandbox, scans | Source tests; not runtime qualified |
-| Identity | OIDC/OAuth source contract and scopes | Unverified/inaccessible |
-| Mesh | Authenticated service integration | Not implemented |
-| Billing | Hard USD limit and actual provider reconciliation | Count quota only |
-| Recovery | Encrypted backup and restore exercise | Not configured |
+| Identity | OIDC/OAuth source contract and scopes | Offline pinned-JWKS RS256 adapter tested; no verified GoreeCloud Identity issuer/deployment |
+| Mesh | Authenticated service integration | Authenticated read-only capability manifest; not a registered Mesh adapter |
+| Billing | Hard USD limit and actual provider reconciliation | Count guard + optional per-key credit-cap preflight; no USD reservation/reconciliation |
+| Recovery | Encrypted backup and restore exercise | AES-256-GCM offline backup/restore with synthetic test; external recovery planning open |
 | Dependencies | Locks, SBOM and redistribution notices | Partial; audit outstanding |
 | Deployment | TLS, auth, monitoring, rollback | None verified |
 

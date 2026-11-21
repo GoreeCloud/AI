@@ -54,6 +54,11 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [alert, setAlert] = useState('')
   const [notice, setNotice] = useState('')
+  const [privacyInfo, setPrivacyInfo] = useState<{
+    auth_mode: string; conversation_retention_days: number;
+    provider_key_cap_required: boolean;
+    cloud_requests: { remaining: number; limit: number }
+  } | null>(null)
 
   async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
     if (!token.trim()) throw Error('Set an owner token first.')
@@ -180,6 +185,25 @@ export default function App() {
         { title: first.slice(0, 100), messages })
       setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
       setNotice('Conversation snapshot saved locally. No cloud request was made.')
+    })
+  }
+
+  async function refreshPrivacy() {
+    await action(async () => {
+      setPrivacyInfo(await api('/api/v1/privacy/status'))
+      setNotice('Current local privacy and request-limit settings loaded.')
+    })
+  }
+
+  async function purgeOldChats() {
+    if (!window.confirm(
+      'Permanently delete expired locally saved chats? Backups and SQLite freed pages may retain copies.'
+    )) return
+    await action(async () => {
+      const reply = await api<{ deleted_conversations: number }>(
+        '/api/v1/privacy/purge-expired', 'POST', { approved: true })
+      setSavedChats(await api<SavedConversation[]>('/api/v1/conversations'))
+      setNotice(reply.deleted_conversations + ' expired conversation snapshots deleted.')
     })
   }
 
@@ -396,6 +420,20 @@ export default function App() {
             <button type="button" className="secondary" aria-label={'Delete ' + chat.title}
               onClick={() => void deleteChat(chat.id)}>Delete</button>
           </div>)}
+          <div className="heading"><h2>Privacy and quotas</h2>
+            <button className="secondary" type="button" disabled={busy}
+              onClick={() => void refreshPrivacy()}>Review</button></div>
+          {privacyInfo && <div role="status">
+            <p>Authentication: {privacyInfo.auth_mode}. Cloud quota remaining:
+              {' '}{privacyInfo.cloud_requests.remaining} of {privacyInfo.cloud_requests.limit} requests.</p>
+            <p>Retention: {privacyInfo.conversation_retention_days === 0
+              ? 'manual only' : privacyInfo.conversation_retention_days + ' days'}.
+              Provider key cap verification: {privacyInfo.provider_key_cap_required ? 'required' : 'off'}.</p>
+            <p>Live document storage is unencrypted. The provider credit-cap check is not a dollar guarantee.</p>
+            <button type="button" className="secondary"
+              disabled={busy || privacyInfo.conversation_retention_days === 0}
+              onClick={() => void purgeOldChats()}>Purge expired saved chats</button>
+          </div>}
         </aside>
       </div>}
 

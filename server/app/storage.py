@@ -201,3 +201,27 @@ def admit_cloud_call(kind: str) -> None:
             raise HTTPException(429, "Daily external-provider request limit reached")
         db.execute("INSERT INTO paid_call_admissions VALUES (?, ?, ?)", (str(uuid.uuid4()), day, kind))
         db.execute("DELETE FROM paid_call_admissions WHERE day < ?", (cutoff,))
+
+
+
+def conversation_retention_days() -> int:
+    """0 disables expiration; deletions require a separate owner approval."""
+    try:
+        days = int(os.getenv("GOREECLOUD_AI_CONVERSATION_RETENTION_DAYS", "0"))
+        if not 0 <= days <= 3650:
+            raise ValueError("days out of range")
+        return days
+    except ValueError as exc:
+        raise HTTPException(503, "Invalid conversation retention policy") from exc
+
+
+def purge_expired_conversations() -> dict:
+    """Delete old opt-in snapshots only. SQLite pages and backups are not wiped."""
+    days = conversation_retention_days()
+    if days == 0:
+        raise HTTPException(409, "Conversation retention cleanup is not configured")
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    with _connection() as db:
+        count = db.execute("DELETE FROM conversations WHERE updated_at < ?", (cutoff,)).rowcount
+    return {"deleted_conversations": count, "cutoff_utc": cutoff,
+            "note": "Live rows removed; encrypted backup copies and SQLite pages may retain history."}

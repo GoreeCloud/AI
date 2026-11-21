@@ -39,8 +39,10 @@ production deployment.
 
 ## Missing production gates
 
-- **GoreeCloud Identity:** no verified OIDC issuer/claims contract, MFA,
-  delegated token scopes, tenant isolation or per-user session policy.
+- **GoreeCloud Identity:** the optional pinned JWKS verifier checks RS256,
+  issuer, audience, owner subject and required scope. No verified GoreeCloud
+  Identity issuer/claims contract, MFA, delegated per-route scopes, tenant
+  isolation or operational key lifecycle yet.
 - **GoreeShield:** no production policy engine, encrypted storage, fine-grained
   consent record, private-data retention schedule or cryptographic erasure.
 - **Wardveil:** no runtime tool sandbox, credential broker, malware inspection,
@@ -49,8 +51,23 @@ production deployment.
   authentication adapter or resource policy propagation.
 - **GoreeCloud UI:** web tokens and pinned MIT-licensed Android Material 3
   Expressive source adapter integrated; interactive/native visual acceptance open.
-- No monetary spend cap, provider pricing reconciliation, vector RAG, autonomous
-  tool agents, MCP OAuth, production backups or restore evidence.
+- No provider-cost reconciliation, currency reservations, vector RAG,
+  autonomous tool agents or MCP OAuth. An offline encrypted snapshot/restore
+  tool exists and is synthetic-tested, not a production backup policy.
+
+## Optional security features
+
+- Operator-controlled OIDC adapter verifies offline pinned RS256 JWKS keys,
+  issuer, audience, owner subject, expiry and owner scope. It is not yet
+  connected to the authoritative GoreeCloud Identity source issuer or sessions.
+- Optional OpenRouter provider-key budget preflight checks the remote
+  key's assigned credit limit and remaining balance before cloud inference.
+  It is not a local USD reservation or end-to-end billing guarantee.
+- Explicit retention purge only targets old opt-in conversation snapshots;
+  no background retention service is configured.
+- Offline encrypted AES-256-GCM SQLite snapshot and isolated, checked restore
+  tooling exist with synthetic tests. Live SQLite and FTS are plaintext.
+  See docs/RECOVERY_AND_IDENTITY.md.
 
 ## Database upgrade and privacy
 

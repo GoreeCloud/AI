@@ -2,6 +2,7 @@
 import json
 import os
 from collections.abc import AsyncIterator
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import HTTPException
@@ -21,7 +22,7 @@ async def _post(url: str, body: dict, key: str | None = None, timeout: float = 9
     if key:
         headers["Authorization"] = "Bearer " + key
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
             response = await client.post(url, json=body, headers=headers)
     except httpx.RequestError as exc:
         raise UpstreamFailure("provider", 502, transient=True) from exc
@@ -38,8 +39,19 @@ async def _post(url: str, body: dict, key: str | None = None, timeout: float = 9
 def local_url() -> str:
     # A deployment operator controls this setting, never an HTTP request or MCP tool.
     endpoint = os.getenv("OLLAMA_BASE_URL", OLLAMA_DEFAULT).rstrip("/")
-    if not endpoint.startswith(("http://127.0.0.1:", "http://localhost:")) and os.getenv("GOREECLOUD_AI_ALLOW_REMOTE_OLLAMA") != "true":
-        raise HTTPException(503, "Remote Ollama requires explicit operator authorization")
+    parsed = urlsplit(endpoint)
+    try:
+        valid_port = parsed.port is not None and 1 <= parsed.port <= 65535
+    except ValueError:
+        valid_port = False
+    if (not valid_port or not parsed.hostname or parsed.username or parsed.password
+            or parsed.query or parsed.fragment or parsed.path not in ("", "/")):
+        raise HTTPException(503, "Invalid Ollama endpoint configuration")
+    local = parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "localhost")
+    remote = (parsed.scheme == "https" and
+              os.getenv("GOREECLOUD_AI_ALLOW_REMOTE_OLLAMA") == "true")
+    if not (local or remote):
+        raise HTTPException(503, "Ollama requires loopback or approved remote HTTPS")
     return endpoint
 
 
@@ -148,7 +160,7 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
     produced = 0
     final_model = body["model"]
     try:
-        async with httpx.AsyncClient(timeout=90, follow_redirects=False) as client:  # noqa: SIM117
+        async with httpx.AsyncClient(timeout=90, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
             async with client.stream("POST", url, json=body, headers=headers) as response:
                 if response.status_code != 200:
                     yield {"type": "error", "message": "Inference provider returned an error"}
@@ -194,3 +206,37 @@ async def stream_chat(messages: list[dict], model: str, provider: str) -> AsyncI
         yield {"type": "error", "message": "Inference provider is unreachable"}
         return
     yield {"type": "done", "provider": provider, "model": final_model}
+
+
+async def verify_cloud_key_budget() -> None:
+    """Optional fail-closed check of OpenRouter's provider-owned per-key limit.
+
+    This does not reserve dollars or guarantee a maximum cost per in-flight call;
+    the provider-side cap is the enforcement boundary. No user content is sent.
+    """
+    mode = os.getenv("GOREECLOUD_AI_REQUIRE_CAPPED_OPENROUTER_KEY", "false").lower()
+    if mode not in ("true", "false"):
+        raise HTTPException(503, "Invalid cloud budget policy")
+    if mode == "false":
+        return
+    key = os.getenv("OPENROUTER_API_KEY")
+    if not key:
+        raise HTTPException(503, "OpenRouter key is not configured")
+    try:
+        async with httpx.AsyncClient(timeout=8, follow_redirects=False, trust_env=False) as client:
+            response = await client.get(OPENROUTER + "/key", headers={
+                "Authorization": "Bearer " + key
+            })
+        if response.status_code != 200 or len(response.content) > 65536:
+            raise ValueError("budget lookup unavailable")
+        info = response.json().get("data", {})
+        limit = info.get("limit")
+        remaining = info.get("limit_remaining")
+        if (type(limit) not in (int, float) or type(remaining) not in (int, float)
+                or not 0 < limit < 1_000_000_000 or not 0 < remaining <= limit):
+            raise ValueError("no available capped provider balance")
+        # BYOK requests can bypass per-key credits unless opted into the cap.
+        if info.get("include_byok_in_limit") is False and (info.get("byok_usage") or 0) > 0:
+            raise ValueError("BYOK use is not covered by this key cap")
+    except (httpx.RequestError, ValueError, TypeError, AttributeError) as exc:
+        raise HTTPException(503, "Provider key cap could not be verified") from exc
