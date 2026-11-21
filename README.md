@@ -16,7 +16,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Web | React/TypeScript chat stream/cancel, consent, saved local chats, documents, search/RAG, image-catalog browsing, images, agents, MCP | Cross-browser/visual qualification |
 | Linux | Native Qt Quick chat, images, Markdown documents, agent plans, MCP, consent | Native stream UI, signed packages and runtime acceptance |
 | Android | Kotlin Compose, pinned GoreeCloud UI Material3 Expressive adapter, chat, images, docs, agents, MCP | Device verification, native streaming and file pickers |
-| Documents | SQLite CRUD, resource-limited Linux subprocess PDF/DOCX/text extraction, Markdown/DOCX export, FTS5 retrieval and source IDs | Full parser sandbox, encryption, semantic embeddings |
+| Documents | SQLite CRUD, bounded Linux import subprocess and optional network-denied Bubblewrap document sandbox, export, FTS5 retrieval and source IDs | Production-qualified sandbox, encryption, semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator allowlisted manual Streamable HTTP MCP | Multi-step autonomous agents, OAuth, worker sandbox |
 | Privacy | Cloud opt-in, metadata-only cloud-admission receipts, owner-controlled receipt clearing, local snapshots, count quota, retention purge, encrypted offline backup | Live DB encryption and complete GoreeShield/Identity/Wardveil/Mesh enforcement |
 
@@ -96,7 +96,12 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 SQLite files, FTS5 content and saved snapshots are **unencrypted**. Deletion
 removes live rows/index entries but is not verified secure erasure of pages
 or backups. Before migrating existing data, back up privately and test
-recovery. See docs/ARCHITECTURE.md for exact boundaries and risks.
+recovery. See docs/ARCHITECTURE.md for exact boundaries and risks. Optional
+GOREECLOUD_AI_IMPORT_ISOLATION=bwrap requires a trusted Linux Bubblewrap
+binary and provides namespaced, network-denied, read-only parser execution;
+the default remains process-only for compatibility. A failed requested
+sandbox never silently downgrades. See docs/SECURITY_IMPORTS.md for
+test evidence and remaining Wardveil protections.
 
 ## Verified preview security additions
 
