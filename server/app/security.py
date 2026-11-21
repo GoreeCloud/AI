@@ -21,6 +21,7 @@ bearer = HTTPBearer(auto_error=False)
 # implicit access when strict scoped mode is enabled: extend and test this map.
 _ROUTE_CAPABILITIES: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/models"): "read",
+    ("GET", "/api/v1/models/catalog"): "read",
     ("GET", "/api/v1/images/models"): "read",
     ("GET", "/api/v1/usage/openrouter/{generation_id}"): "admin",
     ("GET", "/api/v1/privacy/status"): "read",

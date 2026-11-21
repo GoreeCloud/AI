@@ -28,6 +28,8 @@ separately before marking any item complete.
   with bounded frame decoding, redirect refusal and synthetic localhost tests.
   All other Qt REST calls now use a bounded redirect-refusing Qt bridge instead
   of QML XMLHttpRequest. Real desktop/provider acceptance remains pending.
+- OpenRouter text model discovery using deliberate, read-only fixed-origin
+  catalog requests and browser-local filtering; no prompts or paid inference.
 - OpenRouter public image-model discovery, web selector, bounded provider
   response streaming and image format checks with no paid test calls.
 - API mock tests, web typecheck/bundle, Linux offscreen QML boot and Android
@@ -95,7 +97,8 @@ separately before marking any item complete.
   DOCX viewers and native import/export parity.
 - Tool-capable agents with durable state, approvals, budgets, operation audit,
   sandbox execution, MCP delegated auth and policy decision points.
-- OpenRouter model/image capability discovery, costs, pricing/version policy,
+- OpenRouter pricing/version policy beyond the implemented source-level
+  read-only text/image catalog discovery,
   routing profiles and physical-device native streaming/cancellation
   qualification; Android Compose and Linux Qt SSE are source-implemented,
   but live-provider, lifecycle and real-device acceptance remain open.

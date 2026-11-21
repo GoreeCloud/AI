@@ -287,6 +287,86 @@ async def verify_cloud_key_budget() -> None:
 
 
 
+
+# Read-only provider capability discovery. No prompt or user-selected search
+# query is ever sent upstream; the browser filters the sanitized catalog locally.
+_text_catalog_slots = asyncio.Semaphore(2)
+
+
+async def text_model_catalog() -> dict:
+    """Deliberate owner request for bounded OpenRouter text-model metadata.
+
+    This is discovery only: no inference, paid tokens, model validation guarantee
+    or cloud-processing consent grant. Credentials are retained server-side.
+    """
+    key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        raise HTTPException(503, "OpenRouter API key is not configured")
+    try:
+        await asyncio.wait_for(_text_catalog_slots.acquire(), timeout=0.5)
+    except TimeoutError as exc:
+        raise HTTPException(429, "Model catalog capacity is busy") from exc
+    try:
+        try:
+            async with httpx.AsyncClient(timeout=12, follow_redirects=False,
+                                         trust_env=False) as client, client.stream(
+                "GET", OPENROUTER + "/models",
+                params={"output_modalities": "text"},
+                headers={"Authorization": "Bearer " + key,
+                         "Accept": "application/json"},
+            ) as response:
+                if response.status_code != 200:
+                    raise ValueError("model catalog unavailable")
+                buffer = bytearray()
+                async for chunk in response.aiter_bytes(chunk_size=32768):
+                    if len(buffer) + len(chunk) > 8_000_000:
+                        raise ValueError("model catalog exceeded memory bound")
+                    buffer.extend(chunk)
+            raw = json.loads(buffer)
+            data = raw.get("data") if isinstance(raw, dict) else None
+            if not isinstance(data, list) or not 1 <= len(data) <= 2500:
+                raise ValueError("invalid model catalog")
+            entries = []
+            seen = set()
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                slug = item.get("id")
+                if (not isinstance(slug, str)
+                        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{1,127}", slug)
+                        or slug in seen):
+                    continue
+                seen.add(slug)
+                name = item.get("name")
+                if not isinstance(name, str) or not name.strip():
+                    name = slug
+                context = item.get("context_length")
+                if type(context) is not int or not 1 <= context <= 50_000_000:
+                    context = None
+                parameters = item.get("supported_parameters")
+                if not isinstance(parameters, list):
+                    parameters = []
+                entries.append({
+                    "id": slug,
+                    "name": name.strip()[:120],
+                    "context_length": context,
+                    "supports_tools": "tools" in parameters or "tool_choice" in parameters,
+                })
+            if not entries:
+                raise ValueError("no valid text model metadata")
+            entries.sort(key=lambda item: (item["name"].casefold(), item["id"]))
+            return {
+                "models": entries[:250],
+                "truncated": len(entries) > 250,
+                "source": "openrouter-text-model-catalog",
+                "note": "Provider metadata can change without notice; discovery is not a paid call or price quote.",
+            }
+        except (httpx.RequestError, ValueError, TypeError, UnicodeError) as exc:
+            raise HTTPException(503, "Text model catalog unavailable") from exc
+    finally:
+        _text_catalog_slots.release()
+
+
 async def image_catalog() -> dict:
     """Get provider-public model metadata via server-only authenticated GET.
 
