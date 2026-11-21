@@ -12,7 +12,7 @@
 | Mesh | Authenticated service integration | Authenticated read-only capability manifest; not a registered Mesh adapter |
 | Billing | Hard USD limit and actual provider reconciliation | Count guard + optional credit-cap preflight and synthetic-tested manual metadata-only OpenRouter generation-cost lookup; no actual provider/billing acceptance, USD reservation or invoice reconciliation |
 | Recovery | Encrypted backup and restore exercise | AES-GCM offline backup/restore for plaintext or SQLCipher source, source-preserving migration and source-preserving SQLCipher key rotation synthetic-tested; off-host key custody/restore and rollback acceptance open |
-| Dependencies | Locks, SBOM and redistribution notices | SHA-pinned CI actions, locked Python/web vulnerability scans and Python/npm lockfile component inventories; Android/Qt, licenses, provenance and complete SBOM open |
+| Dependencies | Locks, SBOM and redistribution notices | SHA-pinned actions, locked Python/web scans, Python/npm source-lock inventories plus Android directly declared Maven/plugin IDs and selected installed PySide6 wheels in CI; resolved Android graph, Qt/OS native libraries, licenses, provenance and complete SBOM open |
 | Deployment | TLS, auth, monitoring, rollback | None verified |
 
 No Stable or production release without all applicable approvals.

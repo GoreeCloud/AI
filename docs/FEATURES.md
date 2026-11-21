@@ -17,6 +17,7 @@ GoreeCloud UI source and independently licensed dependencies. This is a
 | Identity | Owner token; optional pinned RS256/JWKS signed-owner token with opt-in route capability checks | No real GoreeCloud Identity issuer, MFA, multiuser delegation or tenant isolation |
 | Manual tools and MCP | Approved local document.read and operator-allowlisted MCP HTTPS/loopback tools with bounded arguments/time/concurrency/sanitized outputs | No autonomous tool execution, OAuth, isolated MCP worker or real MCP interop proof |
 | Integration metadata | Owner-authenticated read-only v1 preview capability manifest | Not a registered, production-authenticated GoreeCloud Mesh service |
+| Supply-chain inventories | CycloneDX 1.6 Python/npm locks and direct Gradle declarations; separate selected installed PySide6 wheel versions | No resolved Android dependency graph, complete native library SBOM, provenance or signing |
 | Web client | React/TypeScript UI, token memory, consent, documents, chat, model browsing | Real browser, accessibility and visual acceptance open |
 | Linux client | Native Qt Quick, opt-in SSE streaming/cancel through Qt Network and bounded frame parser; existing GoreeCloud UI token source | Offscreen smoke and synthetic localhost transport tests, but real desktop, screen reader and signing pending |
 | Android client | Kotlin Compose Material 3 Expressive, pinned MIT gc-ui adapter, opt-in SSE streaming with cancellation and bounded parser | Host-side JUnit/build checks only; physical-device SSE, accessibility and signed release pending |

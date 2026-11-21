@@ -19,6 +19,7 @@ Open WebUI, AnythingLLM or LibreChat.
 | Documents | SQLite CRUD and FTS5 with optional SQLCipher at-rest encryption, bounded Linux import subprocess/opt-in Bubblewrap isolation, export and cited retrieval | Deployed encrypted mode, complete sandbox qualification and semantic embeddings |
 | Agents & MCP | Plans without automatic execution, read-only approved document action, operator-allowlisted manual Streamable HTTP MCP with bounded JSON, concurrency, timeouts and sanitized outputs | Multi-step autonomous agents, OAuth, external MCP sandbox |
 | Privacy | Consent-gated cloud processing, local snapshots and approval receipts, opt-in SQLCipher/FTS and backup, explicitly gated local retention CLI plus optional timer template | Deployment/key custody, hosted scheduler, secure erasure, policy acceptance and five-MIPS qualification |
+| Supply chain | Python/npm lockfile component inventories, directly declared Gradle source dependencies and partial installed PySide6 wheel inventory in CI | Resolved native transitive graph, licenses, attestation and signed release |
 
 OpenRouter is an external model provider and may charge per request, token, image
 or other unit. The daily request admission limit is **not a money limit**.
