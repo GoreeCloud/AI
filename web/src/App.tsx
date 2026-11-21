@@ -57,6 +57,7 @@ export default function App() {
   const [searchText, setSearchText] = useState('')
   const [searchHits, setSearchHits] = useState<SearchHit[]>([])
   const [researchAnswer, setResearchAnswer] = useState('')
+  const [researchCacheEnabled, setResearchCacheEnabled] = useState(false)
   const [researchSources, setResearchSources] = useState<Array<{ id: string; title: string }>>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [prompt, setPrompt] = useState('')
@@ -463,15 +464,19 @@ export default function App() {
     if (!searchText.trim()) return
     await action(async () => {
       const result = await api<{
-        answer: string; sources: Array<{ id: string; title: string }>; sent_to_cloud: boolean
+        answer: string; sources: Array<{ id: string; title: string }>; sent_to_cloud: boolean;
+        cache?: { hit: boolean; sources_revalidated: boolean }
       }>('/api/v1/research/answer', 'POST', {
-        question: searchText.trim(), provider, allow_cloud_processing: cloudConsent
+        question: searchText.trim(), provider, allow_cloud_processing: cloudConsent,
+        local_answer_cache: researchCacheEnabled
       })
       setResearchAnswer(result.answer)
       setResearchSources(result.sources)
-      setNotice(result.sent_to_cloud
-        ? 'Selected local excerpts were sent to OpenRouter with your consent.'
-        : 'Answer used local inference or no inference.')
+      setNotice(result.cache?.hit
+        ? 'Reused this answer from temporary server RAM after validating current source versions; no provider request.'
+        : result.sent_to_cloud
+          ? 'Selected local excerpts were sent to OpenRouter with your consent.'
+          : 'Answer used local inference or no inference.')
     })
   }
 
@@ -941,6 +946,13 @@ export default function App() {
           <label className="check"><input type="checkbox" checked={cloudConsent}
             onChange={e => setCloudConsent(e.target.checked)} />
             Allow selected snippets to be sent to OpenRouter if chosen</label>
+          <label className="check"><input type="checkbox" checked={researchCacheEnabled}
+            onChange={e => setResearchCacheEnabled(e.target.checked)} />
+            Reuse identical document-grounded answers in server RAM for 5 minutes
+            after rechecking live source versions (opt-in)
+          </label>
+          <small>Answer reuse stores model text in plaintext server RAM temporarily.
+            Document edits or deletion invalidate its lookup; provider-side billing is unchanged for cache misses.</small>
           {searchHits.map(hit => <button className="doc-link" key={hit.id}
             onClick={() => void openDoc(hit.id)}>{hit.title}<small>{hit.excerpt}</small></button>)}
           {researchAnswer && <section aria-label="Document answer">

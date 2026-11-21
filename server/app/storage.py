@@ -215,7 +215,7 @@ def search_documents(query: str, limit: int = 8) -> list[dict]:
     expression = " OR ".join('"' + term + '"*' for term in terms)
     with _connection() as db:
         return [dict(row) for row in db.execute("""
-            SELECT documents.id, documents.title,
+            SELECT documents.id, documents.title, documents.updated_at,
                    snippet(document_fts, 1, '', '', '…', 32) AS excerpt,
                    bm25(document_fts) AS rank
               FROM document_fts JOIN documents ON documents.rowid=document_fts.rowid
