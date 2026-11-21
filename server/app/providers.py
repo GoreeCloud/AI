@@ -1,6 +1,10 @@
 """Outgoing model calls never use user-supplied endpoints or log prompt content."""
+import base64
+import binascii
 import json
+import math
 import os
+import re
 from collections.abc import AsyncIterator
 from urllib.parse import urlsplit
 
@@ -22,17 +26,25 @@ async def _post(url: str, body: dict, key: str | None = None, timeout: float = 9
     if key:
         headers["Authorization"] = "Bearer " + key
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
-            response = await client.post(url, json=body, headers=headers)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
+            async with client.stream("POST", url, json=body, headers=headers) as response:
+                if response.status_code != 200:
+                    raise UpstreamFailure("provider", response.status_code,
+                                          transient=response.status_code in (429, 502, 503, 504))
+                limit = 24_000_000
+                raw = bytearray()
+                async for chunk in response.aiter_bytes(chunk_size=65536):
+                    if len(raw) + len(chunk) > limit:
+                        raise UpstreamFailure("provider", 413)
+                    raw.extend(chunk)
     except httpx.RequestError as exc:
         raise UpstreamFailure("provider", 502, transient=True) from exc
-    if len(response.content) > 24_000_000:
-        raise UpstreamFailure("provider", 413)
-    if response.status_code != 200:
-        raise UpstreamFailure("provider", response.status_code, transient=response.status_code in (429, 502, 503, 504))
     try:
-        return response.json()
-    except ValueError as exc:
+        result = json.loads(raw)
+        if not isinstance(result, dict):
+            raise ValueError("Upstream JSON must be an object")
+        return result
+    except (ValueError, UnicodeError) as exc:
         raise UpstreamFailure("provider") from exc
 
 
@@ -117,16 +129,33 @@ async def image_request(prompt: str, model: str, reference: str | None) -> dict:
         result = await _post(OPENROUTER + "/images", body, key, timeout=120)
     except UpstreamFailure as exc:
         raise HTTPException(502, "Image provider request failed") from exc
-    data = result.get("data") or []
-    if not data or not isinstance(data[0].get("b64_json"), str):
+    data = result.get("data")
+    if not isinstance(data, list) or not data or not isinstance(data[0], dict):
         raise HTTPException(502, "Image provider returned no image")
+    encoded = data[0].get("b64_json")
     media_type = data[0].get("media_type", "image/png")
+    if not isinstance(encoded, str) or not 0 < len(encoded) <= 18_000_000:
+        raise HTTPException(502, "Image provider returned invalid image bytes")
     if media_type not in ("image/png", "image/jpeg", "image/webp"):
         raise HTTPException(502, "Unsupported generated image type")
+    try:
+        binary = base64.b64decode(encoded, validate=True)
+    except binascii.Error as exc:
+        raise HTTPException(502, "Image provider returned invalid image encoding") from exc
+    signatures = {
+        "image/png": binary.startswith(b"\x89PNG\r\n\x1a\n"),
+        "image/jpeg": binary.startswith(b"\xff\xd8\xff"),
+        "image/webp": binary.startswith(b"RIFF") and binary[8:12] == b"WEBP"
+    }
+    if len(binary) > 12_000_000 or not signatures[media_type]:
+        raise HTTPException(502, "Image provider returned invalid image format")
+    usage = result.get("usage") or {}
+    cost = usage.get("cost") if isinstance(usage, dict) else None
+    if cost is not None and (type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0):
+        cost = None
     return {
-        "model": model,
-        "image": f"data:{media_type};base64,{data[0]['b64_json']}",
-        "cost": (result.get("usage") or {}).get("cost")
+        "model": model, "image": f"data:{media_type};base64,{encoded}", "cost": cost,
+        "media_type": media_type
     }
 
 
@@ -236,7 +265,57 @@ async def verify_cloud_key_budget() -> None:
                 or not 0 < limit < 1_000_000_000 or not 0 < remaining <= limit):
             raise ValueError("no available capped provider balance")
         # BYOK requests can bypass per-key credits unless opted into the cap.
-        if info.get("include_byok_in_limit") is False and (info.get("byok_usage") or 0) > 0:
-            raise ValueError("BYOK use is not covered by this key cap")
+        if info.get("include_byok_in_limit") is not True:
+            raise ValueError("BYOK use could bypass this key cap")
     except (httpx.RequestError, ValueError, TypeError, AttributeError) as exc:
         raise HTTPException(503, "Provider key cap could not be verified") from exc
+
+
+
+async def image_catalog() -> dict:
+    """Read the public fixed-origin OpenRouter Image API catalog without prompts.
+
+    A catalog lookup does not generate media or use a paid request admission.
+    Only bounded, validated model capability metadata is returned to clients.
+    """
+    url = OPENROUTER + "/images/models"
+    try:
+        async with httpx.AsyncClient(timeout=12, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
+            async with client.stream("GET", url) as response:
+                if response.status_code != 200:
+                    raise ValueError("catalog source unavailable")
+                raw = bytearray()
+                async for chunk in response.aiter_bytes(chunk_size=32768):
+                    if len(raw) + len(chunk) > 3_000_000:
+                        raise ValueError("catalog response exceeded limit")
+                    raw.extend(chunk)
+        payload = json.loads(raw)
+        models = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(models, list) or len(models) > 1000:
+            raise ValueError("invalid catalog shape")
+        entries = []
+        for model in models:
+            if not isinstance(model, dict):
+                continue
+            slug = model.get("id")
+            if not isinstance(slug, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,127}", slug):
+                continue
+            params = model.get("supported_parameters")
+            if not isinstance(params, dict):
+                params = {}
+            title = model.get("name")
+            if not isinstance(title, str) or not title.strip():
+                title = slug
+            entries.append({
+                "id": slug,
+                "name": title.strip()[:120],
+                "supports_reference": "input_references" in params,
+                "supports_streaming": model.get("supports_streaming") is True,
+            })
+        if not entries:
+            raise ValueError("no valid image catalog models")
+        entries.sort(key=lambda x: x["name"].lower())
+        return {"models": entries[:200], "source": "openrouter-image-api",
+                "note": "Preview catalog; a model may change availability or price without notice."}
+    except (httpx.RequestError, ValueError, TypeError, UnicodeError) as exc:
+        raise HTTPException(503, "Image model catalog unavailable") from exc

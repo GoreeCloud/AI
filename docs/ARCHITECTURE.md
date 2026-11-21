@@ -28,7 +28,8 @@ production deployment.
   (GOREECLOUD_AI_DAILY_CLOUD_REQUEST_LIMIT). This is **not** a currency cap:
   provider pricing, token bills and charge reconciliation are independent.
   Failed requests may still consume an admission slot.
-- Owner shared-token check, no prompt logging, fixed upstream OpenRouter URL,
+- Owner shared-token check, no prompt logging, bounded streamed JSON responses,
+  validated base64 image formats, fixed upstream OpenRouter URL,
   disabled redirects, bounded requests, reference validation and PDF/DOCX
   file limits. DOCX decompression metadata limit is not a sandbox.
 - Sensitive HTTP responses have Cache-Control no-store, nosniff and
@@ -63,11 +64,27 @@ production deployment.
 - Optional OpenRouter provider-key budget preflight checks the remote
   key's assigned credit limit and remaining balance before cloud inference.
   It is not a local USD reservation or end-to-end billing guarantee.
+  In strict cap mode, the provider must explicitly confirm BYOK usage is
+  included in the key's cap; false or missing confirmation fails closed.
 - Explicit retention purge only targets old opt-in conversation snapshots;
   no background retention service is configured.
 - Offline encrypted AES-256-GCM SQLite snapshot and isolated, checked restore
   tooling exist with synthetic tests. Live SQLite and FTS are plaintext.
   See docs/RECOVERY_AND_IDENTITY.md.
+
+## Provider model discovery
+
+- Authenticated GET `/api/v1/images/models` fetches OpenRouter's public
+  fixed-origin image-model catalog only upon an operator/client request.
+  The response is size-limited and reduced to model ID, name, stream and
+  reference capabilities. No documents, prompts or owner keys leave the API.
+- Browser UI offers a discoverable model selector while retaining an explicit
+  model ID field; discovery never automatically starts a paid generation.
+- Generated image bytes are checked for allowed PNG/JPEG/WebP signatures and
+  bounded at 12 MB before returning a data URL; this is not full media-decoder
+  or third-party-content safety validation.
+- Real OpenRouter acceptance, prices, provider policy and live model routing
+  remain unverified; mock tests alone do not authorize purchases.
 
 ## Database upgrade and privacy
 

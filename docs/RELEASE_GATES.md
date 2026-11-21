@@ -2,8 +2,8 @@
 
 | Gate | Required evidence | Preview status |
 |---|---|---|
-| API | Regression, compatibility, explicit contracts | CI/mock tests only |
-| Web | Build, browsers, accessibility | Build tests; user tests pending |
+| API | Regression, compatibility, explicit contracts | Python CI/mock tests include bounded provider image responses and capability discovery; live-provider contract acceptance pending |
+| Web | Build, browsers, accessibility | TypeScript build covers image catalog selector; browser and accessibility verification pending |
 | Linux | Qt startup, real desktop, packaging | Headless smoke; desktop acceptance pending |
 | Android | Material3 Expressive build, emulator/device, signing | Debug build; device acceptance pending |
 | GoreeShield | Privacy consent records, retention/encryption | Opt-in consent and explicitly approved snapshot retention purge; live DB unencrypted |

@@ -53,6 +53,8 @@ async def test_capped_key_accepted(monkeypatch):
     {"limit": 1, "limit_remaining": 0},
     {"limit": "10", "limit_remaining": "4"},
     {"limit": 10, "limit_remaining": 30},
+    {"limit": 10, "limit_remaining": 3},
+    {"limit": 10, "limit_remaining": 3, "include_byok_in_limit": False, "byok_usage": 0},
     {"limit": 10, "limit_remaining": 3,
      "include_byok_in_limit": False, "byok_usage": 0.5},
 ])
