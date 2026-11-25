@@ -1,6 +1,7 @@
 package com.goreecloud.ai
 
 import android.os.Bundle
+import android.animation.ValueAnimator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -60,7 +61,13 @@ import com.goreecloud.ui.material3.GoreeFloatingNavigationBar
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { GoreeCloudExpressiveTheme(accent = GoreeAccent.Iris) { AiWorkspace() } }
+        setContent {
+            GoreeCloudExpressiveTheme(
+                accent = GoreeAccent.Iris,
+                dynamicWallpaperColors = false,
+                reduceMotion = !ValueAnimator.areAnimatorsEnabled()
+            ) { AiWorkspace() }
+        }
     }
 }
 
