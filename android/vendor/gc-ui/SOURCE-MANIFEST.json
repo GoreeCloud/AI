@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sourceRepo": "GoreeCloud/gc-ui",
+  "sourceCommit": "f501d92ba1f6698fa99427c564bf838954ce8bc1",
+  "sourceFilesSha256": {
+    "android/vendor/gc-ui/LICENSE": "cf6d03d1d5b1a0bf28ce369c3df4a9386ca5fe1449014a2f540a8d21181a10f6",
+    "android/vendor/gc-ui/gc.tokens.json": "d3226033ba50d601fcabbb01eadc2fdff8eb1be6cde6f6ebe8b0b47f1041e8e0",
+    "android/vendor/gc-ui/compose-multiplatform/README.md": "2660f17273be9cb2286ce5f5673288d5461265baa31d7458f13a060c9d167386",
+    "android/vendor/gc-ui/compose-multiplatform/build.gradle.kts": "0dab1b762a43db2c923c6e3bdcbbf4b28920f76c736945f16ed171058ebf6a0a",
+    "android/vendor/gc-ui/compose-multiplatform/gc-ui-compose/build.gradle.kts": "0b02c7c5e891b6f5c4f50bf546bff4c87dd620f7c0977450b75200a347941f9d",
+    "android/vendor/gc-ui/compose-multiplatform/gc-ui-compose/src/commonMain/kotlin/com/goreecloud/ui/multiplatform/GeneratedGoreePalettes.kt": "300e6ad1ee0efe3feaee52036ca6e8b2c02bc6c49f11f2ea549d6a89d678a74d",
+    "android/vendor/gc-ui/compose-multiplatform/gc-ui-compose/src/commonMain/kotlin/com/goreecloud/ui/multiplatform/GoreeCloudUi.kt": "8da5e986a279222012f5a45dec736008bfde5f213d02ae6c49f41597a847db38",
+    "android/vendor/gc-ui/compose-multiplatform/gc-ui-compose/src/commonTest/kotlin/com/goreecloud/ui/multiplatform/GoreeCloudTokensTest.kt": "3ddf823984b003600ac3d2ce3e8c6a850fb4afd40de7821d3ab87224d29050e6",
+    "android/vendor/gc-ui/compose-multiplatform/gradle.properties": "57b81baa9c862ac6abf7c72bee17e01eb0f77b12765a71520fe816c1458bd713",
+    "android/vendor/gc-ui/compose-multiplatform/settings.gradle.kts": "afc14454076b222b2a7c78b6bb32990b4098f883456e7191769317780bab1801",
+    "android/gc-ui-compose/build.gradle.kts": "671a61656c0aa0ad263880d6455c3fe1a50e016f2b9f3d913c84b54161adeb31",
+    "android/gc-ui-compose/src/main/AndroidManifest.xml": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+    "android/gc-ui-compose/src/main/java/com/goreecloud/ui/material3/GeneratedGoreePalettes.kt": "55250169a773d04f5ca78faba8c96055b3a84f59fc767b982ae540cfb8f0dd64",
+    "android/gc-ui-compose/src/main/java/com/goreecloud/ui/material3/GoreeCloudExpressiveTheme.kt": "83b4b76b67777866702e71c80bef06557eda1b567c4593f65f5eee4d83b4a594",
+    "android/gc-ui-compose/src/main/java/com/goreecloud/ui/material3/GoreeFloatingNavigationBar.kt": "65f0bea5bf0be300f82534577a2893858ec3aac3c54ffd8e57cc55ce77b082b5"
+  },
+  "qualification": "Exact Git source snapshot provenance only; no signed release or resolved dependency graph."
+}

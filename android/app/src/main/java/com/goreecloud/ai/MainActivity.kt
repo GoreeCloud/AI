@@ -57,6 +57,7 @@ import com.goreecloud.ui.material3.GoreeCloudExpressiveTheme
 import com.goreecloud.ui.material3.GoreeAccent
 import com.goreecloud.ui.material3.GoreeDestination
 import com.goreecloud.ui.material3.GoreeFloatingNavigationBar
+import com.goreecloud.ui.multiplatform.GoreeCloudAction
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -214,7 +215,7 @@ private fun AiWorkspace() {
                 }) { Text("Delete") }
             },
             dismissButton = {
-                Button(onClick = { pendingDeleteId = "" }) { Text("Cancel") }
+                GoreeCloudAction(label = "Cancel", onClick = { pendingDeleteId = "" })
             }
         )
     }
