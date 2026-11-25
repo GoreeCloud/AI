@@ -238,3 +238,7 @@ GoreeCloud MIPS retains distinct responsibilities: GoreeCloud UI design,
 GoreeCloud Mesh integration, GoreeCloud Identity authentication,
 GoreeShield privacy and Wardveil cybersecurity. None of their production
 acceptance gates is implied by this preview.
+
+## Android system animation preference
+
+The existing canonical GoreeCloud UI Material 3 Expressive theme on native Android now checks `ValueAnimator.areAnimatorsEnabled()`; when the device disables animations it selects the standard motion scheme while retaining the app's Iris accent and explicitly opting out of wallpaper colors. The source change does **not** affect OpenRouter/Ollama consent, provider routing, token caching, credentials, local documents or network validation. A Python source-policy regression test runs with existing API and Android CI. This does **not** certify full device reduced-motion/lifecycle behavior, accessibility or an Android release.
