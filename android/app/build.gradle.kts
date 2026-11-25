@@ -23,6 +23,7 @@ android {
 }
 dependencies {
     implementation(project(":gc-ui-compose"))
+    implementation(project(":gc-ui-shared"))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.compose.ui:ui:1.13.0")
     implementation("androidx.compose.foundation:foundation:1.13.0")

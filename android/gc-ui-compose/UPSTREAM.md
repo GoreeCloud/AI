@@ -1,17 +1,18 @@
-# Attributed GoreeCloud UI Material 3 Expressive snapshot
+# Official GoreeCloud UI Android Material 3 Expressive source snapshot
 
 Upstream: https://github.com/GoreeCloud/gc-ui
-Pinned commit: 5625121316230d78dd40a6e41a0671a250cb873b
-License: MIT (see upstream LICENSE and GoreeCloud/AI root LICENSE).
+Pinned Git commit: f501d92ba1f6698fa99427c564bf838954ce8bc1
+MIT license: ../vendor/gc-ui/LICENSE and upstream root LICENSE.
+Canonical tokens: ../../design/gc.tokens.json (byte-identical to upstream).
+Source checksum registry: ../vendor/gc-ui/SOURCE-MANIFEST.json.
 
-Copied **without modification** from upstream android/material3-expressive/gc-ui-compose:
-- build.gradle.kts
-- src/main/AndroidManifest.xml
-- src/main/java/com/goreecloud/ui/material3/GeneratedGoreePalettes.kt
-- src/main/java/com/goreecloud/ui/material3/GoreeCloudExpressiveTheme.kt
-- src/main/java/com/goreecloud/ui/material3/GoreeFloatingNavigationBar.kt
+Source files copied from upstream android/material3-expressive/gc-ui-compose:
+- build.gradle.kts and AndroidManifest.xml
+- GeneratedGoreePalettes.kt
+- GoreeCloudExpressiveTheme.kt
+- GoreeFloatingNavigationBar.kt
 
-This is a checked-in source adapter maintained in GoreeCloud/AI; no Maven
-publication or platform release is implied. Generated palettes derive from
-the canonical MIT-licensed GoreeCloud UI token JSON committed in design/.
-Review upstream diffs, licensing and device acceptance before refreshing.
+This remains a first-party attributed source adapter, not an official Maven
+publication or native-device certification. It is the **outer Android Material
+3 Expressive theme host**. Shared Kotlin Compose components are sourced from
+../vendor/gc-ui/compose-multiplatform, not a conflicting nested MaterialTheme.

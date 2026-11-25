@@ -1,6 +1,9 @@
 """Limited native-component inventories, never a resolved Gradle/Qt SBOM.
 
-Android data is ONLY first-party Gradle source declarations. Qt runtime data
+Android data is ONLY declared app and Android Expressive Gradle source
+dependencies. The additional KMP gc-ui-shared source module uses plugin-managed
+Compose dependency aliases and is EXCLUDED; the versioned-source manifest
+tracks its provenance, not a resolved dependency graph. Qt runtime data
 is ONLY selected PySide6 Python wheels installed in the invoking environment.
 No host paths, tokens, prompts, dependency edge or license claims.
 """

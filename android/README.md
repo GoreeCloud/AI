@@ -3,12 +3,25 @@
 Jetpack Compose Material 3 app with the **official GoreeCloud UI Material 3
 Expressive source adapter** integrated as the in-repository gc-ui-compose module.
 
-The adapter is a source snapshot pinned at
-https://github.com/GoreeCloud/gc-ui commit
-5625121316230d78dd40a6e41a0671a250cb873b (MIT).
-See gc-ui-compose/UPSTREAM.md for the attribution and source inventory.
-Its brand palette is generated from design/gc.tokens.json at this same source
-commit. This is not a published or production-certified gc-ui binary.
+The Android Material 3 Expressive adapter and the shared Kotlin Compose
+Multiplatform UI source are pinned to the reviewed official
+[GoreeCloud UI commit](https://github.com/GoreeCloud/gc-ui/commit/f501d92ba1f6698fa99427c564bf838954ce8bc1)
+(MIT). See [the Android adapter provenance](gc-ui-compose/UPSTREAM.md)
+and [the shared snapshot checksums](vendor/gc-ui/SOURCE-MANIFEST.json).
+The canonical `design/gc.tokens.json` is byte-identical to upstream and
+the two Kotlin palette sources match. The Android host continues to supply
+Material 3 Expressive; portable `GoreeCloudAction` is used in the confirmed
+saved-conversation deletion dialog without changing deletion authorization.
+These are local source modules, **not** published Maven libraries, a signed
+APK, a deployed app, or proof of real-device acceptance.
+
+Shared Android/Apple ARM64 source is maintained centrally in
+`GoreeCloud/gc-ui` and consumed as a checked-in source snapshot. For
+Android, the project also compiles the `:gc-ui-shared` module.
+It does not authorize Compose as the primary Linux desktop GUI.
+
+Before a source refresh or a release, verify checksums, provenance and
+licenses, examine dependencies and build/manifest behavior, and rerun CI.
 
 Run with JDK 17, Android SDK 37.1 and a supported Gradle toolchain:
 
