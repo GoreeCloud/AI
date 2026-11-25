@@ -28,12 +28,12 @@ def test_android_direct_inventory_is_exact_source_declared_and_bounded(tmp_path)
     assert inventory["specVersion"] == "1.6"
     assert inventory["metadata"]["properties"] == [
         {"name": "goreecloud:inventory-coverage",
-         "value": "source-declared-direct-maven-and-plugin-ids-only"},
+         "value": "app-and-expressive-declarations-only-kmp-aliases-excluded"},
     ]
     components = inventory["components"]
-    assert len(components) == 9
+    assert len(components) == 12
     assert all(c["bom-ref"] == c["purl"] for c in components)
-    assert len({c["bom-ref"] for c in components}) == 9
+    assert len({c["bom-ref"] for c in components}) == 12
     entries = {c["purl"]: c for c in components}
     assert entries["pkg:maven/androidx.compose.ui/ui@1.13.0"]["properties"] == [{
         "name": "goreecloud:declared-in",
@@ -44,6 +44,15 @@ def test_android_direct_inventory_is_exact_source_declared_and_bounded(tmp_path)
     assert entries[
         "pkg:generic/gradle-plugin-id/com.android.application@9.2.0"
     ]["properties"][1]["value"] == "plugin-id-only-not-gradle-artifact"
+    assert entries[
+        "pkg:generic/gradle-plugin-id/org.jetbrains.kotlin.multiplatform@2.4.21"
+    ]["version"] == "2.4.21"
+    assert entries[
+        "pkg:generic/gradle-plugin-id/com.android.kotlin.multiplatform.library@9.2.0"
+    ]["properties"][1]["value"] == "plugin-id-only-not-gradle-artifact"
+    # Only app/Android host declarations are enumerated; commonMain's
+    # plugin-managed Compose aliases do not pretend to be resolved Maven pins.
+    assert "pkg:maven/com.goreecloud.ui/shared-compose@0.0.0" not in entries
     assert all("localhost" not in json.dumps(c) and "/home/" not in json.dumps(c)
                for c in components)
 

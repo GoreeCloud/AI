@@ -98,7 +98,7 @@ def build(output: Path, root: Path = ROOT, *, include_qt_runtime: bool = False) 
         ("web.cdx.json", "goreecloud-ai-web", npm_components(root),
          "committed-npm-lock-packages-not-full-dependency-graph"),
         ("android-direct.cdx.json", "goreecloud-ai-android", android_declared_components(root),
-         "source-declared-direct-maven-and-plugin-ids-only"),
+         "app-and-expressive-declarations-only-kmp-aliases-excluded"),
     ]
     if include_qt_runtime:
         inventories.append((
