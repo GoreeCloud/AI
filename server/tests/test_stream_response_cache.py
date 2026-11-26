@@ -192,16 +192,25 @@ async def test_ollama_provider_exposes_terminal_only_when_requested(monkeypatch)
     assert "".join(e["content"] for e in output if e["type"] == "delta") == "onetwo"
 
 
-@pytest.mark.asyncio
-async def test_eof_without_provider_terminal_is_not_cache_eligible(monkeypatch):
+def test_eof_without_provider_terminal_is_not_cache_eligible(monkeypatch):
     original = httpx.AsyncClient
     monkeypatch.setenv("OLLAMA_MODEL", "demo")
+    upstream_calls = []
+
+    def fixture(request):
+        upstream_calls.append(request)
+        return httpx.Response(
+            200, text='{"model":"demo","message":{"content":"partial"},"done":false}\n',
+        )
+
     monkeypatch.setattr(providers.httpx, "AsyncClient",
-                        lambda **kwargs: original(
-                            transport=httpx.MockTransport(lambda _: httpx.Response(
-                                200, text='{"model":"demo","message":{"content":"partial"},"done":false}\n',
-                            )), **kwargs))
-    output = [e async for e in providers.stream_chat(
-        [{"role": "user", "content": "hi"}], "local", "ollama", expose_terminal=True,
-    )]
-    assert output[-1]["upstream_terminal"] is False
+                        lambda **kwargs: original(transport=httpx.MockTransport(fixture), **kwargs))
+    request = body(local_response_cache=True)
+    for _ in range(2):
+        events = stream_events(client.post("/api/v1/chat/stream", headers=OWNER, json=request))
+        assert events == [
+            {"type": "delta", "content": "partial"},
+            {"type": "error", "message": "Model stream stopped before completion"},
+        ]
+    assert len(upstream_calls) == 2
+    assert client.get("/api/v1/cache/status", headers=OWNER).json()["entries"] == 0

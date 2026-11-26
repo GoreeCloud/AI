@@ -84,6 +84,7 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
   provider_prompt_cache (explicit Anthropic breakpoint), and bounded
   cache_session_id are opt-in. See docs/TOKEN_EFFICIENCY.md.
 - POST /api/v1/chat/stream — SSE delta/done/error events, no midstream fallback.
+  The API emits an error if the provider closes before its completion marker.
   Supports context limits, output caps, provider-managed caching, and
   opt-in exact local SSE replay. Only fully delivered provider-terminal streams
   are cached after completion; partial/error streams are not stored. Hits emit
