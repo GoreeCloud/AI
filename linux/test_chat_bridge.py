@@ -28,8 +28,12 @@ class LocalSse(BaseHTTPRequestHandler):
         payload = (
             'data: {"type":"delta","content":"Hello "}' + "\n\n"
             + 'data: {"type":"delta","content":"synthetic Qt"}' + "\n\n"
-            + 'data: {"type":"done","provider":"ollama","model":"local-stub"}' + "\n\n"
-        ).encode("utf-8")
+        )
+        if self.server.mode == "provider-error":
+            payload += 'data: {"type":"error","message":"SECRET_PROVIDER_REASON"}\n\n'
+        else:
+            payload += 'data: {"type":"done","provider":"ollama","model":"local-stub"}\n\n'
+        payload = payload.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Content-Length", str(len(payload)))
@@ -110,6 +114,14 @@ class QtStreamHTTPTests(unittest.TestCase):
         self.assertEqual(self.deltas, [])
         self.assertEqual(self.server.request_paths, ["/api/v1/chat/stream"])
         self.assertTrue(self.errors)
+
+    def test_provider_error_preserves_preceding_text_without_forwarding_details(self):
+        self.server.mode = "provider-error"
+        self._call()
+        self._drain()
+        self.assertEqual("".join(self.deltas), "Hello synthetic Qt")
+        self.assertEqual(self.completions, [])
+        self.assertEqual(self.errors, ["Inference provider reported an error"])
 
     def test_cancel_discards_late_reply(self):
         self._call()

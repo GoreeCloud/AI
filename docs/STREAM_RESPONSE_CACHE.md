@@ -47,6 +47,9 @@ controls cloud consent separately. On a local SSE hit, the browser notice
 identifies that no provider was contacted. Native clients render normal
 SSE frames; their cache-hit status UX is still incomplete. All clients
 must retain stream cancellation and content bounds.
+On Linux Qt, a provider error preserves preceding streamed text, including
+when both events arrive in the same network read. The client displays a
+fixed error message to keep upstream details private.
 
 ## Remaining verification
 

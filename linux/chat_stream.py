@@ -116,6 +116,9 @@ class ChatStreamBridge(QObject):
                     self._close()
                     self.completed.emit(event["provider"], event["model"])
                     return
+                elif event["type"] == "error":
+                    self._fail("Inference provider reported an error")
+                    return
             if reply.attribute(QNetworkRequest.Attribute.RedirectionTargetAttribute):
                 self._fail("Chat stream redirect refused")
         except (StreamFrameError, ValueError, TypeError, UnicodeError):

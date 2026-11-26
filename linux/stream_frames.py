@@ -72,7 +72,9 @@ class StreamFrames:
                 })
                 break
             elif kind == "error":
-                raise StreamFrameError("Inference provider reported an error")
+                self.done = True
+                events.append({"type": "error"})
+                break
             else:
                 raise StreamFrameError("Unsupported streaming event")
         if len(self._pending) > 100_000:
