@@ -108,6 +108,9 @@ Protected routes require Authorization: Bearer OWNER_TOKEN.
 - POST /api/v1/cache/clear with approved=true — clear that worker's
   temporary chat, research-answer and summary caches; strict OIDC requires
   admin, and provider caches/other API worker caches are not affected.
+  Optional selection=chat|research|summaries (default all) clears only the
+  chosen store; older pending cache misses cannot repopulate a cleared store.
+  This does not cancel inference or revoke already delivered/replaying data.
 - POST /api/v1/images — explicitly approved paid generation/compatible reference edits (bounded image response, PNG/JPEG/WebP).
 - GET /api/v1/images/models — deliberate owner-authenticated model catalog lookup using the server-only OpenRouter API key; no prompt or paid generation request.
 - GET /api/v1/usage/openrouter/{generation_id} — owner/admin-capability only,

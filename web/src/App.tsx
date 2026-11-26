@@ -20,6 +20,7 @@ type ContextPreview = {
 }
 type CacheStatus = { mode: string; entries: number; hits: number; misses: number;
   max_entries: number; ttl_seconds: number;
+  selective_clear_supported?: boolean; invalidated_writes?: number;
   research?: { entries: number; hits: number; misses: number };
   summaries?: { entries: number; hits: number; misses: number } }
 
@@ -230,13 +231,26 @@ export default function App() {
     })
   }
 
-  async function clearLocalCache() {
-    if (!window.confirm('Clear temporary responses in this API worker? ' +
-      'This does not clear OpenRouter or other worker caches.')) return
+  async function clearLocalCache(selection: 'all' | 'chat' | 'research' | 'summaries') {
+    if (selection !== 'all' && !cacheStatus?.selective_clear_supported) return
+    if (!window.confirm('Clear ' + selection + ' temporary cache entries in this API worker? ' +
+      'This does not cancel inference or clear OpenRouter or other worker caches.')) return
     await action(async () => {
-      await api('/api/v1/cache/clear', 'POST', { approved: true })
+      // A connection can change after the status panel was loaded. Older
+      // servers ignore unknown request fields and would clear every store.
+      if (selection !== 'all') {
+        const live = await api<CacheStatus>('/api/v1/cache/status')
+        if (!live.selective_clear_supported) {
+          setCacheStatus(live)
+          throw Error('This server does not advertise selective cache clearing.')
+        }
+      }
+      const result = await api<{ cleared: number; selection?: string }>(
+        '/api/v1/cache/clear', 'POST', { approved: true, selection })
+      if (selection !== 'all' && result.selection !== selection)
+        throw Error('Server did not confirm the requested cache selection. Refresh status.')
       setCacheStatus(await api<CacheStatus>('/api/v1/cache/status'))
-      setNotice('Temporary answers cleared from the current API worker.')
+      setNotice('Cleared ' + result.cleared + ' temporary entries from this API worker: ' + selection + '.')
     })
   }
 
@@ -913,11 +927,21 @@ export default function App() {
               <button type="button" className="secondary" disabled={busy}
                 onClick={() => void inspectCache()}>RAM cache status</button>
               <button type="button" className="secondary danger" disabled={busy}
-                onClick={() => void clearLocalCache()}>Clear RAM cache</button>
+                onClick={() => void clearLocalCache('all')}>Clear all RAM caches</button>
+              {cacheStatus?.selective_clear_supported && <>
+                <button type="button" className="secondary danger" disabled={busy}
+                  onClick={() => void clearLocalCache('chat')}>Clear chat cache</button>
+                <button type="button" className="secondary danger" disabled={busy}
+                  onClick={() => void clearLocalCache('research')}>Clear research cache</button>
+                <button type="button" className="secondary danger" disabled={busy}
+                  onClick={() => void clearLocalCache('summaries')}>Clear summary cache</button>
+              </>}
             </div>
             {cacheStatus && <small role="status">Current worker: {cacheStatus.entries}/
               {cacheStatus.max_entries} entries · {cacheStatus.hits} hits ·
               {' '}{cacheStatus.misses} misses.
+              {cacheStatus.invalidated_writes !== undefined && <> Prevented late cache writes:
+                {' '}{cacheStatus.invalidated_writes}.</>}
               {cacheStatus.research && <> Research: {cacheStatus.research.entries} entries.</>}
               {cacheStatus.summaries && <> Local summaries:
                 {' '}{cacheStatus.summaries.entries} entries.</>}

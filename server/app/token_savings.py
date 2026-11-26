@@ -129,6 +129,8 @@ class ResponseCache:
         self._entries: OrderedDict[str, Entry] = OrderedDict()
         self._hits = 0
         self._misses = 0
+        self._epoch = 0
+        self._invalidated_writes = 0
 
     def key(self, messages: list[dict], selected: str, model: str,
             allow_fallback: bool, max_output_tokens: int, provider_response_cache: bool,
@@ -158,6 +160,11 @@ class ResponseCache:
                 self._entries.pop(key, None)
 
     def get(self, digest: str) -> Entry | None:
+        entry, _ = self.lookup(digest)
+        return entry
+
+    def lookup(self, digest: str) -> tuple[Entry | None, int]:
+        """Return a hit and the generation of its admission atomically."""
         with self._guard:
             self._evict_expired()
             found = self._entries.get(digest)
@@ -166,15 +173,19 @@ class ResponseCache:
             else:
                 self._entries.move_to_end(digest)
                 self._hits += 1
-            return found
+            return found, self._epoch
 
-    def put(self, digest: str, answer: dict) -> bool:
+    def put(self, digest: str, answer: dict, *, epoch: int | None) -> bool:
         if (not isinstance(answer, dict) or
                 not all(isinstance(answer.get(name), str) for name in
                         ("content", "model", "provider")) or
                 not 0 < len(answer["content"]) <= MAX_RESPONSE_CHARS):
             return False
         with self._guard:
+            # A clear invalidates every pending cache admission in this store.
+            if epoch != self._epoch:
+                self._invalidated_writes += 1
+                return False
             self._evict_expired()
             self._entries[digest] = Entry(
                 time.monotonic() + TTL_SECONDS,
@@ -189,6 +200,8 @@ class ResponseCache:
         with self._guard:
             n = len(self._entries)
             self._entries.clear()
+            self._epoch += 1
+            self._invalidated_writes = 0
             self._hits = 0
             self._misses = 0
             return n
@@ -203,6 +216,7 @@ class ResponseCache:
                 "ttl_seconds": TTL_SECONDS,
                 "hits": self._hits,
                 "misses": self._misses,
+                "invalidated_writes": self._invalidated_writes,
                 "stores_plaintext_model_output_in_ram": True,
                 "disk_persistence": False,
                 "shared_across_workers": False,

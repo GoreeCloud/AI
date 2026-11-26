@@ -126,12 +126,16 @@ def test_ttl_clear_and_distinct_request_keys(monkeypatch):
 def test_cache_capacity_and_bounds():
     instance = token_savings.ResponseCache()
     for i in range(70):
-        assert instance.put(str(i), {"provider": "ollama", "model": "m", "content": "ok"})
+        _, epoch = instance.lookup(str(i))
+        assert instance.put(str(i), {"provider": "ollama", "model": "m", "content": "ok"},
+                            epoch=epoch)
     assert instance.status()["entries"] == token_savings.MAX_ENTRIES
     assert instance.get("0") is None
-    assert not instance.put("bad", {"provider": "ollama", "model": "m", "content": ""})
+    _, epoch = instance.lookup("bad")
+    assert not instance.put("bad", {"provider": "ollama", "model": "m", "content": ""},
+                            epoch=epoch)
     assert not instance.put("huge", {"provider": "ollama", "model": "m",
-                                     "content": "x" * 120_001})
+                                     "content": "x" * 120_001}, epoch=epoch)
 
 
 @pytest.mark.parametrize("fields", [
