@@ -243,7 +243,18 @@ private fun AiWorkspace() {
                 fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 18.dp, top = 18.dp))
             Text("OpenRouter first · Ollama optional", color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp))
-            OutlinedTextField(value = endpoint, onValueChange = { if (!busy) endpoint = it },
+            OutlinedTextField(value = endpoint, onValueChange = { value ->
+                if (!busy && value != endpoint) {
+                    endpoint = value
+                    token = ""
+                    cloudConsent = false
+                    approvePaid = false
+                    approveTool = false
+                    reuseLocalResponse = false
+                    providerResponseCache = false
+                    status = "API URL changed. Enter its owner token."
+                }
+            },
                 readOnly = busy,
                 label = { Text("AI API URL (HTTPS)") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))

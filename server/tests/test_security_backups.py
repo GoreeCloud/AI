@@ -80,7 +80,10 @@ def test_oidc_jwks_path_permissions_and_issuer(oidc_keys, monkeypatch):
     assert error.value.status_code == 503
 
 
-def test_encrypted_backup_restore_round_trip(tmp_path, monkeypatch):
+@pytest.mark.parametrize("restore_folder", [
+    "restored", "restore with spaces", "restore?files", "restore#files", "restore%2Ffiles",
+])
+def test_encrypted_backup_restore_round_trip(tmp_path, monkeypatch, restore_folder):
     db = tmp_path / "data" / "ai.sqlite3"
     monkeypatch.setenv("GOREECLOUD_AI_DB_PATH", str(db))
     secret = "private-hobby-note"
@@ -92,12 +95,14 @@ def test_encrypted_backup_restore_round_trip(tmp_path, monkeypatch):
     assert secret.encode() not in encrypted
     assert encrypted.startswith(backup.MAGIC)
     assert archive.stat().st_mode & 0o077 == 0
-    target = tmp_path / "restored" / "ai.sqlite3"
+    target = tmp_path / restore_folder / "ai.sqlite3"
     backup.restore(archive, target)
     with sqlite3.connect(target) as conn:
         assert conn.execute("PRAGMA quick_check").fetchone()[0] == "ok"
         assert conn.execute("SELECT body FROM documents WHERE id=?", (row["id"],)).fetchone()[0] == secret
     assert target.stat().st_mode & 0o077 == 0
+    assert {path.name for path in tmp_path.iterdir()} == {"data", "backup", restore_folder}
+    assert set(target.parent.iterdir()) == {target}
     with pytest.raises(FileExistsError):
         backup.restore(archive, target)
     with pytest.raises(FileExistsError):

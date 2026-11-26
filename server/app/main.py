@@ -17,8 +17,10 @@ from uuid import UUID
 import anyio
 from docx import Document
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 from starlette.types import Send
 
@@ -45,6 +47,19 @@ async def private_response_headers(request: Request, call_next):
     if request.url.path.startswith("/api/v1/"):
         response.headers["Cache-Control"] = "no-store"
     return response
+
+
+@app.exception_handler(RequestValidationError)
+async def private_validation_error(request: Request, error: RequestValidationError) -> Response:
+    # The registered route path excludes any deployment prefix in root_path.
+    route = request.scope.get("route")
+    if not getattr(route, "path", "").startswith("/api/v1/"):
+        return await request_validation_exception_handler(request, error)
+    detail = [
+        {key: violation[key] for key in ("type", "loc", "msg") if key in violation}
+        for violation in error.errors()
+    ]
+    return JSONResponse({"detail": detail}, status_code=422, headers={"Cache-Control": "no-store"})
 
 
 class Message(BaseModel):

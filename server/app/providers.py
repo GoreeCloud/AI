@@ -129,10 +129,14 @@ async def chat(messages: list[dict], model: str, provider: str,
                 )
             else:
                 result = await _post(OPENROUTER + "/chat/completions", body, key)
-            usage = result.get("usage", {})
+            choices = result.get("choices")
+            if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+                raise UpstreamFailure("provider")
+            content = _extract_text_content(choices[0].get("message"))
+            usage = _response_usage(result.get("usage"))
             report = {
-                "provider": "openrouter", "model": result.get("model", model),
-                "content": _extract_content(result), "usage": usage,
+                "provider": "openrouter", "model": _response_text(result.get("model")) or model,
+                "content": content, "usage": usage,
                 **({"generation_id": validated_generation_id(result.get("id"))}
                    if validated_generation_id(result.get("id")) else {})
             }
@@ -168,23 +172,37 @@ async def chat(messages: list[dict], model: str, provider: str,
             if max_output_tokens != 2048:
                 payload["options"] = {"num_predict": max_output_tokens}
             result = await _post(local_url() + "/api/chat", payload)
+            content = _extract_text_content(result.get("message"))
         except UpstreamFailure as exc:
             raise HTTPException(502, "Local model is unavailable") from exc
         return {
-            "provider": "ollama", "model": result.get("model", local_model),
-            "content": str((result.get("message") or {}).get("content") or ""),
+            "provider": "ollama", "model": _response_text(result.get("model")) or local_model,
+            "content": content,
             "usage": {}
         }
     raise HTTPException(422, "Unsupported provider")
 
 
-def _extract_content(result: dict) -> str:
-    choices = result.get("choices") or []
-    if not choices:
-        raise HTTPException(502, "Model returned no choices")
-    value = (choices[0].get("message") or {}).get("content")
-    if not isinstance(value, str):
-        raise HTTPException(502, "Model returned non-text content")
+def _response_text(value: object) -> str | None:
+    # Python's JSON decoder can accept escaped surrogates that the UTF-8 API cannot send.
+    return value if isinstance(value, str) and not re.search(r"[\ud800-\udfff]", value) else None
+
+
+def _extract_text_content(message: object) -> str:
+    text = _response_text(message.get("content") if isinstance(message, dict) else None)
+    if text is None:
+        raise UpstreamFailure("provider")
+    return text
+
+
+def _response_usage(value: object) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    try:
+        # Preserve valid optional metadata while excluding values that cannot be sent as JSON.
+        json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (ValueError, RecursionError):
+        return {}
     return value
 
 

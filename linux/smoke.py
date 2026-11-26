@@ -14,7 +14,8 @@ from rest_bridge import SafeRestBridge
 
 class RecordingChatStream(ChatStreamBridge):
     @Slot(str, str, str)
-    def start(self, _address, _owner_token, json_body):
+    def start(self, address, owner_token, json_body):
+        self.connection = (address, owner_token)
         self.messages = json.loads(json_body)["messages"]
 
 
@@ -72,6 +73,52 @@ def check_chat_transcript(window, stream):
     stream.failed.emit("Synthetic provider error")
 
 
+def check_endpoint_change(window, stream):
+    context = qmlContext(window)
+    endpoint = context.objectForName("apiEndpointField")
+    token = context.objectForName("ownerTokenField")
+    prompt = context.objectForName("chatPrompt")
+    thread = context.objectForName("threadModel")
+    approvals = [
+        (window, "cloudConsent"),
+        (window, "reuseLocalResponse"),
+        (window, "useProviderResponseCache"),
+        (context.objectForName("imageApproved"), "checked"),
+        (context.objectForName("toolApproved"), "checked"),
+    ]
+    count = thread.property("count")
+    history = stream.messages
+    draft = "Unsent draft across connections"
+    old_token = "synthetic-old-owner-token"
+    new_endpoint = "https://fixture.invalid"
+    token.setProperty("text", old_token)
+    prompt.setProperty("text", draft)
+    for control, field in approvals:
+        control.setProperty(field, True)
+
+    endpoint.editingFinished.emit()
+    assert window.property("token") == old_token
+    assert all(control.property(field) for control, field in approvals)
+
+    endpoint.setProperty("text", new_endpoint)
+    endpoint.editingFinished.emit()
+    assert window.property("endpoint") == new_endpoint
+    assert window.property("token") == token.property("text") == ""
+    assert all(not control.property(field) for control, field in approvals)
+
+    window.sendChat()
+    assert prompt.property("text") == draft
+    assert thread.property("count") == count
+    assert stream.messages == history
+    assert not window.property("busy")
+
+    token.setProperty("text", "synthetic-new-owner-token")
+    window.sendChat()
+    assert stream.connection == (new_endpoint, "synthetic-new-owner-token")
+    assert stream.messages == [*history, {"role": "user", "content": draft}]
+    stream.stopped.emit()
+
+
 app = QGuiApplication(sys.argv)
 engine = QQmlApplicationEngine()
 bridge = RecordingChatStream()
@@ -82,5 +129,6 @@ engine.load(QUrl.fromLocalFile(str(Path(__file__).resolve().parent / "Main.qml")
 if not engine.rootObjects():
     raise SystemExit("Qt Quick scene failed to load")
 check_chat_transcript(engine.rootObjects()[0], bridge)
+check_endpoint_change(engine.rootObjects()[0], bridge)
 QTimer.singleShot(200, app.quit)
 raise SystemExit(app.exec())

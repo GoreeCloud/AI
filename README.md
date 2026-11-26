@@ -60,6 +60,10 @@ on the API. Open http://127.0.0.1:5173, enter the server URL and owner token
 (managed in memory only). Browser API requests reject redirects and require
 HTTPS for remote endpoints. Chat streams are cancellable, and opt-in saved
 chats stay in SQLite.
+Switching API servers clears the owner token and connection-specific approvals.
+The client keeps the current draft and transcript visible. Enter the owner token
+for the selected server before sending another request. Connection fields stay
+fixed while a request is active.
 The token-efficiency controls default to full history and no caching: you may
 explicitly preview approximate context savings, review a local extractive digest,
 auto-fit a declared model context window, send the latest N exchanges,
@@ -74,13 +78,17 @@ gc-ui source module; it is not a published or verified SDK release. Build
 source does not establish real-device, browser, visual or accessibility
 acceptance. Neither native client has its own provider/API key.
 Both native clients hold the API endpoint and owner token fixed while a request
-is in progress.
+is in progress. Changing the endpoint clears the token and connection-specific
+approvals while keeping the current draft and transcript visible.
 
 ## Privacy-first API contract
 
 Protected routes require Authorization: Bearer OWNER_TOKEN.
+Request validation errors under `/api/v1/` return HTTP 422 with field locations,
+types, and messages. The response excludes submitted field values.
 
-- POST /api/v1/chat — text response; consent is required for cloud. Optional
+- POST /api/v1/chat — text response; consent is required for cloud. Malformed
+  upstream replies return HTTP 502. Optional
   context_mode=last_n, context_messages (1–32), max_output_tokens (64–2048),
   local_response_cache (complete responses and provider-completed SSE streams),
   provider_response_cache,

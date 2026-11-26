@@ -114,6 +114,8 @@ refused rather than silently downgrading encryption.
 
 Restore authenticates AES-GCM and validates SQLite/SQLCipher integrity and
 GoreeCloud AI schema before atomically publishing a new private target.
+Plaintext restore validates the exact staged file in read-only mode, including
+when its path contains spaces or SQLite URI delimiters.
 It never overwrites a working database. Verify important records and local
 FTS5 search in an isolated service before depending on the restored file.
 The independent backup and DB keys are **both** required to recover a
