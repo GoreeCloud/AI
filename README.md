@@ -62,7 +62,8 @@ HTTPS for remote endpoints. Chat streams are cancellable, and opt-in saved
 chats stay in SQLite.
 Switching API servers clears the owner token and connection-specific approvals.
 The client keeps the current draft and transcript visible. Enter the owner token
-for the selected server before sending another request.
+for the selected server before sending another request. Connection fields stay
+fixed while a request is active.
 The token-efficiency controls default to full history and no caching: you may
 explicitly preview approximate context savings, review a local extractive digest,
 auto-fit a declared model context window, send the latest N exchanges,
