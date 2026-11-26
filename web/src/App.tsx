@@ -144,7 +144,7 @@ export default function App() {
     finally { setBusy(false) }
   }
 
-  function resetCacheConsent() {
+  function resetCacheConsent({ keepSummaryDraft = false } = {}) {
     setLocalResponseCache(false)
     setProviderResponseCache(false)
     setProviderPromptCache(false)
@@ -152,8 +152,23 @@ export default function App() {
     setContextDigest('')
     setLocalSummaryApproved(false)
     setLocalSummaryCache(false)
-    setReviewedLocalSummary('')
+    if (!keepSummaryDraft) setReviewedLocalSummary('')
     setCacheSessionId(globalThis.crypto?.randomUUID?.() || null)
+  }
+
+  function changeEndpoint(value: string) {
+    setEndpoint(value)
+    try {
+      if (apiOrigin(value) === apiOrigin(endpoint)) return
+    } catch { /* An invalid or incomplete edit cannot retain connection authorization. */ }
+    setToken('')
+    setCloudConsent(false)
+    setFallback(false)
+    setPaidApproved(false)
+    setToolApproval(false)
+    setResearchCacheEnabled(false)
+    resetCacheConsent({ keepSummaryDraft: true })
+    setCacheStatus(null)
   }
 
   function chatPayload(history: Message[]) {
@@ -267,6 +282,10 @@ export default function App() {
   function send(e: FormEvent) {
     e.preventDefault()
     if (!prompt.trim() || busy) return
+    if (!token.trim()) {
+      setAlert('Set an owner token first.')
+      return
+    }
     const next: Message[] = [...messages, { role: 'user', content: prompt.trim() }]
     setMessages(next); setPrompt('')
     setReviewedLocalSummary(''); setLocalSummaryApproved(false)
@@ -728,7 +747,7 @@ export default function App() {
       <header className="toolbar">
         <div><small className="eyebrow">GOREECLOUD / INTELLIGENCE</small><h1>{tab}</h1></div>
         <div className="credentials">
-          <label>API endpoint<input value={endpoint} onChange={e => setEndpoint(e.target.value)} /></label>
+          <label>API endpoint<input value={endpoint} onChange={e => changeEndpoint(e.target.value)} /></label>
           <label>Owner token<input type="password" autoComplete="off" value={token}
             placeholder="Kept in this tab only" onChange={e => setToken(e.target.value)} /></label>
         </div>
