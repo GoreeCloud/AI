@@ -124,7 +124,7 @@ ApplicationWindow {
     function request(method, path, payload, callback) {
         if (busy)
             return
-        if (token.length === 0) {
+        if (token.trim().length === 0) {
             feedback = "Enter an owner token before sending a request."
             return
         }
@@ -162,6 +162,10 @@ ApplicationWindow {
     function sendChat() {
         if (chatPrompt.text.trim().length === 0 || busy)
             return
+        if (token.trim().length === 0) {
+            feedback = "Enter an owner token before sending a request."
+            return
+        }
         var userText = chatPrompt.text.trim()
         chatPrompt.text = ""
         threadModel.append({role: "You", text: userText})
@@ -184,10 +188,6 @@ ApplicationWindow {
                 cloudConsent && provider !== "ollama"
         }
         if (streamResponses && !allowFallback) {
-            if (token.length === 0) {
-                feedback = "Enter an owner token before sending a request."
-                return
-            }
             activeStreamRow = threadModel.count
             threadModel.append({role: "GoreeCloud AI", text: ""})
             busy = true
@@ -299,17 +299,21 @@ ApplicationWindow {
             Item { Layout.fillWidth: true }
             Label { text: "API"; color: "#CED5E5" }
             TextField {
+                id: apiEndpointField
                 implicitWidth: 240
                 text: window.endpoint
-                onEditingFinished: window.endpoint = text
+                readOnly: window.busy
+                onEditingFinished: { if (!window.busy) window.endpoint = text }
                 Accessible.name: "API endpoint"
             }
             Label { text: "Token"; color: "#CED5E5" }
             TextField {
+                id: ownerTokenField
                 implicitWidth: 180
                 echoMode: TextInput.Password
                 placeholderText: "Owner token (memory only)"
-                onTextChanged: window.token = text
+                readOnly: window.busy
+                onTextChanged: { if (!window.busy) window.token = text }
                 Accessible.name: "Owner token"
             }
         }

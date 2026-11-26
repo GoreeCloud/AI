@@ -24,7 +24,8 @@ content is within 120,000 characters, the reported provider matches the
 selected provider and the bounded cache accepts a valid text/model record.
 Malformed provider data and premature EOF end the stream with a generic SSE
 error for both default and cache-enabled requests. The API rejects a provider
-line as soon as it exceeds 100,000 decoded characters. Providers may bill for
+line as soon as it exceeds 100,000 decoded characters. It closes the upstream
+iterator when interrupted while delivering a reply. Providers may bill for
 tokens produced before a cancel.
 
 The server only exposes upstream_terminal metadata when the caller opts

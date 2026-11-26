@@ -57,8 +57,9 @@ is stored in any browser/Linux/Android source.
 
 For local development set GOREECLOUD_AI_CORS_ORIGINS=http://127.0.0.1:5173
 on the API. Open http://127.0.0.1:5173, enter the server URL and owner token
-(managed in memory only). Browser requests to non-loopback HTTP endpoints
-are refused. Chat streams are cancellable; opt-in saved chats stay in SQLite.
+(managed in memory only). Browser API requests reject redirects and require
+HTTPS for remote endpoints. Chat streams are cancellable, and opt-in saved
+chats stay in SQLite.
 The token-efficiency controls default to full history and no caching: you may
 explicitly preview approximate context savings, review a local extractive digest,
 auto-fit a declared model context window, send the latest N exchanges,
@@ -72,6 +73,8 @@ See linux/README.md and android/README.md. Android uses the pinned MIT-licensed
 gc-ui source module; it is not a published or verified SDK release. Build
 source does not establish real-device, browser, visual or accessibility
 acceptance. Neither native client has its own provider/API key.
+Both native clients hold the API endpoint and owner token fixed while a request
+is in progress.
 
 ## Privacy-first API contract
 
