@@ -492,10 +492,10 @@ private fun AiWorkspace() {
                                         status = "Stream cancelled"
                                     } catch (e: Exception) {
                                         status = e.message ?: "Stream unavailable"
-                                        if (index < chat.size && chat[index].second.isEmpty()) {
+                                    } finally {
+                                        if (chat.getOrNull(index) == ("assistant" to "")) {
                                             chat.removeAt(index)
                                         }
-                                    } finally {
                                         busy = false
                                         streamingControl = null
                                         streamingJob = null

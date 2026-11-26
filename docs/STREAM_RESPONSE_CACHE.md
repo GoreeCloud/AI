@@ -22,9 +22,10 @@ OpenRouter data: [DONE] or Ollama done:true. It stores a result only
 if the terminal marker was received, at least one nonempty delta exists,
 content is within 120,000 characters, the reported provider matches the
 selected provider and the bounded cache accepts a valid text/model record.
-Cache entries require a nonempty, bounded response and a provider completion
-marker. On premature EOF, the API emits an SSE error for both default and
-cache-enabled requests. Providers may bill for tokens produced before a cancel.
+Malformed provider data and premature EOF end the stream with a generic SSE
+error for both default and cache-enabled requests. The API rejects a provider
+line as soon as it exceeds 100,000 decoded characters. Providers may bill for
+tokens produced before a cancel.
 
 The server only exposes upstream_terminal metadata when the caller opts
 into local response caching; ordinary SSE clients and existing provider
@@ -45,8 +46,11 @@ React, Android Compose and Linux Qt now permit the existing opt-in RAM
 response cache checkbox when streaming is selected. The client still
 controls cloud consent separately. On a local SSE hit, the browser notice
 identifies that no provider was contacted. Native clients render normal
-SSE frames; their cache-hit status UX is still incomplete. All clients
-must retain stream cancellation and content bounds.
+SSE frames with limited cache-hit status details. The browser closes the request
+on the first terminal event and offers Stop while a stream is active.
+Android and Linux Qt remove an empty assistant turn when streaming ends and
+preserve any text already received. The next request can continue the chat
+after a cancellation or a completion with no text.
 On Linux Qt, a provider error preserves preceding streamed text, including
 when both events arrive in the same network read. The client displays a
 fixed error message to keep upstream details private.

@@ -201,6 +201,15 @@ ApplicationWindow {
         }
     }
 
+    function finishStream() {
+        if (activeStreamRow >= 0 && activeStreamRow < threadModel.count &&
+            threadModel.get(activeStreamRow).text.length === 0) {
+            threadModel.remove(activeStreamRow)
+        }
+        activeStreamRow = -1
+        busy = false
+    }
+
     Connections {
         target: streamBridge
         function onDelta(value) {
@@ -210,23 +219,15 @@ ApplicationWindow {
             threadModel.setProperty(window.activeStreamRow, "text", row.text + value)
         }
         function onCompleted(resultProvider, resultModel) {
-            window.activeStreamRow = -1
-            window.busy = false
+            window.finishStream()
             window.feedback = "Answered via " + resultProvider + " · " + resultModel
         }
         function onFailed(message) {
-            if (window.activeStreamRow >= 0 &&
-                window.activeStreamRow < threadModel.count &&
-                threadModel.get(window.activeStreamRow).text.length === 0) {
-                threadModel.remove(window.activeStreamRow)
-            }
-            window.activeStreamRow = -1
-            window.busy = false
+            window.finishStream()
             window.feedback = message
         }
         function onStopped() {
-            window.activeStreamRow = -1
-            window.busy = false
+            window.finishStream()
             window.feedback = "Stream cancelled; provider usage may already be billable."
         }
     }
