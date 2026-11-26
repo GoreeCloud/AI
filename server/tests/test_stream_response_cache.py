@@ -192,7 +192,11 @@ async def test_ollama_provider_exposes_terminal_only_when_requested(monkeypatch)
     assert "".join(e["content"] for e in output if e["type"] == "delta") == "onetwo"
 
 
-def test_eof_without_provider_terminal_is_not_cache_eligible(monkeypatch):
+@pytest.mark.parametrize(("tail", "error"), [
+    ("", "Model stream stopped before completion"),
+    ('not-json\n{"done":true}\n', "Inference provider returned invalid stream data"),
+])
+def test_incomplete_or_malformed_upstream_is_not_cache_eligible(monkeypatch, tail, error):
     original = httpx.AsyncClient
     monkeypatch.setenv("OLLAMA_MODEL", "demo")
     upstream_calls = []
@@ -200,7 +204,7 @@ def test_eof_without_provider_terminal_is_not_cache_eligible(monkeypatch):
     def fixture(request):
         upstream_calls.append(request)
         return httpx.Response(
-            200, text='{"model":"demo","message":{"content":"partial"},"done":false}\n',
+            200, text='{"model":"demo","message":{"content":"partial"},"done":false}\n' + tail,
         )
 
     monkeypatch.setattr(providers.httpx, "AsyncClient",
@@ -210,7 +214,7 @@ def test_eof_without_provider_terminal_is_not_cache_eligible(monkeypatch):
         events = stream_events(client.post("/api/v1/chat/stream", headers=OWNER, json=request))
         assert events == [
             {"type": "delta", "content": "partial"},
-            {"type": "error", "message": "Model stream stopped before completion"},
+            {"type": "error", "message": error},
         ]
     assert len(upstream_calls) == 2
     assert client.get("/api/v1/cache/status", headers=OWNER).json()["entries"] == 0

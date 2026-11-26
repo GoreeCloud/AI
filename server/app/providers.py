@@ -229,6 +229,28 @@ async def image_request(prompt: str, model: str, reference: str | None) -> dict:
     }
 
 
+def _stream_delta(event: dict, provider: str) -> str | None:
+    if provider == "openrouter":
+        choices = event.get("choices")
+        if choices is not None and (not isinstance(choices, list)
+                                    or (choices and not isinstance(choices[0], dict))):
+            raise ValueError("Invalid stream choices")
+        message = choices[0].get("delta") if choices else None
+    else:
+        if event.get("done") is not None and not isinstance(event["done"], bool):
+            raise ValueError("Invalid stream completion flag")
+        message = event.get("message")
+    # Metadata and completion frames can omit message text.
+    if message is None:
+        return None
+    if not isinstance(message, dict):
+        raise ValueError("Invalid stream message")
+    text = message.get("content")
+    if text is not None and not isinstance(text, str):
+        raise ValueError("Invalid stream text")
+    return text
+
+
 async def stream_chat(messages: list[dict], model: str, provider: str,
                       provider_response_cache: bool = False,
                       provider_prompt_cache: bool = False,
@@ -270,7 +292,7 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
 
     produced = 0
     upstream_terminal = False
-    final_model = body["model"]
+    final_model = body["model"][:128]
     generation_id = None
     cache_status = None
     usage_tokens = {}
@@ -300,28 +322,28 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                             break
                     else:
                         data = line
-                    if not data:
+                    if not data.strip():
                         continue
                     try:
                         event = json.loads(data)
-                    except (ValueError, TypeError):
-                        continue
-                    if isinstance(event, dict) and event.get("error"):
+                        if not isinstance(event, dict):
+                            raise ValueError("Invalid stream event")
+                        provider_failed = bool(event.get("error"))
+                        delta = None if provider_failed else _stream_delta(event, provider)
+                    except (ValueError, RecursionError):
+                        yield {"type": "error", "message": "Inference provider returned invalid stream data"}
+                        return
+                    if provider_failed:
                         yield {"type": "error", "message": "Inference provider reported an error"}
                         return
-                    if not isinstance(event, dict):
-                        continue
                     if provider == "openrouter":
                         generation_id = validated_generation_id(event.get("id")) or generation_id
                         if provider_prompt_cache:
                             usage_tokens = _cache_token_report(event.get("usage", {})) or usage_tokens
-                    final_model = str(event.get("model") or final_model)[:128]
-                    if provider == "openrouter":
-                        choices = event.get("choices") or []
-                        delta = (choices[0].get("delta") or {}).get("content") if choices else None
-                    else:
-                        delta = (event.get("message") or {}).get("content")
-                    if isinstance(delta, str) and delta:
+                    streamed_model = event.get("model")
+                    if isinstance(streamed_model, str) and streamed_model:
+                        final_model = streamed_model[:128]
+                    if delta:
                         produced += len(delta)
                         if produced > 120_000:
                             yield {"type": "error", "message": "Response text limit reached"}

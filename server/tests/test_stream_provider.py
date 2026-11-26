@@ -43,8 +43,11 @@ class StubClient:
 async def test_openrouter_sse(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "fake-key")
     lines = [
+        ': keepalive',
+        'data: {"choices":[{"delta":{"role":"assistant","content":null}}]}',
         'data: ' + json.dumps({"model": "tested", "choices": [{"delta": {"content": "Hey"}}]}),
         'data: ' + json.dumps({"choices": [{"delta": {"content": " there"}}]}),
+        'data: {"choices":[],"usage":{"completion_tokens":2}}',
         'data:[DONE]'
     ]
     monkeypatch.setattr(providers.httpx, "AsyncClient",
@@ -104,4 +107,36 @@ async def test_eof_without_provider_terminal_reports_error(
     assert events == [
         {"type": "delta", "content": "partial"},
         {"type": "error", "message": "Model stream stopped before completion"},
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("provider", "invalid"), [
+    ("openrouter", 'truncated JSON'),
+    ("openrouter", '[]'),
+    ("openrouter", '{"choices":{"unexpected":"private provider data"}}'),
+    ("openrouter", '{"choices":["private provider data"]}'),
+    ("openrouter", '{"choices":[{"delta":"private provider data"}]}'),
+    ("openrouter", '{"choices":[{"delta":{"content":["private provider data"]}}]}'),
+    ("ollama", 'truncated JSON'),
+    ("ollama", 'true'),
+    ("ollama", '{"message":"private provider data","done":true}'),
+    ("ollama", '{"message":{"content":["private provider data"]},"done":true}'),
+    ("ollama", '{"done":"true"}'),
+])
+async def test_malformed_provider_data_ends_stream_with_redacted_error(monkeypatch, provider, invalid):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fake-key")
+    monkeypatch.setenv("OLLAMA_MODEL", "mock-local")
+    if provider == "openrouter":
+        lines = ['data: {"choices":[{"delta":{"content":"partial"}}]}',
+                 'data: ' + invalid, 'data: [DONE]']
+    else:
+        lines = ['{"message":{"content":"partial"},"done":false}', invalid, '{"done":true}']
+    monkeypatch.setattr(providers.httpx, "AsyncClient", lambda **kwargs: StubClient(lines))
+    events = [event async for event in providers.stream_chat(
+        [{"role": "user", "content": "hello"}], "local", provider, expose_terminal=True,
+    )]
+    assert events == [
+        {"type": "delta", "content": "partial"},
+        {"type": "error", "message": "Inference provider returned invalid stream data"},
     ]
