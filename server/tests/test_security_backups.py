@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import jwt
 import pytest
@@ -123,6 +124,46 @@ def test_backup_rejects_wrong_key_and_tampering(tmp_path, monkeypatch):
     with pytest.raises(InvalidTag):
         backup.restore(archive, target)
     assert not target.exists()
+
+
+def test_backup_publishes_after_staged_write_without_replacing_concurrent_output(tmp_path, monkeypatch):
+    db = tmp_path / "ai.sqlite3"
+    archive = tmp_path / "snapshot.gcai"
+    monkeypatch.setenv("GOREECLOUD_AI_DB_PATH", str(db))
+    monkeypatch.setenv("GOREECLOUD_AI_BACKUP_KEY", base64.b64encode(os.urandom(32)).decode())
+    storage.create_document("Synthetic", "Data to preserve")
+    write_staged = backup._write_existing_private
+
+    def create_competing_output(staged, contents):
+        assert staged != archive and not archive.exists()
+        write_staged(staged, contents)
+        assert not archive.exists()
+        archive.write_bytes(b"Another writer's output")
+
+    monkeypatch.setattr(backup, "_write_existing_private", create_competing_output)
+    with pytest.raises(FileExistsError):
+        backup.backup(db, archive)
+    assert archive.read_bytes() == b"Another writer's output"
+    assert not list(tmp_path.glob(".gcai-*"))
+
+
+def test_oversized_backup_snapshot_is_rejected_before_loading(tmp_path, monkeypatch):
+    db = tmp_path / "ai.sqlite3"
+    archive = tmp_path / "snapshot.gcai"
+    monkeypatch.setenv("GOREECLOUD_AI_DB_PATH", str(db))
+    storage.create_document("Synthetic", "Fixture snapshot")
+    monkeypatch.setattr(backup, "MAX_BYTES", 1)
+    open_path = Path.open
+
+    def reject_snapshot_read(path, *args, **kwargs):
+        assert not (path.parent == tmp_path and path.name.startswith(".gcai-"))
+        return open_path(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", reject_snapshot_read)
+    with pytest.raises(ValueError, match="Snapshot exceeds"):
+        backup.backup(db, archive)
+    assert not archive.exists()
+    assert not list(tmp_path.glob(".gcai-*"))
 
 
 def test_retention_explicit_approval(tmp_path, monkeypatch):
