@@ -2,11 +2,13 @@
 import asyncio
 import base64
 import binascii
+import io
 import json
 import math
 import os
 import re
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from urllib.parse import urlsplit
 
 import httpx
@@ -14,6 +16,8 @@ from fastapi import HTTPException
 
 OPENROUTER = "https://openrouter.ai/api/v1"
 OLLAMA_DEFAULT = "http://127.0.0.1:11434"
+_STREAM_LINE_CHAR_LIMIT = 100_000
+_STREAM_LINE_END = re.compile(r"\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]")
 
 
 class UpstreamFailure(Exception):
@@ -251,6 +255,40 @@ def _stream_delta(event: dict, provider: str) -> str | None:
     return text
 
 
+class _UpstreamLineLimitExceeded(Exception):
+    pass
+
+
+async def _bounded_stream_lines(response: httpx.Response) -> AsyncIterator[str]:
+    pending = io.StringIO()
+    trailing_cr = False
+    async with aclosing(response.aiter_text()) as chunks:
+        async for text in chunks:
+            # Let HTTPX decode incrementally and preserve its splitlines semantics,
+            # including CRLF split between chunks. The cap measures decoded characters.
+            if trailing_cr:
+                text = "\r" + text
+            trailing_cr = text.endswith("\r")
+            if trailing_cr:
+                text = text[:-1]
+
+            start = 0
+            for end in _STREAM_LINE_END.finditer(text):
+                if pending.tell() + end.start() - start > _STREAM_LINE_CHAR_LIMIT:
+                    raise _UpstreamLineLimitExceeded
+                pending.write(text[start:end.start()])
+                yield pending.getvalue()
+                pending.seek(0)
+                pending.truncate()
+                start = end.end()
+
+            if pending.tell() + len(text) - start > _STREAM_LINE_CHAR_LIMIT:
+                raise _UpstreamLineLimitExceeded
+            pending.write(text[start:])
+        if pending.tell() or trailing_cr:
+            yield pending.getvalue()
+
+
 async def stream_chat(messages: list[dict], model: str, provider: str,
                       provider_response_cache: bool = False,
                       provider_prompt_cache: bool = False,
@@ -298,7 +336,10 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
     usage_tokens = {}
     try:
         async with httpx.AsyncClient(timeout=90, follow_redirects=False, trust_env=False) as client:  # noqa: SIM117
-            async with client.stream("POST", url, json=body, headers=headers) as response:
+            async with (
+                client.stream("POST", url, json=body, headers=headers) as response,
+                aclosing(_bounded_stream_lines(response)) as lines,
+            ):
                 if response.status_code != 200:
                     yield {"type": "error", "message": "Inference provider returned an error"}
                     return
@@ -309,10 +350,7 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                     if provider_response_cache:
                         marker = response.headers.get("X-OpenRouter-Cache-Status", "").upper()
                         cache_status = marker if marker in ("HIT", "MISS") else "UNKNOWN"
-                async for line in response.aiter_lines():
-                    if len(line) > 100_000:
-                        yield {"type": "error", "message": "Upstream response exceeded limit"}
-                        return
+                async for line in lines:
                     if provider == "openrouter":
                         if not line.startswith("data:"):
                             continue
@@ -352,6 +390,9 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                     if provider == "ollama" and event.get("done") is True:
                         upstream_terminal = True
                         break
+    except _UpstreamLineLimitExceeded:
+        yield {"type": "error", "message": "Upstream response exceeded limit"}
+        return
     except httpx.RequestError:
         yield {"type": "error", "message": "Inference provider is unreachable"}
         return

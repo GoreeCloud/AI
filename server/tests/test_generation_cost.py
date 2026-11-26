@@ -195,9 +195,9 @@ async def test_stream_includes_bounded_generation_id(monkeypatch):
             return self
         async def __aexit__(self, *_):
             return False
-        async def aiter_lines(self):
-            yield 'data: {"id":"gen-event1234","model":"sample/model","choices":[{"delta":{"content":"Hi"}}]}'
-            yield "data: [DONE]"
+        async def aiter_text(self):
+            yield 'data: {"id":"gen-event1234","model":"sample/model","choices":[{"delta":{"content":"Hi"}}]}\n'
+            yield "data: [DONE]\n"
     class FakeHTTP:
         def __init__(self, **_):
             pass
