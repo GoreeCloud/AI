@@ -134,7 +134,7 @@ def restore(source: Path, destination: Path) -> None:
         if mode == "sqlcipher":
             db = database_backend.connect(snapshot, create=False)
         else:
-            db = sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True)
+            db = sqlite3.connect(f"{snapshot.absolute().as_uri()}?mode=ro", uri=True)
         try:
             if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                 raise ValueError("Restored database failed integrity check")
