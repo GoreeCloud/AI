@@ -34,6 +34,20 @@ ApplicationWindow {
     property var imageModels: []
     property string selectedSavedChatId: ""
 
+    function applyEndpointEdit(nextEndpoint) {
+        if (busy || nextEndpoint === endpoint)
+            return
+        token = ""
+        ownerTokenField.clear()
+        cloudConsent = false
+        reuseLocalResponse = false
+        useProviderResponseCache = false
+        imageApproved.checked = false
+        toolApproved.checked = false
+        endpoint = nextEndpoint
+        feedback = "API endpoint changed. Enter an owner token for this server."
+    }
+
     function saveCurrentConversation() {
         if (window.busy || threadModel.count < 1 || threadModel.count > 64) {
             feedback = "Save 1–64 complete messages as a local snapshot."
@@ -303,7 +317,7 @@ ApplicationWindow {
                 implicitWidth: 240
                 text: window.endpoint
                 readOnly: window.busy
-                onEditingFinished: { if (!window.busy) window.endpoint = text }
+                onEditingFinished: window.applyEndpointEdit(text)
                 Accessible.name: "API endpoint"
             }
             Label { text: "Token"; color: "#CED5E5" }
