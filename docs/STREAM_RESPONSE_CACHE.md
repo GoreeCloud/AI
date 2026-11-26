@@ -22,10 +22,9 @@ OpenRouter data: [DONE] or Ollama done:true. It stores a result only
 if the terminal marker was received, at least one nonempty delta exists,
 content is within 120,000 characters, the reported provider matches the
 selected provider and the bounded cache accepts a valid text/model record.
-Empty responses, errors, oversized outputs and EOF without an upstream
-terminal marker do **not** populate cache. An interrupted connection does
-not complete the required provider-end marker. This is not durable caching
-and is not a guarantee that a provider billed zero tokens before cancel.
+Cache entries require a nonempty, bounded response and a provider completion
+marker. On premature EOF, the API emits an SSE error for both default and
+cache-enabled requests. Providers may bill for tokens produced before a cancel.
 
 The server only exposes upstream_terminal metadata when the caller opts
 into local response caching; ordinary SSE clients and existing provider

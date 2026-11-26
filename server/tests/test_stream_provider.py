@@ -45,7 +45,7 @@ async def test_openrouter_sse(monkeypatch):
     lines = [
         'data: ' + json.dumps({"model": "tested", "choices": [{"delta": {"content": "Hey"}}]}),
         'data: ' + json.dumps({"choices": [{"delta": {"content": " there"}}]}),
-        'data: [DONE]'
+        'data:[DONE]'
     ]
     monkeypatch.setattr(providers.httpx, "AsyncClient",
                         lambda **kwargs: StubClient(lines))
@@ -82,3 +82,26 @@ async def test_stream_provider_status_redacted(monkeypatch):
         [{"role": "user", "content": "secret"}], "openrouter/auto", "openrouter")]
     assert events == [{"type": "error", "message": "Inference provider returned an error"}]
     assert "secret" not in json.dumps(events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("provider", "partial_line"), [
+    ("openrouter", 'data: {"choices":[{"delta":{"content":"partial"}}]}'),
+    ("ollama", '{"message":{"content":"partial"},"done":false}'),
+])
+@pytest.mark.parametrize("expose_terminal", [False, True])
+async def test_eof_without_provider_terminal_reports_error(
+    monkeypatch, provider, partial_line, expose_terminal,
+):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fake-key")
+    monkeypatch.setenv("OLLAMA_MODEL", "mock-local")
+    monkeypatch.setattr(providers.httpx, "AsyncClient",
+                        lambda **kwargs: StubClient([partial_line]))
+    events = [event async for event in providers.stream_chat(
+        [{"role": "user", "content": "hello"}], "local", provider,
+        expose_terminal=expose_terminal,
+    )]
+    assert events == [
+        {"type": "delta", "content": "partial"},
+        {"type": "error", "message": "Model stream stopped before completion"},
+    ]

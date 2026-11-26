@@ -292,9 +292,9 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
                         yield {"type": "error", "message": "Upstream response exceeded limit"}
                         return
                     if provider == "openrouter":
-                        if not line.startswith("data: "):
+                        if not line.startswith("data:"):
                             continue
-                        data = line[6:]
+                        data = line[5:].removeprefix(" ")
                         if data == "[DONE]":
                             upstream_terminal = True
                             break
@@ -333,10 +333,12 @@ async def stream_chat(messages: list[dict], model: str, provider: str,
     except httpx.RequestError:
         yield {"type": "error", "message": "Inference provider is unreachable"}
         return
+    if not upstream_terminal:
+        yield {"type": "error", "message": "Model stream stopped before completion"}
+        return
     done = {"type": "done", "provider": provider, "model": final_model}
     if expose_terminal:
-        # Opt-in response-cache admission requires actual provider completion
-        # marker; legacy response shape remains unchanged for other clients.
+        # Preserve the confirmation used by opt-in response-cache admission.
         done["upstream_terminal"] = upstream_terminal
     if provider == "openrouter" and generation_id and cache_status != "HIT":
         done["generation_id"] = generation_id
