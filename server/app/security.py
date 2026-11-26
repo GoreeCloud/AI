@@ -99,7 +99,10 @@ def _oidc_claims(token: str) -> dict:
     owner_sub = os.getenv("GOREECLOUD_AI_OIDC_OWNER_SUB", "")
     required_scope = os.getenv("GOREECLOUD_AI_OIDC_REQUIRED_SCOPE", "goreecloud.ai.owner")
     key_path = os.getenv("GOREECLOUD_AI_OIDC_JWKS_PATH", "")
-    origin = urlsplit(issuer)
+    try:
+        origin = urlsplit(issuer)
+    except ValueError as exc:
+        raise HTTPException(503, "OIDC mode requires a pinned issuer, audience, owner and JWKS") from exc
     if (origin.scheme != "https" or not origin.hostname or origin.username or origin.password
             or origin.query or origin.fragment or not audience or not owner_sub
             or not required_scope or not key_path):
@@ -164,7 +167,18 @@ def require_owner(request: Request,
     expected = os.getenv("GOREECLOUD_AI_TOKEN", "").strip()
     if not expected:
         raise HTTPException(503, "Owner API token is not configured")
-    if not hmac.compare_digest(credentials.credentials, expected):
+    # HTTP bearer token syntax is ASCII. compare_digest(str, str) raises
+    # TypeError on non-ASCII input, so reject malformed credentials rather
+    # than exposing an internal error or accepting Unicode normalization.
+    try:
+        configured = expected.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise HTTPException(503, "Owner API token configuration is invalid") from exc
+    try:
+        presented = credentials.credentials.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise _unauthorized() from exc
+    if not hmac.compare_digest(presented, configured):
         raise _unauthorized()
 
 
