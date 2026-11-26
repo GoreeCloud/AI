@@ -28,18 +28,29 @@ class LinuxSseTests(unittest.TestCase):
         )
         self.assertEqual([e["content"] for e in result], ["a", "b"])
 
-    def test_invalid_json_or_utf8_and_provider_errors(self):
+    def test_invalid_json_or_utf8_and_invalid_event_types(self):
         for data in (
             b"data: {bad}\n",
             b"data: \xff\n",
-            b'data: {"type":"error","message":"SECRET_PROVIDER_REASON"}\n',
             b'data: {"type":"unknown"}\n',
             b'data: {"type":"delta","content":17}\n',
         ):
             with self.subTest(data=data):
-                with self.assertRaises(StreamFrameError) as raised:
+                with self.assertRaises(StreamFrameError):
                     StreamFrames().feed(data)
-                self.assertNotIn("SECRET_PROVIDER_REASON", str(raised.exception))
+
+    def test_error_keeps_preceding_delta_and_ends_stream(self):
+        parser = StreamFrames()
+        self.assertEqual(parser.feed(
+            b'data: {"type":"delta","content":"partial"}\n\n'
+            b'data: {"type":"error","message":"SECRET_PROVIDER_REASON"}\n\n'
+            b'data: {"type":"done"}\n\n'
+        ), [
+            {"type": "delta", "content": "partial"},
+            {"type": "error"},
+        ])
+        self.assertTrue(parser.done)
+        self.assertEqual(parser.feed(b'data: {"type":"done"}\n\n'), [])
 
     def test_rejects_oversized_lines_and_total_response(self):
         with self.assertRaises(StreamFrameError):
