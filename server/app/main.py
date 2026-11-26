@@ -250,11 +250,12 @@ async def local_summary(request: LocalSummaryRequest):
         {"role": "user", "content": "Untrusted prior turns (JSON):\n" + serialized},
     ]
     digest = None
+    cache_epoch = None
     if request.reuse_local_summary_cache:
         digest = token_savings.summary_cache.key(
             model_messages, "ollama", "local", False, 384, False, False, None,
         )
-        entry = token_savings.summary_cache.get(digest)
+        entry, cache_epoch = token_savings.summary_cache.lookup(digest)
         if entry is not None:
             return {
                 "summary": entry.content, "provider": "ollama", "model": entry.model,
@@ -283,6 +284,7 @@ async def local_summary(request: LocalSummaryRequest):
         stored = token_savings.summary_cache.put(
             digest, {"provider": "ollama", "model": model_name,
                      "content": summary.strip()},
+            epoch=cache_epoch,
         )
         result["cache"] = {"mode": "local-summary-memory", "hit": False,
                            "stored": stored, "provider_contacted": True}
@@ -306,6 +308,7 @@ def cache_status():
     """Metadata only; no hashes, prompt text or response bodies."""
     return {
         **token_savings.response_cache.status(),
+        "selective_clear_supported": True,
         "research": token_savings.research_cache.status(),
         "summaries": token_savings.summary_cache.status(),
     }
@@ -313,6 +316,7 @@ def cache_status():
 
 class CacheClearRequest(BaseModel):
     approved: bool = False
+    selection: Literal["all", "chat", "research", "summaries"] = "all"
 
 
 @app.post("/api/v1/cache/clear", dependencies=[Depends(require_owner)])
@@ -320,15 +324,20 @@ def clear_cache(request: CacheClearRequest, http_request: Request):
     require_capability(http_request, "admin")
     if not request.approved:
         raise HTTPException(403, "Clearing the in-memory cache requires explicit approval")
-    chat_cleared = token_savings.response_cache.clear()
-    research_cleared = token_savings.research_cache.clear()
-    summaries_cleared = token_savings.summary_cache.clear()
+    selection = request.selection
+    chat_cleared = (token_savings.response_cache.clear()
+                    if selection in ("all", "chat") else 0)
+    research_cleared = (token_savings.research_cache.clear()
+                        if selection in ("all", "research") else 0)
+    summaries_cleared = (token_savings.summary_cache.clear()
+                         if selection in ("all", "summaries") else 0)
     return {
         "cleared": chat_cleared + research_cleared + summaries_cleared,
         "chat_cleared": chat_cleared,
         "research_cleared": research_cleared,
         "summaries_cleared": summaries_cleared,
         "scope": "current-api-worker",
+        "selection": selection,
         "note": "Does not affect other workers or provider-managed caches",
     }
 
@@ -345,13 +354,14 @@ async def chat(request: ChatRequest, http_request: Request):
     messages = chat_context(request)
     _assert_budget_fits(request, messages)
     digest = None
+    cache_epoch = None
     if request.local_response_cache:
         digest = token_savings.response_cache.key(
             messages, selected, request.model, request.allow_local_fallback,
             request.max_output_tokens, request.provider_response_cache, request.provider_prompt_cache,
             request.cache_session_id,
         )
-        entry = token_savings.response_cache.get(digest)
+        entry, cache_epoch = token_savings.response_cache.lookup(digest)
         if entry is not None:
             return {
                 "provider": entry.provider, "model": entry.model,
@@ -383,7 +393,8 @@ async def chat(request: ChatRequest, http_request: Request):
     if digest is not None:
         # Do not retain local-fallback answers as cloud model cache entries.
         can_store = output.get("provider") == selected
-        saved = token_savings.response_cache.put(digest, output) if can_store else False
+        saved = (token_savings.response_cache.put(digest, output, epoch=cache_epoch)
+                 if can_store else False)
         output["cache"] = {
             "mode": "local-process-memory", "hit": False, "stored": saved,
             "provider_contacted": True,
@@ -405,6 +416,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     messages = chat_context(request)
     _assert_budget_fits(request, messages)
     digest = None
+    cache_epoch = None
     headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no",
                "X-Content-Type-Options": "nosniff"}
     if request.local_response_cache:
@@ -413,7 +425,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             request.max_output_tokens, request.provider_response_cache,
             request.provider_prompt_cache, request.cache_session_id,
         )
-        entry = token_savings.response_cache.get(digest)
+        entry, cache_epoch = token_savings.response_cache.lookup(digest)
         if entry is not None:
             async def replay():
                 # Replay model text in bounded SSE chunks, not old provider
@@ -470,6 +482,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                     stored = token_savings.response_cache.put(
                         digest, {"provider": selected, "model": message.get("model"),
                                  "content": "".join(fragments)},
+                        epoch=cache_epoch,
                     )
                 message = {
                     **message,
@@ -895,6 +908,7 @@ async def research_answer(request: ResearchRequest, http_request: Request):
     sources = [{"id": entry["source_id"], "title": entry["title"]}
                for entry in excerpts]
     digest = None
+    cache_epoch = None
     if request.local_answer_cache:
         # Versioned retrieval fingerprint is local-only. The HMAC key does
         # not contain plaintext source data or conversation contents.
@@ -908,7 +922,7 @@ async def research_answer(request: ResearchRequest, http_request: Request):
             cache_messages, selected, "openrouter/auto", False,
             2048, False, False, None,
         )
-        entry = token_savings.research_cache.get(digest)
+        entry, cache_epoch = token_savings.research_cache.lookup(digest)
         if entry is not None:
             return {
                 "answer": entry.content, "sources": sources,
@@ -932,7 +946,7 @@ async def research_answer(request: ResearchRequest, http_request: Request):
     }
     if digest is not None:
         stored = (model_answer["provider"] == selected and
-                  token_savings.research_cache.put(digest, model_answer))
+                  token_savings.research_cache.put(digest, model_answer, epoch=cache_epoch))
         result["cache"] = {
             "mode": "local-research-memory", "hit": False,
             "stored": stored, "provider_contacted": True,

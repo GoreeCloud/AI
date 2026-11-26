@@ -89,9 +89,15 @@ are in docs/LOCAL_SUMMARIES.md.
 - POST /api/v1/chat/context-preview: strict OIDC read capability, no model.
 - POST /api/v1/chat/local-summary: strict OIDC inference capability, explicit
   local-model approval; never a cloud request and never auto-persisted.
-- GET /api/v1/cache/status: strict OIDC read capability, counts only.
+- GET /api/v1/cache/status: strict OIDC read capability, counts only, including
+  rejected stale cache writes since the most recent clear and a selective-clear
+  support flag. The web client reveals selective controls after reading this flag.
 - POST /api/v1/cache/clear: strict OIDC admin, explicit approved=true required.
-  Affects only the current worker and never the OpenRouter edge cache.
+  Optional `selection` is `all` (default), `chat`, `research`, or `summaries`.
+  Affects only the selected stores in the current worker, never the OpenRouter
+  edge cache. Pending cache misses admitted before a clear cannot repopulate
+  that store when their inference completes. A clear does not cancel inference,
+  revoke already returned or in-progress replay data, or securely erase RAM.
 - POST /api/v1/chat and /api/v1/chat/stream: strict inference/cloud permission
   remains required. Unsupported provider cache combinations fail before
   outbound contact. Local RAM cache is available to completed non-stream and fully terminated SSE
