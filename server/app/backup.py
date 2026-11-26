@@ -55,19 +55,13 @@ def _sync_directory(path: Path) -> None:
 
 
 def _write_exclusive(destination: Path, contents: bytes) -> None:
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    fd = os.open(destination, flags, 0o600)
+    staged = _temporary(destination.parent)
     try:
-        with os.fdopen(fd, "wb") as output:
-            output.write(contents)
-            output.flush()
-            os.fsync(output.fileno())
-    except Exception:
-        destination.unlink(missing_ok=True)
-        raise
-    _sync_directory(destination.parent)
+        _write_existing_private(staged, contents)
+        os.link(staged, destination, follow_symlinks=False)
+        _sync_directory(destination.parent)
+    finally:
+        staged.unlink(missing_ok=True)
 
 
 def backup(database: Path, destination: Path) -> None:
@@ -91,9 +85,13 @@ def backup(database: Path, destination: Path) -> None:
             with sqlite3.connect(database) as source, sqlite3.connect(snapshot) as target:
                 source.backup(target)
             magic = MAGIC
-        data = snapshot.read_bytes()
-        if len(data) > MAX_BYTES:
+        snapshot_size = snapshot.stat().st_size
+        if snapshot_size > MAX_BYTES:
             raise ValueError("Snapshot exceeds 256 MiB memory-safe limit")
+        with snapshot.open("rb") as snapshot_file:
+            data = snapshot_file.read(snapshot_size + 1)
+        if len(data) != snapshot_size:
+            raise ValueError("Snapshot size changed during backup")
         if (data.startswith(database_backend.SQLITE_HEADER)
                 != (mode == "plaintext")):
             raise ValueError("Snapshot encryption mode mismatch")

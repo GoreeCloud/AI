@@ -104,14 +104,24 @@ export default function App() {
     cloud_requests: { remaining: number; limit: number }
   } | null>(null)
 
-  async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
     if (!token.trim()) throw Error('Set an owner token first.')
-    const result = await fetch(apiOrigin(endpoint) + path, {
+    const headers = new Headers(options.headers)
+    headers.set('Authorization', 'Bearer ' + token)
+    return fetch(apiOrigin(endpoint) + path, {
+      ...options,
+      headers,
+      redirect: 'error',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+    })
+  }
+
+  async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+    const result = await apiFetch(path, {
       method,
-      headers: { 'Authorization': 'Bearer ' + token,
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store', referrerPolicy: 'no-referrer'
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body)
     })
     if (!result.ok) {
       const details: unknown = await result.json().catch(() => ({}))
@@ -287,12 +297,11 @@ export default function App() {
       const controller = new AbortController()
       setStreamAbort(controller)
       try {
-        const response = await fetch(apiOrigin(endpoint) + '/api/v1/chat/stream', {
+        const response = await apiFetch('/api/v1/chat/stream', {
           method: 'POST',
-          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          signal: controller.signal,
-          referrerPolicy: 'no-referrer', cache: 'no-store'
+          signal: controller.signal
         })
         if (!response.ok) {
           const details = await response.json().catch(() => ({})) as { detail?: string }
@@ -502,12 +511,7 @@ export default function App() {
 
   async function exportChat(id: string, format: 'json' | 'md') {
     await action(async () => {
-      if (!token.trim()) throw Error('Set an owner token first.')
-      const reply = await fetch(apiOrigin(endpoint) +
-        '/api/v1/conversations/' + id + '/export?format=' + format, {
-        headers: { Authorization: 'Bearer ' + token },
-        cache: 'no-store', referrerPolicy: 'no-referrer'
-      })
+      const reply = await apiFetch('/api/v1/conversations/' + id + '/export?format=' + format)
       if (!reply.ok) throw Error('Conversation export failed (' + reply.status + ')')
       const objectURL = URL.createObjectURL(await reply.blob())
       const anchor = document.createElement('a')
@@ -648,9 +652,7 @@ export default function App() {
     if (!file) return
     await action(async () => {
       const form = new FormData(); form.append('file', file)
-      const reply = await fetch(apiOrigin(endpoint) + '/api/v1/documents/extract', {
-        method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form
-      })
+      const reply = await apiFetch('/api/v1/documents/extract', { method: 'POST', body: form })
       if (!reply.ok) throw Error('Document import failed (' + reply.status + ')')
       const extracted = await reply.json() as { name: string; text: string; truncated: boolean }
       setDocId(''); setDocTitle(extracted.name); setDocBody(extracted.text)
@@ -661,9 +663,7 @@ export default function App() {
 
   async function exportDoc(format: 'md' | 'docx') {
     await action(async () => {
-      const reply = await fetch(apiOrigin(endpoint) +
-        '/api/v1/documents/' + docId + '/export?format=' + format,
-        { headers: { Authorization: 'Bearer ' + token } })
+      const reply = await apiFetch('/api/v1/documents/' + docId + '/export?format=' + format)
       if (!reply.ok) throw Error('Export failed')
       const objectURL = URL.createObjectURL(await reply.blob())
       const anchor = document.createElement('a'); anchor.href = objectURL

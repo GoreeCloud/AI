@@ -1,4 +1,5 @@
 """Opt-in full-stream SSE cache reuse; only provider-terminal completions persist."""
+import asyncio
 import json
 
 import httpx
@@ -107,6 +108,58 @@ def test_stream_error_does_not_store_partial_response(monkeypatch):
         assert result[-1]["type"] == "error"
     assert len(count) == 2
     assert client.get("/api/v1/cache/status", headers=OWNER).json()["entries"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asgi_spec", ["2.3", "2.4"])
+async def test_disconnect_while_sending_delta_closes_provider_without_caching(monkeypatch, asgi_spec):
+    next_delta = asyncio.Event()
+    closed = asyncio.Event()
+
+    async def source():
+        try:
+            yield {"type": "delta", "content": "first"}
+            next_delta.set()
+            yield {"type": "delta", "content": "second"}
+            yield {"type": "done", "provider": "ollama", "model": "local", "upstream_terminal": True}
+        finally:
+            await asyncio.sleep(0)
+            closed.set()
+
+    provider = source()
+    monkeypatch.setattr(providers, "stream_chat", lambda *_args, **_kwargs: provider)
+    request_body = json.dumps(body(local_response_cache=True)).encode()
+    sent_request = False
+
+    async def receive():
+        nonlocal sent_request
+        if not sent_request:
+            sent_request = True
+            return {"type": "http.request", "body": request_body, "more_body": False}
+        await asyncio.Future()
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            assert message["status"] == 200
+        elif message["type"] == "http.response.body":
+            assert b'"content": "first"' in message["body"]
+            await next_delta.wait()
+            raise BrokenPipeError
+
+    scope = {
+        "type": "http", "asgi": {"version": "3.0", "spec_version": asgi_spec},
+        "method": "POST", "scheme": "http", "path": "/api/v1/chat/stream", "query_string": b"",
+        "headers": [(b"authorization", OWNER["Authorization"].encode()),
+                    (b"content-type", b"application/json")],
+    }
+    try:
+        async with asyncio.timeout(5):
+            with pytest.raises(BrokenPipeError):
+                await app(scope, receive, send)
+        assert closed.is_set()
+        assert token_savings.response_cache.status()["entries"] == 0
+    finally:
+        await provider.aclose()
 
 
 def test_sse_cache_hit_requires_cloud_consent_and_skips_new_admission(monkeypatch):

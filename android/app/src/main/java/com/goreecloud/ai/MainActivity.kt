@@ -243,10 +243,12 @@ private fun AiWorkspace() {
                 fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 18.dp, top = 18.dp))
             Text("OpenRouter first · Ollama optional", color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp))
-            OutlinedTextField(value = endpoint, onValueChange = { endpoint = it },
+            OutlinedTextField(value = endpoint, onValueChange = { if (!busy) endpoint = it },
+                readOnly = busy,
                 label = { Text("AI API URL (HTTPS)") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))
-            OutlinedTextField(value = token, onValueChange = { token = it },
+            OutlinedTextField(value = token, onValueChange = { if (!busy) token = it },
+                readOnly = busy,
                 label = { Text("Owner token · memory only") }, singleLine = true,
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))

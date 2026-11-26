@@ -91,6 +91,9 @@ independent AES-256-GCM key, random nonce and authenticated version marker.
 In SQLCipher mode its temporary SQLite snapshot is **also SQLCipher-encrypted**,
 so the backup directory never needs a plaintext intermediate DB. The original
 plaintext mode remains supported with an ephemeral private plaintext snapshot.
+The utility checks the snapshot size before loading it into memory and
+atomically publishes the fully written encrypted archive without overwriting
+an existing output.
 
     cd server
     uv run --locked --extra sqlcipher python -m app.backup backup \

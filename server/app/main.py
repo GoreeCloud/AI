@@ -8,16 +8,19 @@ import json
 import os
 import re
 import sys
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
+import anyio
 from docx import Document
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
+from starlette.types import Send
 
 from . import database, import_sandbox, mcp_tools, providers, storage, token_savings, upload_validation
 from .security import require_capability, require_owner
@@ -402,6 +405,20 @@ async def chat(request: ChatRequest, http_request: Request):
     return output
 
 
+class _ChatStreamingResponse(StreamingResponse):
+    def __init__(self, events: AsyncGenerator[str, None], headers: dict[str, str]):
+        super().__init__(events, media_type="text/event-stream", headers=headers)
+        self._events = events
+
+    async def stream_response(self, send: Send) -> None:
+        try:
+            await super().stream_response(send)
+        finally:
+            # A downstream send can fail while the iterator is suspended at yield.
+            with anyio.CancelScope(shield=True):
+                await self._events.aclose()
+
+
 @app.post("/api/v1/chat/stream", dependencies=[Depends(require_owner)])
 async def chat_stream(request: ChatRequest, http_request: Request):
     if request.allow_local_fallback:
@@ -463,36 +480,36 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         fragments: list[str] = []
         total_chars = 0
         bounded = True
-        async for message in stream:
-            if digest is not None and message.get("type") == "delta":
-                fragment = message.get("content")
-                if isinstance(fragment, str) and fragment:
-                    total_chars += len(fragment)
-                    if total_chars <= token_savings.MAX_RESPONSE_CHARS:
-                        fragments.append(fragment)
-                    else:
-                        bounded = False
-            elif digest is not None and message.get("type") == "done":
-                complete = (
-                    message.get("upstream_terminal") is True and bounded and
-                    total_chars > 0 and message.get("provider") == selected
-                )
-                stored = False
-                if complete:
-                    stored = token_savings.response_cache.put(
-                        digest, {"provider": selected, "model": message.get("model"),
-                                 "content": "".join(fragments)},
-                        epoch=cache_epoch,
+        async with contextlib.aclosing(stream):
+            async for message in stream:
+                if digest is not None and message.get("type") == "delta":
+                    fragment = message.get("content")
+                    if isinstance(fragment, str) and fragment:
+                        total_chars += len(fragment)
+                        if total_chars <= token_savings.MAX_RESPONSE_CHARS:
+                            fragments.append(fragment)
+                        else:
+                            bounded = False
+                elif digest is not None and message.get("type") == "done":
+                    complete = (
+                        message.get("upstream_terminal") is True and bounded and
+                        total_chars > 0 and message.get("provider") == selected
                     )
-                message = {
-                    **message,
-                    "cache": {"mode": "local-process-memory", "hit": False,
-                              "stored": stored, "provider_contacted": True},
-                }
-            yield "data: " + json.dumps(message, ensure_ascii=True) + "\n\n"
+                    stored = False
+                    if complete:
+                        stored = token_savings.response_cache.put(
+                            digest, {"provider": selected, "model": message.get("model"),
+                                     "content": "".join(fragments)},
+                            epoch=cache_epoch,
+                        )
+                    message = {
+                        **message,
+                        "cache": {"mode": "local-process-memory", "hit": False,
+                                  "stored": stored, "provider_contacted": True},
+                    }
+                yield "data: " + json.dumps(message, ensure_ascii=True) + "\n\n"
 
-    return StreamingResponse(events(), media_type="text/event-stream",
-                             headers=headers)
+    return _ChatStreamingResponse(events(), headers)
 
 
 def checked_reference(value: str | None) -> str | None:

@@ -21,6 +21,31 @@ class RecordingChatStream(ChatStreamBridge):
 def check_chat_transcript(window, stream):
     context = qmlContext(window)
     prompt = context.objectForName("chatPrompt")
+    thread = context.objectForName("threadModel")
+    endpoint = context.objectForName("apiEndpointField")
+    owner_token = context.objectForName("ownerTokenField")
+    initial_endpoint = window.property("endpoint")
+    window.setProperty("busy", True)
+    assert endpoint.property("readOnly") and owner_token.property("readOnly")
+    endpoint.setProperty("text", "https://fixture.invalid")
+    endpoint.editingFinished.emit()
+    owner_token.setProperty("text", "synthetic-queued-edit")
+    assert window.property("endpoint") == initial_endpoint
+    assert window.property("token") == ""
+    window.setProperty("busy", False)
+    assert not endpoint.property("readOnly") and not owner_token.property("readOnly")
+    endpoint.setProperty("text", initial_endpoint)
+    owner_token.setProperty("text", "")
+    for streaming, token in ((True, ""), (False, "   ")):
+        window.setProperty("streamResponses", streaming)
+        window.setProperty("token", token)
+        prompt.setProperty("text", "Unsent draft")
+        window.sendChat()
+        assert prompt.property("text") == "Unsent draft"
+        assert thread.property("count") == 0
+        assert not window.property("busy")
+        assert window.property("feedback") == "Enter an owner token before sending a request."
+    window.setProperty("streamResponses", True)
     window.setProperty("token", "synthetic-owner-token")
 
     def send(text):
