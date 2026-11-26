@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
 type Tab = 'Chat' | 'Images' | 'Documents' | 'Agents' | 'MCP'
@@ -60,7 +60,7 @@ export default function App() {
   const [providerPromptCache, setProviderPromptCache] = useState(false)
   const [cacheSessionId, setCacheSessionId] = useState(() => globalThis.crypto?.randomUUID?.() || null)
   const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null)
-  const streamAbort = useRef<AbortController | null>(null)
+  const [streamAbort, setStreamAbort] = useState<AbortController | null>(null)
   const [savedChats, setSavedChats] = useState<SavedConversation[]>([])
   const [chatQuery, setChatQuery] = useState('')
   const [chatResults, setChatResults] = useState<SavedConversation[] | null>(null)
@@ -285,7 +285,7 @@ export default function App() {
         return
       }
       const controller = new AbortController()
-      streamAbort.current = controller
+      setStreamAbort(controller)
       try {
         const response = await fetch(apiOrigin(endpoint) + '/api/v1/chat/stream', {
           method: 'POST',
@@ -296,6 +296,7 @@ export default function App() {
         })
         if (!response.ok) {
           const details = await response.json().catch(() => ({})) as { detail?: string }
+          controller.signal.throwIfAborted()
           throw Error(details.detail || 'Streaming request failed (' + response.status + ')')
         }
         if (!response.body) throw Error('Streaming unavailable in this browser')
@@ -303,10 +304,9 @@ export default function App() {
         const decoder = new TextDecoder()
         let pending = ''
         let output = ''
-        let complete = false
         while (true) {
           const part = await reader.read()
-          if (part.done) break
+          if (part.done) throw Error('Model stream stopped before completion')
           pending += decoder.decode(part.value, { stream: true })
           if (pending.length > 250000) throw Error('Stream event exceeded buffer limit')
           const records = pending.split('\n\n')
@@ -325,7 +325,6 @@ export default function App() {
               setMessages([...next, { role: 'assistant', content: output }])
             }
             if (event.type === 'done') {
-              complete = true
               const providerCache = event.provider_response_cache
                 ? ' · OpenRouter response cache ' + event.provider_response_cache.status : ''
               const cachedTokens = event.provider_prompt_cache?.reported_token_details?.cached_tokens
@@ -335,11 +334,14 @@ export default function App() {
               setNotice('Stream complete · ' + event.provider + ' · ' + event.model +
                 localCache + providerCache +
                 (cachedTokens ? ' · ' + cachedTokens + ' provider-reported cached input tokens' : ''))
+              return
             }
           }
         }
-        if (!complete) throw Error('Model stream stopped before completion')
-      } finally { streamAbort.current = null }
+      } finally {
+        controller.abort()
+        setStreamAbort(null)
+      }
     })
   }
 
@@ -752,8 +754,8 @@ export default function App() {
             <label className="sr-only" htmlFor="chat-prompt">Chat prompt</label>
             <textarea id="chat-prompt" value={prompt} rows={3} placeholder="Ask anything…" onChange={e => setPrompt(e.target.value)} />
             <div className="actions"><small>Cloud processing requires separate consent.</small>
-              {busy && streaming && <button type="button" className="secondary"
-                onClick={() => streamAbort.current?.abort()}>Stop stream</button>}
+              {streamAbort && <button type="button" className="secondary"
+                onClick={() => streamAbort.abort()}>Stop stream</button>}
               <button disabled={busy || !prompt.trim()}>Send message</button></div>
           </form>
         </div>
